@@ -35,8 +35,11 @@
   .top-bar h1 { font-size: 18px; font-weight: 500; }
   .meta { font-size: 12px; color: var(--text2); display: flex; gap: 16px; align-items: center; }
   .badge-live { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; background: var(--success-bg); color: var(--success-text); padding: 3px 10px; border-radius: 20px; }
+  .badge-loading { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; background: var(--info-bg); color: var(--info-text); padding: 3px 10px; border-radius: 20px; }
   .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success-text); animation: pulse 1.5s infinite; }
+  .dot-spin { width: 10px; height: 10px; border: 2px solid var(--info-text); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; display: inline-block; }
   @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+  @keyframes spin { to{transform:rotate(360deg)} }
   .tabs { display: flex; gap: 4px; border-bottom: 0.5px solid var(--border); margin-bottom: 1rem; }
   .tab { font-size: 13px; padding: 7px 16px; cursor: pointer; color: var(--text2); border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -0.5px; transition: all .15s; }
   .tab.active { color: var(--text); font-weight: 500; border-bottom-color: var(--text); }
@@ -76,7 +79,7 @@
   td { padding: 7px 8px; border-bottom: 0.5px solid var(--border); }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--bg2); }
-  .upload-zone { border: 0.5px dashed var(--border2); border-radius: var(--radius-lg); padding: 2rem; text-align: center; cursor: pointer; transition: background .15s; margin-bottom: 1rem; }
+  .upload-zone { border: 0.5px dashed var(--border2); border-radius: var(--radius-lg); padding: 1.5rem; text-align: center; cursor: pointer; transition: background .15s; margin-bottom: 1rem; }
   .upload-zone:hover { background: var(--bg2); }
   .file-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
   .chip { font-size: 11px; padding: 3px 10px; border-radius: var(--radius); border: 0.5px solid var(--border); color: var(--text2); }
@@ -90,7 +93,8 @@
   button:hover { background: var(--bg2); }
   button:disabled { opacity: .4; cursor: default; }
   .paginacion { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 12px; color: var(--text2); }
-  .auto-refresh { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); margin-bottom: 1rem; padding: 10px 14px; background: var(--bg2); border-radius: var(--radius); }
+  .auto-info { font-size: 12px; color: var(--text2); background: var(--bg2); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+  .divider { border: none; border-top: 0.5px solid var(--border); margin: 1rem 0; }
 </style>
 </head>
 <body>
@@ -98,7 +102,8 @@
   <div class="top-bar">
     <h1>Dashboard operativo — transporte</h1>
     <div class="meta">
-      <span id="last-update">Sin datos</span>
+      <span id="last-update">Cargando datos...</span>
+      <span class="badge-loading" id="badge-loading"><span class="dot-spin"></span>Cargando</span>
       <span class="badge-live" id="live-badge" style="display:none"><span class="dot"></span>Datos cargados</span>
     </div>
   </div>
@@ -106,7 +111,7 @@
   <div class="tabs">
     <button class="tab active" onclick="setTab('resumen')">Resumen</button>
     <button class="tab" onclick="setTab('detalle')">Detalle de viajes</button>
-    <button class="tab" onclick="setTab('datos')">Cargar datos</button>
+    <button class="tab" onclick="setTab('datos')">Actualizar datos</button>
   </div>
 
   <div id="tab-resumen" class="page active">
@@ -163,18 +168,14 @@
   </div>
 
   <div id="tab-datos" class="page">
-    <div class="auto-refresh">
-      <span>Auto-refresh cada:</span>
-      <select id="refresh-sel" onchange="setAutoRefresh()">
-        <option value="0">Desactivado</option>
-        <option value="5">5 min</option>
-        <option value="15">15 min</option>
-        <option value="30" selected>30 min</option>
-      </select>
-      <span id="next-refresh-label"></span>
+    <div class="auto-info">
+      <span>Los datos se cargan automáticamente desde GitHub al abrir el dashboard.</span>
+      <button onclick="cargarDesdeGitHub(true)" style="margin-left:auto;">Recargar ahora</button>
     </div>
+    <hr class="divider">
+    <p style="font-size:12px;color:var(--text2);margin-bottom:1rem;">¿Tienes datos más recientes? Arrastra los archivos <strong>.json.gz</strong> para sobreescribir los datos actuales.</p>
     <div class="upload-zone" onclick="document.getElementById('fi').click()">
-      <p style="font-size:13px;color:var(--text2);margin-bottom:4px;">Arrastra los archivos <strong>.json.gz</strong> o haz clic para seleccionar</p>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:4px;">Arrastra archivos <strong>.json.gz</strong> o haz clic para seleccionar</p>
       <p style="font-size:11px;color:var(--text2);">programa_consolidado · seguimiento_consolidado · api_historico · costos_limpio</p>
       <input type="file" id="fi" multiple accept=".gz" style="display:none" onchange="handleFiles(this.files)">
       <div class="file-chips">
@@ -184,11 +185,19 @@
         <span class="chip" id="c-cos">costos</span>
       </div>
     </div>
-    <div class="log" id="log">Esperando archivos .json.gz...</div>
+    <div class="log" id="log">Iniciando carga automática...</div>
   </div>
 </div>
 
 <script>
+const BASE_URL = 'https://raw.githubusercontent.com/alexanderortega2000-glitch/AuTransp/main/data/';
+const ARCHIVOS_GH = {
+  prog: 'programa_consolidado.json.gz',
+  seg:  'seguimiento_consolidado.json.gz',
+  api:  'api_historico.json.gz',
+  cos:  'costos_limpio.json.gz',
+};
+
 const ESTADOS_CSS = {
   'No programado':'s-noprog','A demanda':'s-demand','Programado':'s-prog',
   'Programado a demanda':'s-progdem','En proceso':'s-enproceso','Abortado':'s-abortado',
@@ -203,7 +212,7 @@ const COLORS = {
   'Finalizado':'#1d9e75','Integrado':'#0f6e56','Pagado':'#085041'
 };
 
-let viajes=[], vFilt=[], pg=0, chartInst=null, refreshTimer=null;
+let viajes=[], vFilt=[], pg=0, chartInst=null;
 const PX=50;
 const datos={prog:null,seg:null,api:null,cos:null};
 
@@ -220,35 +229,73 @@ function setTab(t){
   });
 }
 
+async function descomprimirJSON(buffer){
+  const uint8 = new Uint8Array(buffer);
+  const dec   = pako.inflate(uint8);
+  return JSON.parse(new TextDecoder('utf-8').decode(dec));
+}
+
+async function cargarDesdeGitHub(manual=false){
+  if(manual) log('Recargando datos desde GitHub...');
+  else log('Cargando datos automáticamente desde GitHub...');
+
+  document.getElementById('badge-loading').style.display='inline-flex';
+  document.getElementById('live-badge').style.display='none';
+  document.getElementById('last-update').textContent='Cargando...';
+
+  let alguno=false;
+  for(const [key,nombre] of Object.entries(ARCHIVOS_GH)){
+    const url = BASE_URL + nombre + '?t=' + Date.now(); // evitar caché
+    log('Descargando '+nombre+'...');
+    try{
+      const resp = await fetch(url);
+      if(!resp.ok) throw new Error('HTTP '+resp.status);
+      const buf  = await resp.arrayBuffer();
+      const rows = await descomprimirJSON(buf);
+      datos[key] = rows;
+      log(nombre+' — '+rows.length.toLocaleString()+' registros OK');
+      alguno=true;
+    }catch(e){
+      log('Error descargando '+nombre+': '+e.message);
+    }
+  }
+
+  if(alguno){
+    log('Procesando viajes...');
+    procesarFuentes();
+  } else {
+    document.getElementById('badge-loading').style.display='none';
+    document.getElementById('last-update').textContent='Error al cargar datos';
+    log('No se pudieron cargar los datos desde GitHub.');
+  }
+}
+
 async function handleFiles(files){
-  log('Iniciando lectura de '+files.length+' archivo(s)...');
+  log('Cargando '+files.length+' archivo(s) manual(es)...');
   for(const f of Array.from(files)){
     const nom=f.name.toLowerCase();
-    let chipId=null,key=null;
-    if(nom.includes('programa')&&!nom.includes('seg')){chipId='c-prog';key='prog';}
-    else if(nom.includes('seguimiento')){chipId='c-seg';key='seg';}
-    else if(nom.includes('api')||nom.includes('historico')){chipId='c-api';key='api';}
-    else if(nom.includes('costo')){chipId='c-cos';key='cos';}
+    let key=null;
+    if(nom.includes('programa')&&!nom.includes('seg')) key='prog';
+    else if(nom.includes('seguimiento')) key='seg';
+    else if(nom.includes('api')||nom.includes('historico')) key='api';
+    else if(nom.includes('costo')) key='cos';
     if(!key){log('No reconocido: '+f.name);continue;}
-    const chip=document.getElementById(chipId);
+    const chip=document.getElementById('c-'+key);
     chip.className='chip loading';
-    chip.textContent=key+'...';
-    log('Leyendo '+f.name+'...');
     try{
       const buf=await f.arrayBuffer();
-      const dec=pako.inflate(new Uint8Array(buf));
-      const rows=JSON.parse(new TextDecoder('utf-8').decode(dec));
+      const rows=await descomprimirJSON(buf);
       datos[key]=rows;
       chip.className='chip ok';
       chip.textContent=key+' ✓ ('+rows.length.toLocaleString()+')';
       log(f.name+' — '+rows.length.toLocaleString()+' registros OK');
     }catch(e){
       chip.className='chip err';
-      chip.textContent=key+' error';
       log('Error en '+f.name+': '+e.message);
     }
   }
-  if(datos.prog||datos.seg||datos.api){log('Procesando...');procesarFuentes();}
+  log('Procesando...');
+  procesarFuentes();
 }
 
 const dz=document.querySelector('.upload-zone');
@@ -313,7 +360,9 @@ function procesarFuentes(){
   viajes=Object.values(m).map(v=>{v.estado=determinarEstado(v);return v;});
   vFilt=[...viajes];
   poblarFiltros();actualizarKPIs();pg=0;renderTabla();
-  document.getElementById('last-update').textContent='Actualizado: '+new Date().toLocaleTimeString('es-SV');
+  const ahora = new Date().toLocaleTimeString('es-SV');
+  document.getElementById('last-update').textContent='Actualizado: '+ahora;
+  document.getElementById('badge-loading').style.display='none';
   document.getElementById('live-badge').style.display='inline-flex';
   setTab('resumen');
   log('Listo. '+viajes.length.toLocaleString()+' viajes únicos.');
@@ -433,18 +482,8 @@ function irPag(n){
   pg=n;renderTabla();
 }
 
-function setAutoRefresh(){
-  if(refreshTimer)clearInterval(refreshTimer);
-  const mins=parseInt(document.getElementById('refresh-sel').value);
-  if(mins>0){
-    refreshTimer=setInterval(()=>{
-      document.getElementById('last-update').textContent='Actualizado: '+new Date().toLocaleTimeString('es-SV');
-    },mins*60000);
-    document.getElementById('next-refresh-label').textContent='próximo refresh en '+mins+' min';
-  }else{
-    document.getElementById('next-refresh-label').textContent='';
-  }
-}
+// Carga automática al abrir
+window.addEventListener('load', () => cargarDesdeGitHub(false));
 </script>
 </body>
 </html>
