@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Operativo — Transporte</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeede8;
+    --text: #1a1a18; --text2: #6b6b67; --text3: #9b9b97;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.2);
+    --success-bg: #eaf3de; --success-text: #3b6d11;
+    --warning-bg: #faeeda; --warning-text: #854f0b;
+    --info-bg: #e6f1fb; --info-text: #185fa5;
+    --danger-bg: #fcebeb; --danger-text: #a32d2d;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18; --bg2: #2c2c2a; --bg3: #444441;
+      --text: #f1efe8; --text2: #b4b2a9; --text3: #888780;
+      --border: rgba(255,255,255,0.12); --border2: rgba(255,255,255,0.2);
+      --success-bg: #173404; --success-text: #c0dd97;
+      --warning-bg: #412402; --warning-text: #fac775;
+      --info-bg: #042c53; --info-text: #b5d4f4;
+      --danger-bg: #501313; --danger-text: #f7c1c1;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+  .top-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 1rem; border-bottom: 0.5px solid var(--border); margin-bottom: 1rem; }
+  .top-bar h1 { font-size: 18px; font-weight: 500; }
+  .meta { font-size: 12px; color: var(--text2); display: flex; gap: 16px; align-items: center; }
+  .badge-live { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; background: var(--success-bg); color: var(--success-text); padding: 3px 10px; border-radius: 20px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success-text); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+  .tabs { display: flex; gap: 4px; border-bottom: 0.5px solid var(--border); margin-bottom: 1rem; }
+  .tab { font-size: 13px; padding: 7px 16px; cursor: pointer; color: var(--text2); border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -0.5px; transition: all .15s; }
+  .tab.active { color: var(--text); font-weight: 500; border-bottom-color: var(--text); }
+  .page { display: none; }
+  .page.active { display: block; }
+  .macro-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 1rem; }
+  .macro-card { border-radius: var(--radius); padding: 12px 16px; border: 0.5px solid var(--border); }
+  .macro-card.pending { background: var(--warning-bg); }
+  .macro-card.active  { background: var(--info-bg); }
+  .macro-card.done    { background: var(--success-bg); }
+  .macro-title { font-size: 11px; font-weight: 500; margin-bottom: 4px; }
+  .macro-card.pending .macro-title { color: var(--warning-text); }
+  .macro-card.active  .macro-title { color: var(--info-text); }
+  .macro-card.done    .macro-title { color: var(--success-text); }
+  .macro-num { font-size: 28px; font-weight: 500; }
+  .macro-detail { font-size: 10px; color: var(--text2); margin-top: 2px; }
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; margin-bottom: 1rem; }
+  .metric-card { background: var(--bg2); border-radius: var(--radius); padding: 12px 14px; }
+  .metric-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+  .metric-value { font-size: 28px; font-weight: 500; line-height: 1; }
+  .metric-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+  .section-title { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+  .progress-bar { height: 6px; border-radius: 3px; background: var(--bg3); overflow: hidden; margin-top: 4px; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+  .status-pill { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
+  .s-noprog    { background: var(--bg2); color: var(--text2); }
+  .s-demand    { background: var(--bg2); color: var(--text2); }
+  .s-prog      { background: var(--warning-bg); color: var(--warning-text); }
+  .s-progdem   { background: var(--warning-bg); color: var(--warning-text); }
+  .s-enproceso { background: var(--info-bg); color: var(--info-text); }
+  .s-abortado  { background: var(--danger-bg); color: var(--danger-text); }
+  .s-finalizado{ background: var(--success-bg); color: var(--success-text); }
+  .s-integrado { background: var(--success-bg); color: var(--success-text); }
+  .s-pagado    { background: #d4f0e0; color: #0f6e56; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { font-size: 11px; font-weight: 500; color: var(--text2); text-align: left; padding: 7px 8px; border-bottom: 0.5px solid var(--border); white-space: nowrap; }
+  td { padding: 7px 8px; border-bottom: 0.5px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg2); }
+  .upload-zone { border: 0.5px dashed var(--border2); border-radius: var(--radius-lg); padding: 2rem; text-align: center; cursor: pointer; transition: background .15s; margin-bottom: 1rem; }
+  .upload-zone:hover { background: var(--bg2); }
+  .file-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
+  .chip { font-size: 11px; padding: 3px 10px; border-radius: var(--radius); border: 0.5px solid var(--border); color: var(--text2); }
+  .chip.ok  { background: var(--success-bg); color: var(--success-text); border-color: transparent; }
+  .chip.err { background: var(--danger-bg); color: var(--danger-text); border-color: transparent; }
+  .chip.loading { background: var(--info-bg); color: var(--info-text); border-color: transparent; }
+  .log { font-size: 11px; font-family: monospace; color: var(--text2); background: var(--bg2); border-radius: var(--radius); padding: 10px 12px; max-height: 140px; overflow-y: auto; margin-top: 10px; line-height: 1.7; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; font-size: 12px; color: var(--text2); }
+  .filters select, .filters input[type=date] { font-size: 12px; padding: 4px 8px; height: 28px; background: var(--bg); color: var(--text); border: 0.5px solid var(--border2); border-radius: var(--radius); }
+  button { font-size: 12px; padding: 5px 12px; background: var(--bg); color: var(--text); border: 0.5px solid var(--border2); border-radius: var(--radius); cursor: pointer; }
+  button:hover { background: var(--bg2); }
+  button:disabled { opacity: .4; cursor: default; }
+  .paginacion { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 12px; color: var(--text2); }
+  .auto-refresh { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); margin-bottom: 1rem; padding: 10px 14px; background: var(--bg2); border-radius: var(--radius); }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="top-bar">
+    <h1>Dashboard operativo — transporte</h1>
+    <div class="meta">
+      <span id="last-update">Sin datos</span>
+      <span class="badge-live" id="live-badge" style="display:none"><span class="dot"></span>Datos cargados</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="setTab('resumen')">Resumen</button>
+    <button class="tab" onclick="setTab('detalle')">Detalle de viajes</button>
+    <button class="tab" onclick="setTab('datos')">Cargar datos</button>
+  </div>
+
+  <div id="tab-resumen" class="page active">
+    <div class="macro-grid">
+      <div class="macro-card pending">
+        <div class="macro-title">Pendientes</div>
+        <div class="macro-num" id="m-pend">—</div>
+        <div class="macro-detail">No prog · Programado · A demanda</div>
+      </div>
+      <div class="macro-card active">
+        <div class="macro-title">En curso</div>
+        <div class="macro-num" id="m-curso">—</div>
+        <div class="macro-detail">En proceso</div>
+      </div>
+      <div class="macro-card done">
+        <div class="macro-title">Terminados</div>
+        <div class="macro-num" id="m-term">—</div>
+        <div class="macro-detail">Finalizado · Integrado · Pagado</div>
+      </div>
+    </div>
+    <div class="metrics-grid">
+      <div class="metric-card"><div class="metric-label">Total viajes</div><div class="metric-value" id="kpi-total">—</div></div>
+      <div class="metric-card"><div class="metric-label">Ciclo cerrado</div><div class="metric-value" id="kpi-ciclo">—</div><div class="metric-sub" id="kpi-ciclo-sub"></div></div>
+      <div class="metric-card"><div class="metric-label">Sin cerrar ciclo</div><div class="metric-value" id="kpi-nociclo">—</div><div class="metric-sub">finalizados no en costos</div></div>
+      <div class="metric-card"><div class="metric-label">Abortados</div><div class="metric-value" id="kpi-abort">—</div></div>
+    </div>
+    <div class="section-title">Distribución por estado</div>
+    <div style="position:relative;width:100%;height:240px;margin-bottom:1.5rem;">
+      <canvas id="chart-estados" role="img" aria-label="Distribución de viajes por estado"></canvas>
+    </div>
+    <div class="section-title">Progreso de ciclo de vida</div>
+    <div id="ciclo-bars" style="margin-bottom:1rem;"></div>
+  </div>
+
+  <div id="tab-detalle" class="page">
+    <div class="filters">
+      <label>Fecha:</label><input type="date" id="f-fecha">
+      <label>Estado:</label><select id="f-estado"><option value="">Todos</option></select>
+      <label>Coordinador:</label><select id="f-coord"><option value="">Todos</option></select>
+      <label>Zona:</label><select id="f-zona"><option value="">Todas</option></select>
+      <button onclick="aplicarFiltros()">Filtrar</button>
+      <button onclick="limpiarFiltros()">Limpiar</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th>ST</th><th>Estado</th><th>Tipo viaje</th><th>Origen</th><th>Destino</th>
+          <th>Coordinador</th><th>Zona</th><th>Hora plan</th><th>Hora real</th><th>Ciclo</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="paginacion" id="paginacion"></div>
+  </div>
+
+  <div id="tab-datos" class="page">
+    <div class="auto-refresh">
+      <span>Auto-refresh cada:</span>
+      <select id="refresh-sel" onchange="setAutoRefresh()">
+        <option value="0">Desactivado</option>
+        <option value="5">5 min</option>
+        <option value="15">15 min</option>
+        <option value="30" selected>30 min</option>
+      </select>
+      <span id="next-refresh-label"></span>
+    </div>
+    <div class="upload-zone" onclick="document.getElementById('fi').click()">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:4px;">Arrastra los archivos <strong>.json.gz</strong> o haz clic para seleccionar</p>
+      <p style="font-size:11px;color:var(--text2);">programa_consolidado · seguimiento_consolidado · api_historico · costos_limpio</p>
+      <input type="file" id="fi" multiple accept=".gz" style="display:none" onchange="handleFiles(this.files)">
+      <div class="file-chips">
+        <span class="chip" id="c-prog">programa</span>
+        <span class="chip" id="c-seg">seguimiento</span>
+        <span class="chip" id="c-api">api_historico</span>
+        <span class="chip" id="c-cos">costos</span>
+      </div>
+    </div>
+    <div class="log" id="log">Esperando archivos .json.gz...</div>
+  </div>
+</div>
+
+<script>
+const ESTADOS_CSS = {
+  'No programado':'s-noprog','A demanda':'s-demand','Programado':'s-prog',
+  'Programado a demanda':'s-progdem','En proceso':'s-enproceso','Abortado':'s-abortado',
+  'Finalizado':'s-finalizado','Integrado':'s-integrado','Pagado':'s-pagado'
+};
+const MACRO_PEND  = ['No programado','A demanda','Programado','Programado a demanda'];
+const MACRO_CURSO = ['En proceso'];
+const MACRO_TERM  = ['Finalizado','Integrado','Pagado'];
+const COLORS = {
+  'No programado':'#b4b2a9','A demanda':'#888780','Programado':'#ef9f27',
+  'Programado a demanda':'#fac775','En proceso':'#378add','Abortado':'#e24b4a',
+  'Finalizado':'#1d9e75','Integrado':'#0f6e56','Pagado':'#085041'
+};
+
+let viajes=[], vFilt=[], pg=0, chartInst=null, refreshTimer=null;
+const PX=50;
+const datos={prog:null,seg:null,api:null,cos:null};
+
+function log(msg){
+  const el=document.getElementById('log');
+  el.innerHTML+='\n'+new Date().toLocaleTimeString('es-SV')+' — '+msg;
+  el.scrollTop=el.scrollHeight;
+}
+
+function setTab(t){
+  ['resumen','detalle','datos'].forEach((n,i)=>{
+    document.querySelectorAll('.tab')[i].classList.toggle('active',n===t);
+    document.getElementById('tab-'+n).classList.toggle('active',n===t);
+  });
+}
+
+async function handleFiles(files){
+  log('Iniciando lectura de '+files.length+' archivo(s)...');
+  for(const f of Array.from(files)){
+    const nom=f.name.toLowerCase();
+    let chipId=null,key=null;
+    if(nom.includes('programa')&&!nom.includes('seg')){chipId='c-prog';key='prog';}
+    else if(nom.includes('seguimiento')){chipId='c-seg';key='seg';}
+    else if(nom.includes('api')||nom.includes('historico')){chipId='c-api';key='api';}
+    else if(nom.includes('costo')){chipId='c-cos';key='cos';}
+    if(!key){log('No reconocido: '+f.name);continue;}
+    const chip=document.getElementById(chipId);
+    chip.className='chip loading';
+    chip.textContent=key+'...';
+    log('Leyendo '+f.name+'...');
+    try{
+      const buf=await f.arrayBuffer();
+      const dec=pako.inflate(new Uint8Array(buf));
+      const rows=JSON.parse(new TextDecoder('utf-8').decode(dec));
+      datos[key]=rows;
+      chip.className='chip ok';
+      chip.textContent=key+' ✓ ('+rows.length.toLocaleString()+')';
+      log(f.name+' — '+rows.length.toLocaleString()+' registros OK');
+    }catch(e){
+      chip.className='chip err';
+      chip.textContent=key+' error';
+      log('Error en '+f.name+': '+e.message);
+    }
+  }
+  if(datos.prog||datos.seg||datos.api){log('Procesando...');procesarFuentes();}
+}
+
+const dz=document.querySelector('.upload-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='var(--bg2)';});
+dz.addEventListener('dragleave',()=>{dz.style.background='';});
+dz.addEventListener('drop',e=>{e.preventDefault();dz.style.background='';handleFiles(e.dataTransfer.files);});
+
+function n(v){return(v==null||v===''||v==='nan'||v==='None'||v==='<NA>')?null:String(v).trim();}
+function g(obj,...keys){for(const k of keys){if(obj[k]!=null&&obj[k]!=='')return obj[k];}return null;}
+
+function determinarEstado(v){
+  if(n(v.estadoViaje)==='Abortado')return 'Abortado';
+  if(v.pagado)return 'Pagado';
+  if(v.enCostos)return 'Integrado';
+  const ea=n(v.estadoAPI);
+  if(ea==='Finalizada'||ea==='Finalizado sin Reanudar')return 'Finalizado';
+  if(v.fechaInicio)return 'En proceso';
+  if(v.enAPI&&v.enProg)return 'Programado';
+  if(v.enAPI&&v.enSeg&&!v.enProg)return 'Programado a demanda';
+  if(!v.enAPI&&v.enSeg&&!v.enProg)return 'A demanda';
+  if(v.enProg&&!v.enAPI)return 'No programado';
+  return 'Programado';
+}
+
+function procesarFuentes(){
+  const m={};
+  const mk=st=>{if(!m[st])m[st]={st,enAPI:false,enProg:false,enSeg:false,enCostos:false,pagado:false};return m[st];};
+  if(datos.api)datos.api.forEach(r=>{
+    const st=n(g(r,'ID_ST'));if(!st)return;
+    const v=mk(st);v.enAPI=true;v.estadoAPI=n(r.Estado);v.tipoViaje=n(r.TipoViaje);
+    v.origen=n(r.DsPuntoPartida);v.destino=n(r.DsPuntoEntrega);
+    v.fechaInicio=n(r.FechaInicioViaje);v.motorista=n(r.Nom_Motorista);
+    v.fechaEntrega=n(r.FechaEntrega);v.km=r.Km;
+  });
+  if(datos.prog)datos.prog.forEach(r=>{
+    const st=n(g(r,'ST','st'));if(!st)return;
+    const v=mk(st);v.enProg=true;
+    v.coordinador=n(g(r,'Coordinador','coordinador'));
+    v.zona=n(g(r,'Zona','zona'));
+    v.horaPlan=n(g(r,'HoraPlanInicio'));
+    v.estadoViaje=n(g(r,'EstatusViaje'));
+    v.fechaEjec=n(g(r,'FechaEjecucion'));
+    v.tipoPrograma=n(r.TipoPrograma);
+    if(!v.tipoViaje)v.tipoViaje=n(g(r,'NombreServicio'));
+    if(!v.origen)v.origen=n(g(r,'NombreOrigen'));
+    if(!v.destino)v.destino=n(g(r,'NombreDestino'));
+  });
+  if(datos.seg)datos.seg.forEach(r=>{
+    const st=n(g(r,'ST','st'));if(!st)return;
+    const v=mk(st);v.enSeg=true;
+    v.horaReal=n(g(r,'HoraRealInicio'));
+    v.estadoViaje=n(g(r,'EstatusViaje'))||v.estadoViaje;
+    if(!v.coordinador)v.coordinador=n(g(r,'Coordinador'));
+    if(!v.fechaEjec)v.fechaEjec=n(g(r,'FechaEjecucion'));
+  });
+  if(datos.cos)datos.cos.forEach(r=>{
+    const st=n(g(r,'ST','st'));if(!st)return;
+    const v=mk(st);v.enCostos=true;
+    const ip=n(g(r,'IntegracionPago','IntegracionCobro'));
+    v.pagado=ip&&ip.includes('PROCESADO');
+  });
+  viajes=Object.values(m).map(v=>{v.estado=determinarEstado(v);return v;});
+  vFilt=[...viajes];
+  poblarFiltros();actualizarKPIs();pg=0;renderTabla();
+  document.getElementById('last-update').textContent='Actualizado: '+new Date().toLocaleTimeString('es-SV');
+  document.getElementById('live-badge').style.display='inline-flex';
+  setTab('resumen');
+  log('Listo. '+viajes.length.toLocaleString()+' viajes únicos.');
+}
+
+function actualizarKPIs(){
+  const cnt={};Object.keys(ESTADOS_CSS).forEach(e=>cnt[e]=0);
+  viajes.forEach(v=>{if(cnt[v.estado]!==undefined)cnt[v.estado]++;});
+  const pend=MACRO_PEND.reduce((s,e)=>s+(cnt[e]||0),0);
+  const curso=MACRO_CURSO.reduce((s,e)=>s+(cnt[e]||0),0);
+  const term=MACRO_TERM.reduce((s,e)=>s+(cnt[e]||0),0);
+  document.getElementById('m-pend').textContent=pend.toLocaleString();
+  document.getElementById('m-curso').textContent=curso.toLocaleString();
+  document.getElementById('m-term').textContent=term.toLocaleString();
+  document.getElementById('kpi-total').textContent=viajes.length.toLocaleString();
+  document.getElementById('kpi-abort').textContent=(cnt['Abortado']||0).toLocaleString();
+  const finTot=(cnt['Finalizado']||0)+(cnt['Integrado']||0)+(cnt['Pagado']||0);
+  const cerrad=(cnt['Integrado']||0)+(cnt['Pagado']||0);
+  const sinCer=cnt['Finalizado']||0;
+  const pct=finTot>0?Math.round(cerrad/finTot*100):0;
+  document.getElementById('kpi-ciclo').textContent=pct+'%';
+  document.getElementById('kpi-ciclo-sub').textContent=cerrad+' de '+finTot+' terminados';
+  document.getElementById('kpi-nociclo').textContent=sinCer.toLocaleString();
+  actualizarGrafico(cnt);
+  const max=Math.max(finTot,cerrad,sinCer,1);
+  document.getElementById('ciclo-bars').innerHTML=[
+    {label:'Finalizados en API',val:finTot,color:'#1d9e75'},
+    {label:'Integrados en costos',val:cerrad,color:'#0f6e56'},
+    {label:'Sin cerrar ciclo',val:sinCer,color:'#ef9f27'},
+  ].map(e=>`<div style="margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+      <span style="color:var(--text2)">${e.label}</span>
+      <span style="font-weight:500">${e.val.toLocaleString()}</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${Math.round(e.val/max*100)}%;background:${e.color}"></div></div>
+  </div>`).join('');
+}
+
+function actualizarGrafico(cnt){
+  const labels=Object.keys(ESTADOS_CSS).filter(e=>cnt[e]>0);
+  const data=labels.map(e=>cnt[e]);
+  if(chartInst)chartInst.destroy();
+  chartInst=new Chart(document.getElementById('chart-estados').getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:labels.map(l=>COLORS[l]),borderWidth:0,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(128,128,128,.1)'},ticks:{font:{size:11}}},
+              y:{grid:{display:false},ticks:{font:{size:11}}}}}
+  });
+}
+
+function poblarFiltros(){
+  const mk=(vals,id)=>{
+    const sel=document.getElementById(id);
+    const first=sel.options[0].outerHTML;
+    sel.innerHTML=first+[...new Set(vals.filter(Boolean))].sort().map(v=>`<option>${v}</option>`).join('');
+  };
+  mk(viajes.map(v=>v.estado),'f-estado');
+  mk(viajes.map(v=>v.coordinador),'f-coord');
+  mk(viajes.map(v=>v.zona),'f-zona');
+}
+
+function aplicarFiltros(){
+  const fecha=document.getElementById('f-fecha').value;
+  const estado=document.getElementById('f-estado').value;
+  const coord=document.getElementById('f-coord').value;
+  const zona=document.getElementById('f-zona').value;
+  vFilt=viajes.filter(v=>{
+    if(estado&&v.estado!==estado)return false;
+    if(coord&&v.coordinador!==coord)return false;
+    if(zona&&v.zona!==zona)return false;
+    if(fecha&&v.fechaEjec&&!String(v.fechaEjec).startsWith(fecha))return false;
+    return true;
+  });
+  pg=0;renderTabla();
+}
+
+function limpiarFiltros(){
+  ['f-fecha','f-estado','f-coord','f-zona'].forEach(id=>document.getElementById(id).value='');
+  vFilt=[...viajes];pg=0;renderTabla();
+}
+
+function renderTabla(){
+  const page=vFilt.slice(pg*PX,pg*PX+PX);
+  const tbody=document.getElementById('tbody');
+  if(!page.length){
+    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:2rem;">Sin resultados</td></tr>';
+    document.getElementById('paginacion').innerHTML='';return;
+  }
+  tbody.innerHTML=page.map(v=>{
+    const ciclo=v.estado==='Pagado'?'<span style="font-size:11px;color:var(--success-text)">Pagado</span>'
+      :v.estado==='Integrado'?'<span style="font-size:11px;color:var(--success-text)">Integrado</span>'
+      :v.estado==='Finalizado'?'<span style="font-size:11px;color:var(--warning-text)">Pendiente</span>'
+      :'<span style="font-size:11px;color:var(--text3)">—</span>';
+    return `<tr>
+      <td style="font-weight:500">${v.st}</td>
+      <td><span class="status-pill ${ESTADOS_CSS[v.estado]||'s-noprog'}">${v.estado}</span></td>
+      <td style="color:var(--text2);font-size:11px">${v.tipoViaje||'—'}</td>
+      <td>${v.origen||'—'}</td><td>${v.destino||'—'}</td>
+      <td>${v.coordinador||'—'}</td><td>${v.zona||'—'}</td>
+      <td style="color:var(--text2)">${v.horaPlan||'—'}</td>
+      <td style="color:var(--text2)">${v.horaReal||'—'}</td>
+      <td>${ciclo}</td>
+    </tr>`;
+  }).join('');
+  const tot=Math.ceil(vFilt.length/PX);
+  document.getElementById('paginacion').innerHTML=`
+    <button onclick="irPag(${pg-1})" ${pg===0?'disabled':''}>‹</button>
+    <span>Pág ${pg+1} de ${tot} · ${vFilt.length.toLocaleString()} viajes</span>
+    <button onclick="irPag(${pg+1})" ${pg>=tot-1?'disabled':''}>›</button>`;
+}
+
+function irPag(n){
+  const tot=Math.ceil(vFilt.length/PX);
+  if(n<0||n>=tot)return;
+  pg=n;renderTabla();
+}
+
+function setAutoRefresh(){
+  if(refreshTimer)clearInterval(refreshTimer);
+  const mins=parseInt(document.getElementById('refresh-sel').value);
+  if(mins>0){
+    refreshTimer=setInterval(()=>{
+      document.getElementById('last-update').textContent='Actualizado: '+new Date().toLocaleTimeString('es-SV');
+    },mins*60000);
+    document.getElementById('next-refresh-label').textContent='próximo refresh en '+mins+' min';
+  }else{
+    document.getElementById('next-refresh-label').textContent='';
+  }
+}
+</script>
+</body>
+</html>
