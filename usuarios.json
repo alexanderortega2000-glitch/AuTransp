@@ -1,0 +1,86 @@
+{
+  "ARIVAS": {
+    "nombre": "RENE RIVAS",
+    "usuario": "ARIVAS",
+    "rol": "admin",
+    "pin": "9624"
+  },
+  "WAMAYA": {
+    "nombre": "WALTER AMAYA",
+    "usuario": "WAMAYA",
+    "rol": "coordinador",
+    "pin": "2840"
+  },
+  "NCONRADO": {
+    "nombre": "NORMA CONRADO",
+    "usuario": "NCONRADO",
+    "rol": "coordinador",
+    "pin": "5455"
+  },
+  "JAPARICIO": {
+    "nombre": "JUAN APARICIO",
+    "usuario": "JAPARICIO",
+    "rol": "coordinador",
+    "pin": "8447"
+  },
+  "EGUIROLA": {
+    "nombre": "ELMER GUIROLA",
+    "usuario": "EGUIROLA",
+    "rol": "coordinador",
+    "pin": "9538"
+  },
+  "JMONROY": {
+    "nombre": "JOSUE MONROY",
+    "usuario": "JMONROY",
+    "rol": "coordinador",
+    "pin": "1909"
+  },
+  "WSANDOVAL": {
+    "nombre": "WILLIAN SANDOVAL",
+    "usuario": "WSANDOVAL",
+    "rol": "coordinador",
+    "pin": "9199"
+  },
+  "MWHERNANDEZ": {
+    "nombre": "MARIO HERNANDEZ",
+    "usuario": "MWHERNANDEZ",
+    "rol": "coordinador",
+    "pin": "6674"
+  },
+  "KGARCIA": {
+    "nombre": "KEVIN GARCIA",
+    "usuario": "KGARCIA",
+    "rol": "coordinador",
+    "pin": "9640"
+  },
+  "IBARRERA": {
+    "nombre": "INGRID BARRERA",
+    "usuario": "IBARRERA",
+    "rol": "coordinador",
+    "pin": "7631"
+  },
+  "DCARIAS": {
+    "nombre": "DANIEL CARIAS",
+    "usuario": "DCARIAS",
+    "rol": "controlador",
+    "pin": "2253"
+  },
+  "PCONTRERAS": {
+    "nombre": "PAMELA CONTRERAS",
+    "usuario": "PCONTRERAS",
+    "rol": "controlador",
+    "pin": "9834"
+  },
+  "KROSA": {
+    "nombre": "KARINA ROSA",
+    "usuario": "KROSA",
+    "rol": "controlador",
+    "pin": "2335"
+  },
+  "BSANCHEZ": {
+    "nombre": "BRENDA SANCHEZ",
+    "usuario": "BSANCHEZ",
+    "rol": "controlador",
+    "pin": "6576"
+  }
+}
