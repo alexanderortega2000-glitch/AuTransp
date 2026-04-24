@@ -23,6 +23,7 @@ jobs:
 
       - name: Ejecutar actualización de histórico
         env:
-          GITHUB_TOKEN_REPO: ${{ secrets.GITHUB_TOKEN_REPO }}
+          TOKEN_REPO: ${{ secrets.TOKEN_REPO }}
           API_USUARIO: ${{ secrets.API_USUARIO }}
         run: python actualizar_historico.py
+
