@@ -8,7 +8,7 @@ Se ejecuta automáticamente cada domingo a las 11pm via GitHub Actions.
 También se puede ejecutar manualmente desde VS Code cuando sea necesario.
 
 Variables de entorno requeridas (configuradas en GitHub Secrets):
-  GITHUB_TOKEN_REPO  — Personal Access Token con permisos repo
+  TOKEN_REPO  — Personal Access Token con permisos repo
   API_USUARIO        — Usuario de la API de transportes
 """
 
@@ -26,7 +26,7 @@ from io import BytesIO
 # CONFIGURACIÓN
 # ============================================================
 
-GITHUB_TOKEN   = os.environ.get("GITHUB_TOKEN_REPO", "TU_TOKEN_AQUI")
+GITHUB_TOKEN   = os.environ.get("TOKEN_REPO", "TU_TOKEN_AQUI")
 GITHUB_USUARIO = "alexanderortega2000-glitch"
 GITHUB_REPO    = "AuTransp"
 
@@ -226,3 +226,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
