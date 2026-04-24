@@ -110,20 +110,18 @@ def subir_json_gz(ruta_repo: str, registros: list, mensaje: str):
 
 def consultar_semana_anterior() -> pd.DataFrame:
     """
-    Consulta la API para la semana anterior completa.
-    Lunes a domingo de la semana pasada.
+    Consulta la API para el último mes (35 días hacia atrás).
+    Cubre STs que reciben actualizaciones tardías.
     """
-    hoy       = date.today()
-    # Inicio = lunes de la semana pasada
-    lunes_esta = hoy - timedelta(days=hoy.weekday())
-    lunes_ant  = lunes_esta - timedelta(weeks=1)
-    domingo_ant= lunes_ant + timedelta(days=6)
+    hoy     = date.today()
+    inicio  = hoy - timedelta(days=35)
+    fin     = hoy - timedelta(days=1)  # hasta ayer (hoy lo cubre api_actual)
 
-    print(f"  Semana: {lunes_ant.strftime('%d/%m/%Y')} → {domingo_ant.strftime('%d/%m/%Y')}")
+    print(f"  Período: {inicio.strftime('%d/%m/%Y')} → {fin.strftime('%d/%m/%Y')} (últimos 35 días)")
 
     todos  = []
-    cursor = lunes_ant
-    while cursor <= domingo_ant:
+    cursor = inicio
+    while cursor <= fin:
         fin_lote = min(cursor + timedelta(days=1), domingo_ant)
         params   = {
             **API_PARAMS,
