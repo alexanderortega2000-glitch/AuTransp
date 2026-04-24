@@ -30,7 +30,7 @@
     }
   }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
-  .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+  .container { padding: 1rem 1.5rem; }
   .top-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 1rem; border-bottom: 0.5px solid var(--border); margin-bottom: 1rem; }
   .top-bar h1 { font-size: 18px; font-weight: 500; }
   .meta { font-size: 12px; color: var(--text2); display: flex; gap: 16px; align-items: center; }
@@ -100,7 +100,7 @@
 <body>
 <div class="container">
   <div class="top-bar">
-    <h1>Dashboard operativo — transporte</h1>
+    <div style="display:flex;align-items:center;gap:12px;"><h1>Dashboard operativo — transporte</h1><a href="https://alexanderortega2000-glitch.github.io/AuTransp" target="_blank" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);color:var(--text2);text-decoration:none;white-space:nowrap;">Ver pantalla completa ↗</a></div>
     <div class="meta">
       <span id="last-update">Cargando datos...</span>
       <span class="badge-loading" id="badge-loading"><span class="dot-spin"></span>Cargando</span>
@@ -148,10 +148,10 @@
 
   <div id="tab-detalle" class="page">
     <div class="filters">
-      <label>Fecha:</label><input type="date" id="f-fecha">
-      <label>Estado:</label><select id="f-estado"><option value="">Todos</option></select>
-      <label>Coordinador:</label><select id="f-coord"><option value="">Todos</option></select>
-      <label>Zona:</label><select id="f-zona"><option value="">Todas</option></select>
+      <label>Fecha:</label><input type="date" id="f-fecha" onchange="aplicarFiltros()">
+      <label>Estado:</label><select id="f-estado" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+      <label>Coordinador:</label><select id="f-coord" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+      <label>Zona:</label><select id="f-zona" onchange="aplicarFiltros()"><option value="">Todas</option></select>
       <button onclick="aplicarFiltros()">Filtrar</button>
       <button onclick="limpiarFiltros()">Limpiar</button>
     </div>
@@ -435,7 +435,7 @@ function aplicarFiltros(){
     if(estado&&v.estado!==estado)return false;
     if(coord&&v.coordinador!==coord)return false;
     if(zona&&v.zona!==zona)return false;
-    if(fecha&&v.fechaEjec&&!String(v.fechaEjec).startsWith(fecha))return false;
+    if(fecha){const fechas=[v.fechaEjec,v.fechaEntrega].filter(Boolean);if(!fechas.some(f=>String(f).startsWith(fecha)))return false;}
     return true;
   });
   pg=0;renderTabla();
