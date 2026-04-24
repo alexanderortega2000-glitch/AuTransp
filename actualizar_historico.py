@@ -122,7 +122,7 @@ def consultar_semana_anterior() -> pd.DataFrame:
     todos  = []
     cursor = inicio
     while cursor <= fin:
-        fin_lote = min(cursor + timedelta(days=1), domingo_ant)
+        fin_lote = min(cursor + timedelta(days=1), fin)
         params   = {
             **API_PARAMS,
             "FechaInicio": cursor.strftime("%d-%m-%Y"),
