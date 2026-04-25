@@ -212,7 +212,7 @@ tr.clickable { cursor: pointer; }
 .b-abortado   { background: #fce7f3;       color: #9d174d; }
 .b-finalizado { background: var(--accent2);color: var(--accent); }
 .b-integrado  { background: #d1fae5;       color: #065f46; }
-.b-pagado     { background: #a7f3d0;       color: #064e3b; }
+.b-contab     { background: #a7f3d0;       color: #064e3b; }
 .b-prog    { background: var(--warn2);  color: var(--warn); }
 .b-demanda { background: var(--info2);  color: var(--info); }
 .b-fgestion{ background: var(--bg3);    color: var(--text2); }
@@ -347,7 +347,7 @@ tr.clickable { cursor: pointer; }
         <option>Abortado</option>
         <option>Finalizado</option>
         <option>Integrado</option>
-        <option>Pagado</option>
+        <option>Contabilizado</option>
       </select>
     </div>
     <div class="filter-group">
@@ -368,6 +368,8 @@ tr.clickable { cursor: pointer; }
       </select>
     </div>
     <div class="filter-sep"></div>
+    <button class="btn-sm" onclick="setHoy()">Hoy</button>
+    <button class="btn-sm" onclick="setEstaSemana()">Esta semana</button>
     <button class="btn-sm" onclick="limpiarFiltros()">Limpiar</button>
     <button class="btn-sm primary" onclick="recargarDatos()">↻ Actualizar</button>
   </div>
@@ -391,7 +393,7 @@ tr.clickable { cursor: pointer; }
         <div class="kpi-macro term">
           <div class="kpi-macro-label">Terminados</div>
           <div class="kpi-macro-num" id="k-term">—</div>
-          <div class="kpi-macro-sub">Finalizado · Integrado · Pagado</div>
+          <div class="kpi-macro-sub">Finalizado · Integrado · Contabilizado</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-card-label">Total viajes</div>
@@ -523,7 +525,7 @@ tr.clickable { cursor: pointer; }
   </div>
   <div class="edit-footer">
     <div class="edit-info" id="edit-info"></div>
-    <button class="btn-sm primary" style="width:100%" onclick="guardarEdicion()">Guardar cambios</button>
+    <button class="btn-sm primary" style="width:100%;height:36px;font-size:13px" id="btn-guardar" onclick="guardarEdicion()">Guardar cambios</button>
   </div>
 </div>
 
@@ -568,7 +570,7 @@ const ESTADO_COLORS = {
   'Abortado':   '#f472b6',
   'Finalizado': '#4ade80',
   'Integrado':  '#22c55e',
-  'Pagado':     '#16a34a',
+  'Contabilizado':     '#16a34a',
 };
 const ESTADO_BADGE = {
   'Pendiente':  'b-pendiente',
@@ -578,7 +580,7 @@ const ESTADO_BADGE = {
   'Abortado':   'b-abortado',
   'Finalizado': 'b-finalizado',
   'Integrado':  'b-integrado',
-  'Pagado':     'b-pagado',
+  'Contabilizado':     'b-contab',
 };
 const ORIGEN_BADGE = {
   'Programado':      'b-prog',
@@ -828,7 +830,7 @@ function determinarEstado(v) {
   if(v.estadoViaje === 'Cancelado' || v.estadoAPI === 'Cancelada') return 'Cancelado';
 
   // Pagado
-  if(v.pagado) return 'Pagado';
+  if(v.pagado) return 'Contabilizado';
 
   // Integrado — finalizado + en costos
   if(v.enCostos && (v.estadoAPI === 'Finalizada' || v.estadoAPI === 'Finalizado sin Reanudar')) return 'Integrado';
@@ -859,6 +861,24 @@ function poblarFiltrosDinamicos() {
   };
   mk(viajes.map(v=>v.coordinador), 'f-coord');
   mk(viajes.map(v=>v.zona),        'f-zona');
+}
+
+function setHoy() {
+  const hoy = new Date().toISOString().substring(0,10);
+  document.getElementById('f-desde').value = hoy;
+  document.getElementById('f-hasta').value = hoy;
+  aplicarFiltros();
+}
+
+function setEstaSemana() {
+  const hoy  = new Date();
+  const lunes = new Date(hoy);
+  lunes.setDate(hoy.getDate() - hoy.getDay() + (hoy.getDay()===0 ? -6 : 1));
+  const domingo = new Date(lunes);
+  domingo.setDate(lunes.getDate() + 6);
+  document.getElementById('f-desde').value = lunes.toISOString().substring(0,10);
+  document.getElementById('f-hasta').value = domingo.toISOString().substring(0,10);
+  aplicarFiltros();
 }
 
 function aplicarFiltros() {
@@ -932,12 +952,12 @@ function limpiarFiltros() {
 // ============================================================
 function actualizarResumen() {
   const cnt = {};
-  ['Pendiente','Asignado','En proceso','Cancelado','Abortado','Finalizado','Integrado','Pagado'].forEach(e=>cnt[e]=0);
+  ['Pendiente','Asignado','En proceso','Cancelado','Abortado','Finalizado','Integrado','Contabilizado'].forEach(e=>cnt[e]=0);
   vFilt.forEach(v => { if(cnt[v.estadoViaje]!==undefined) cnt[v.estadoViaje]++; });
 
   const pend  = (cnt['Pendiente']||0) + (cnt['Asignado']||0);
   const curso = cnt['En proceso']||0;
-  const term  = (cnt['Finalizado']||0)+(cnt['Integrado']||0)+(cnt['Pagado']||0);
+  const term  = (cnt['Finalizado']||0)+(cnt['Integrado']||0)+(cnt['Contabilizado']||0);
 
   document.getElementById('k-pend').textContent   = pend.toLocaleString();
   document.getElementById('k-curso').textContent  = curso.toLocaleString();
@@ -946,7 +966,7 @@ function actualizarResumen() {
   document.getElementById('k-cancel').textContent = (cnt['Cancelado']||0).toLocaleString();
 
   const finTot = term;
-  const cerrad = (cnt['Integrado']||0)+(cnt['Pagado']||0);
+  const cerrad = (cnt['Integrado']||0)+(cnt['Contabilizado']||0);
   const sinCer = cnt['Finalizado']||0;
   const pct    = finTot>0 ? Math.round(cerrad/finTot*100) : 0;
   document.getElementById('k-ciclo').textContent     = pct+'%';
@@ -1008,7 +1028,7 @@ function renderTabla() {
   }
 
   tbody.innerHTML = page.map(v => {
-    const ciclo = v.estadoViaje==='Pagado'    ? `<span class="ciclo-ok">Pagado</span>`
+    const ciclo = v.estadoViaje==='Contabilizado'    ? `<span class="ciclo-ok">Contabilizado</span>`
       : v.estadoViaje==='Integrado' ? `<span class="ciclo-ok">Integrado</span>`
       : v.estadoViaje==='Finalizado'? `<span class="ciclo-pen">Pendiente</span>`
       : `<span class="ciclo-no">—</span>`;
@@ -1095,6 +1115,10 @@ function abrirPanel(st) {
   const editable = ['admin','controlador','coordinador'].includes(sesion.rol);
   document.getElementById('edit-campos').style.display = editable ? 'block' : 'none';
 
+  const btnG = document.getElementById('btn-guardar');
+  btnG.textContent = Object.keys(anotaciones[st] || {}).length > 0 ? 'Actualizar' : 'Guardar cambios';
+  btnG.disabled = false;
+  btnG.style.background = '';
   document.getElementById('edit-panel').classList.add('open');
 }
 
@@ -1124,15 +1148,32 @@ async function guardarEdicion() {
     v.comentarioCabina     = anot.comentarioCabina;
   }
 
-  document.getElementById('edit-info').textContent = 'Guardado localmente · Sincronizando...';
+  const btn = document.getElementById('btn-guardar');
+  btn.textContent = 'Guardando...';
+  btn.disabled = true;
+  document.getElementById('edit-info').textContent = '';
 
   // Subir a GitHub
   try {
     await subirAnotaciones();
-    document.getElementById('edit-info').textContent = '✓ Guardado · '+anot.fechaActualizacion;
+    btn.textContent = '✓ Guardado';
+    btn.style.background = 'var(--accent)';
+    document.getElementById('edit-info').textContent = 'Actualizado por ' + sesion.usuario + ' · ' + anot.fechaActualizacion;
+    setTimeout(() => {
+      btn.textContent = 'Actualizar';
+      btn.disabled = false;
+      btn.style.background = '';
+    }, 2500);
   } catch(e) {
-    document.getElementById('edit-info').textContent = '⚠️ Error al guardar en GitHub';
+    btn.textContent = 'Error al guardar';
+    btn.style.background = 'var(--danger)';
+    btn.disabled = false;
+    document.getElementById('edit-info').textContent = '⚠️ No se pudo sincronizar con GitHub';
     console.error(e);
+    setTimeout(() => {
+      btn.textContent = 'Guardar cambios';
+      btn.style.background = '';
+    }, 3000);
   }
 }
 
