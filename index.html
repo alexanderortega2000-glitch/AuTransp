@@ -717,17 +717,18 @@ function procesarViajes(apiData, progData, costosData) {
     // Prioridad de fuentes — origen y destino
     v.origen_api  = n(r.DsPuntoPartida);
     v.destino_api = n(r.DsPuntoEntrega);
-    v.fechaEntrega    = n(r.FechaEntrega);      // fecha planificada (hora plan)
-    v.fechaInicio     = n(r.FechaInicioViaje); // hora real de inicio
-    v.fechaFin        = n(r.FechaFinalizacion);
-    v.fechaEntregaST  = n(r.FechaEntregaST);   // hora real de entrega
-    v.horaReal        = n(r.FechaInicioViaje); // hora real inicio = FechaInicioViaje
-    v.horaPlan_api    = n(r.FechaEntrega);     // hora plan = FechaEntrega planificada
-    v.motorista       = n(r.Nom_Motorista);
-    v.km              = r.Km;
-    v.osApi           = n(r.OS);
+    v.fechaEntrega     = n(r.FechaEntrega);
+    v.fechaInicio      = n(r.FechaInicioViaje);
+    v.fechaFin         = n(r.FechaFinalizacion);
+    v.horaPlanEntrega  = n(r.FechaEntrega);      // ETA
+    v.horaRealInicio   = n(r.FechaInicioViaje);  // ATD
+    v.horaRealEntrega  = n(r.FechaEntregaST);    // ATA
+    v.horaFinViaje     = n(r.FechaFinViaje);
+    v.motorista        = n(r.Nom_Motorista);
+    v.km               = r.Km;
+    v.osApi            = n(r.OS);
     v.comentInicioViaje = n(r.ComentInicioViaje);
-    v.comentEntrega   = n(r.ComentEntrega);
+    v.comentEntrega    = n(r.ComentEntrega);
   });
 
   // Prog — filas sin ST se muestran como Pendiente con ID temporal
