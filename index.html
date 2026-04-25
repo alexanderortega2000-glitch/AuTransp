@@ -942,7 +942,7 @@ function aplicarFiltros() {
       const h = formatHora(v.horaPlanEntrega);
       if(!h) return false;
       const [hh] = h.split(':').map(Number);
-      if(turno==='madrugada' && !(hh >= 3  && hh < 6))  return false;
+      if(turno==='madrugada' && !(hh >= 3  && hh <= 6)) return false;
       if(turno==='dia'       && !(hh >= 6  && hh < 14)) return false;
       if(turno==='tarde'     && !(hh >= 14 && hh < 18)) return false;
       if(turno==='nocturno'  && !((hh >= 18) || hh < 3)) return false;
@@ -1109,8 +1109,13 @@ function irPag(n) {
 
 function formatHora(dt) {
   if(!dt || dt==='null' || dt==='NaT') return null;
-  const m = String(dt).match(/(\d{2}:\d{2})/);
-  return m ? m[1] : null;
+  const s = String(dt);
+  // Try to extract date and time: YYYY-MM-DD HH:MM or similar
+  const m = s.match(/(\d{4})-(\d{2})-(\d{2})[T ]?(\d{2}):(\d{2})/);
+  if(m) return m[3]+'/'+m[2]+' '+m[4]+':'+m[5];
+  // Fallback: just time
+  const t = s.match(/(\d{2}:\d{2})/);
+  return t ? t[1] : null;
 }
 
 // ============================================================
