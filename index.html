@@ -439,10 +439,10 @@ tr.clickable { cursor: pointer; }
               <th class="th-main">Origen</th>
               <th class="th-main">Destino</th>
               <th class="th-main">Coordinador</th>
-              <th class="th-main">Zona</th>
-              <th class="th-main">Área</th>
-              <th class="th-main">Hora plan</th>
-              <th class="th-main">Hora real</th>
+              <th class="th-main">ETD</th>
+              <th class="th-main">ATD</th>
+              <th class="th-main">ETA</th>
+              <th class="th-main">ATA</th>
               <th class="th-main">Ciclo</th>
             </tr>
             <tr>
@@ -453,8 +453,8 @@ tr.clickable { cursor: pointer; }
               <th class="th-filter"><input placeholder="Origen..." id="tf-origen2" oninput="aplicarFiltros()"></th>
               <th class="th-filter"><input placeholder="Destino..." id="tf-destino" oninput="aplicarFiltros()"></th>
               <th class="th-filter"><input placeholder="Coord..." id="tf-coord" oninput="aplicarFiltros()"></th>
-              <th class="th-filter"><input placeholder="Zona..." id="tf-zona" oninput="aplicarFiltros()"></th>
-              <th class="th-filter"><input placeholder="Área..." id="tf-area" oninput="aplicarFiltros()"></th>
+              <th class="th-filter"></th>
+              <th class="th-filter"></th>
               <th class="th-filter"></th>
               <th class="th-filter"></th>
               <th class="th-filter"></th>
@@ -715,25 +715,37 @@ function procesarViajes(apiData, progData, costosData) {
     // Prioridad de fuentes — origen y destino
     v.origen_api  = n(r.DsPuntoPartida);
     v.destino_api = n(r.DsPuntoEntrega);
-    v.fechaEntrega= n(r.FechaEntrega);
-    v.fechaInicio = n(r.FechaInicioViaje);
-    v.fechaFin    = n(r.FechaFinalizacion);
-    v.motorista   = n(r.Nom_Motorista);
-    v.km          = r.Km;
-    v.osApi       = n(r.OS);
+    v.fechaEntrega    = n(r.FechaEntrega);      // fecha planificada (hora plan)
+    v.fechaInicio     = n(r.FechaInicioViaje); // hora real de inicio
+    v.fechaFin        = n(r.FechaFinalizacion);
+    v.fechaEntregaST  = n(r.FechaEntregaST);   // hora real de entrega
+    v.horaReal        = n(r.FechaInicioViaje); // hora real inicio = FechaInicioViaje
+    v.horaPlan_api    = n(r.FechaEntrega);     // hora plan = FechaEntrega planificada
+    v.motorista       = n(r.Nom_Motorista);
+    v.km              = r.Km;
+    v.osApi           = n(r.OS);
+    v.comentInicioViaje = n(r.ComentInicioViaje);
+    v.comentEntrega   = n(r.ComentEntrega);
   });
 
-  // Prog
-  progData.forEach(r => {
-    const st = n(g(r,'ST','st')); if(!st) return;
+  // Prog — filas sin ST se muestran como Pendiente con ID temporal
+  progData.forEach((r, idx) => {
+    let st = n(g(r,'ST','st'));
+    if(!st) {
+      // Sin ST — aún no programado, mostrar como Pendiente
+      const coord = n(g(r,'Coordinador')) || 'SIN-COORD';
+      st = 'PEND-' + coord.split(' ')[0] + '-' + idx;
+      r._sinST = true;
+    }
     const v  = mk(st);
     v.enProg      = true;
     v.coordinador = n(g(r,'Coordinador'));
     v.zona        = n(g(r,'Zona'));
-    v.horaPlan    = n(g(r,'HoraPlanInicio'));
+    v.horaPlan    = n(g(r,'HoraPlanInicio','HoraPlan InicioViaje','HoraPlan Inicio'));
     v.estadoViaje = n(g(r,'EstatusViaje'));
     v.fechaEjec   = n(g(r,'FechaEjecucion'));
     v.tipoProg    = n(r.TipoProg);
+    v.horaPlan    = n(g(r,'HoraPlanInicio','HoraPlan InicioViaje','HoraPlan Inicio'));
     // Fuentes de fallback
     v.origen_prog  = n(g(r,'NombreOrigen'));
     v.destino_prog = n(g(r,'NombreDestino'));
@@ -750,9 +762,11 @@ function procesarViajes(apiData, progData, costosData) {
     v.enSeg = true;
     if(!v.coordinador) v.coordinador = n(g(r,'Coordinador'));
     if(!v.fechaEjec)   v.fechaEjec   = n(g(r,'FechaEjecucion'));
-    v.origen_seg  = n(g(r,'NombreOrigen'));
-    v.destino_seg = n(g(r,'NombreDestino'));
+    v.origen_seg    = n(g(r,'NombreOrigen'));
+    v.destino_seg   = n(g(r,'NombreDestino'));
     v.tipoViaje_seg = n(g(r,'NombreServicio'));
+    v.horaRealSeg   = n(g(r,'HoraRealInicio'));
+    if(!v.horaPlan)  v.horaPlan = n(g(r,'HoraPlanInicio','HoraPlan InicioViaje'));
     if(n(g(r,'EstatusViaje')) === 'Abortado') v.fueAbortado = true;
   });
 
@@ -785,6 +799,10 @@ function procesarViajes(apiData, progData, costosData) {
     v.tipoViaje= v.tipoViaje    || v.tipoViaje_prog || v.tipoViaje_seg|| null;
     v.proveedor= v.proveedor_prog || null;
 
+    // Hora plan inicio — solo Prog/Seg (API no lo tiene)
+    v.horaPlanInicio = v.horaPlan || null;
+    // Hora real inicio — API → Seg
+    if(!v.horaRealInicio) v.horaRealInicio = v.horaRealSeg || null;
     // Fecha de referencia para filtros
     v.fechaRef = v.fechaEjec || v.fechaEntrega || null;
 
@@ -860,8 +878,6 @@ function aplicarFiltros() {
   const tfOrigen2= document.getElementById('tf-origen2').value.toLowerCase();
   const tfDest   = document.getElementById('tf-destino').value.toLowerCase();
   const tfCoord  = document.getElementById('tf-coord').value.toLowerCase();
-  const tfZona   = document.getElementById('tf-zona').value.toLowerCase();
-  const tfArea   = document.getElementById('tf-area').value.toLowerCase();
 
   vFilt = viajes.filter(v => {
     // Filtros globales
@@ -892,8 +908,6 @@ function aplicarFiltros() {
     if(tfOrigen2&& !String(v.origen||'').toLowerCase().includes(tfOrigen2))     return false;
     if(tfDest   && !String(v.destino||'').toLowerCase().includes(tfDest))       return false;
     if(tfCoord  && !String(v.coordinador||'').toLowerCase().includes(tfCoord))  return false;
-    if(tfZona   && !String(v.zona||'').toLowerCase().includes(tfZona))          return false;
-    if(tfArea   && !String(v.area||'').toLowerCase().includes(tfArea))          return false;
 
     return true;
   });
@@ -907,7 +921,7 @@ function limpiarFiltros() {
   ['f-desde','f-hasta','f-origen','f-estado','f-coord','f-zona','f-area'].forEach(id => {
     const el = document.getElementById(id); el.value = '';
   });
-  ['tf-st','tf-origen','tf-estado','tf-tipo','tf-origen2','tf-destino','tf-coord','tf-zona','tf-area'].forEach(id => {
+  ['tf-st','tf-origen','tf-estado','tf-tipo','tf-origen2','tf-destino','tf-coord'].forEach(id => {
     document.getElementById(id).value = '';
   });
   aplicarFiltros();
@@ -1011,10 +1025,10 @@ function renderTabla() {
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.origen||'—'}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.destino||'—'}</td>
       <td>${v.coordinador||'—'}</td>
-      <td style="color:var(--text2)">${v.zona||'—'}</td>
-      <td style="color:var(--text2)">${v.area||'—'}</td>
-      <td style="color:var(--text2);font-family:var(--mono)">${v.horaPlan||'—'}</td>
-      <td style="color:var(--text2);font-family:var(--mono)">${formatHora(v.fechaInicio)||'—'}</td>
+      <td style="color:var(--text2);font-family:var(--mono)">${formatHora(v.horaPlanInicio)||'—'}</td>
+      <td style="color:var(--text2);font-family:var(--mono)">${formatHora(v.horaRealInicio)||'—'}</td>
+      <td style="color:var(--text2);font-family:var(--mono)">${formatHora(v.horaPlanEntrega)||'—'}</td>
+      <td style="color:var(--text2);font-family:var(--mono)">${formatHora(v.horaRealEntrega)||'—'}</td>
       <td>${ciclo}</td>
     </tr>`;
   }).join('');
