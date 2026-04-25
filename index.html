@@ -937,9 +937,9 @@ function aplicarFiltros() {
     if(zona   && v.zona !== zona)              return false;
     if(area   && v.area !== area)              return false;
 
-    // Filtro de turno — basado en ATD (FechaInicioViaje)
+    // Filtro de turno — basado en ETA (FechaEntrega planificada)
     if(turno) {
-      const h = formatHora(v.horaRealInicio);
+      const h = formatHora(v.horaPlanEntrega);
       if(!h) return false;
       const [hh] = h.split(':').map(Number);
       if(turno==='madrugada' && !(hh >= 3  && hh < 6))  return false;
