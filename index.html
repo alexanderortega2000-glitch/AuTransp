@@ -3,487 +3,1148 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard Operativo — Transporte</title>
+<title>Transporte · Operaciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── TEMA ──────────────────────────────────────────── */
+:root {
+  --bg:        #f4f3ef;
+  --bg2:       #eceae4;
+  --bg3:       #e2dfd7;
+  --surface:   #ffffff;
+  --text:      #1c1b18;
+  --text2:     #6b6860;
+  --text3:     #a8a5a0;
+  --border:    rgba(0,0,0,0.08);
+  --border2:   rgba(0,0,0,0.16);
+  --accent:    #1a5c38;
+  --accent2:   #e8f3ec;
+  --warn:      #92400e;
+  --warn2:     #fef3c7;
+  --info:      #1e3a8a;
+  --info2:     #dbeafe;
+  --danger:    #7f1d1d;
+  --danger2:   #fee2e2;
+  --radius:    6px;
+  --radius-lg: 10px;
+  --mono:      'DM Mono', monospace;
+  --sans:      'DM Sans', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
   :root {
-    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeede8;
-    --text: #1a1a18; --text2: #6b6b67; --text3: #9b9b97;
-    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.2);
-    --success-bg: #eaf3de; --success-text: #3b6d11;
-    --warning-bg: #faeeda; --warning-text: #854f0b;
-    --info-bg: #e6f1fb; --info-text: #185fa5;
-    --danger-bg: #fcebeb; --danger-text: #a32d2d;
-    --radius: 8px; --radius-lg: 12px;
+    --bg:      #141412;
+    --bg2:     #1e1d1a;
+    --bg3:     #2a2926;
+    --surface: #1e1d1a;
+    --text:    #f0ede6;
+    --text2:   #a8a5a0;
+    --text3:   #6b6860;
+    --border:  rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.16);
+    --accent:  #4ade80;
+    --accent2: #052e16;
+    --warn:    #fcd34d;
+    --warn2:   #451a03;
+    --info:    #93c5fd;
+    --info2:   #1e3a8a;
+    --danger:  #fca5a5;
+    --danger2: #450a0a;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1a1a18; --bg2: #2c2c2a; --bg3: #444441;
-      --text: #f1efe8; --text2: #b4b2a9; --text3: #888780;
-      --border: rgba(255,255,255,0.12); --border2: rgba(255,255,255,0.2);
-      --success-bg: #173404; --success-text: #c0dd97;
-      --warning-bg: #412402; --warning-text: #fac775;
-      --info-bg: #042c53; --info-text: #b5d4f4;
-      --danger-bg: #501313; --danger-text: #f7c1c1;
-    }
-  }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
-  .container { padding: 1rem 1.5rem; }
-  .top-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 1rem; border-bottom: 0.5px solid var(--border); margin-bottom: 1rem; }
-  .top-bar h1 { font-size: 18px; font-weight: 500; }
-  .meta { font-size: 12px; color: var(--text2); display: flex; gap: 16px; align-items: center; }
-  .badge-live { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; background: var(--success-bg); color: var(--success-text); padding: 3px 10px; border-radius: 20px; }
-  .badge-loading { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; background: var(--info-bg); color: var(--info-text); padding: 3px 10px; border-radius: 20px; }
-  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success-text); animation: pulse 1.5s infinite; }
-  .dot-spin { width: 10px; height: 10px; border: 2px solid var(--info-text); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; display: inline-block; }
-  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
-  @keyframes spin { to{transform:rotate(360deg)} }
-  .tabs { display: flex; gap: 4px; border-bottom: 0.5px solid var(--border); margin-bottom: 1rem; }
-  .tab { font-size: 13px; padding: 7px 16px; cursor: pointer; color: var(--text2); border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -0.5px; transition: all .15s; }
-  .tab.active { color: var(--text); font-weight: 500; border-bottom-color: var(--text); }
-  .page { display: none; }
-  .page.active { display: block; }
-  .macro-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 1rem; }
-  .macro-card { border-radius: var(--radius); padding: 12px 16px; border: 0.5px solid var(--border); }
-  .macro-card.pending { background: var(--warning-bg); }
-  .macro-card.active  { background: var(--info-bg); }
-  .macro-card.done    { background: var(--success-bg); }
-  .macro-title { font-size: 11px; font-weight: 500; margin-bottom: 4px; }
-  .macro-card.pending .macro-title { color: var(--warning-text); }
-  .macro-card.active  .macro-title { color: var(--info-text); }
-  .macro-card.done    .macro-title { color: var(--success-text); }
-  .macro-num { font-size: 28px; font-weight: 500; }
-  .macro-detail { font-size: 10px; color: var(--text2); margin-top: 2px; }
-  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; margin-bottom: 1rem; }
-  .metric-card { background: var(--bg2); border-radius: var(--radius); padding: 12px 14px; }
-  .metric-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
-  .metric-value { font-size: 28px; font-weight: 500; line-height: 1; }
-  .metric-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
-  .section-title { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
-  .progress-bar { height: 6px; border-radius: 3px; background: var(--bg3); overflow: hidden; margin-top: 4px; }
-  .progress-fill { height: 100%; border-radius: 3px; transition: width .4s; }
-  .status-pill { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
-  .s-noprog    { background: var(--bg2); color: var(--text2); }
-  .s-demand    { background: var(--bg2); color: var(--text2); }
-  .s-prog      { background: var(--warning-bg); color: var(--warning-text); }
-  .s-progdem   { background: var(--warning-bg); color: var(--warning-text); }
-  .s-enproceso { background: var(--info-bg); color: var(--info-text); }
-  .s-abortado  { background: var(--danger-bg); color: var(--danger-text); }
-  .s-finalizado{ background: var(--success-bg); color: var(--success-text); }
-  .s-integrado { background: var(--success-bg); color: var(--success-text); }
-  .s-pagado    { background: #d4f0e0; color: #0f6e56; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { font-size: 11px; font-weight: 500; color: var(--text2); text-align: left; padding: 7px 8px; border-bottom: 0.5px solid var(--border); white-space: nowrap; }
-  td { padding: 7px 8px; border-bottom: 0.5px solid var(--border); }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: var(--bg2); }
-  .upload-zone { border: 0.5px dashed var(--border2); border-radius: var(--radius-lg); padding: 1.5rem; text-align: center; cursor: pointer; transition: background .15s; margin-bottom: 1rem; }
-  .upload-zone:hover { background: var(--bg2); }
-  .file-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
-  .chip { font-size: 11px; padding: 3px 10px; border-radius: var(--radius); border: 0.5px solid var(--border); color: var(--text2); }
-  .chip.ok  { background: var(--success-bg); color: var(--success-text); border-color: transparent; }
-  .chip.err { background: var(--danger-bg); color: var(--danger-text); border-color: transparent; }
-  .chip.loading { background: var(--info-bg); color: var(--info-text); border-color: transparent; }
-  .log { font-size: 11px; font-family: monospace; color: var(--text2); background: var(--bg2); border-radius: var(--radius); padding: 10px 12px; max-height: 140px; overflow-y: auto; margin-top: 10px; line-height: 1.7; }
-  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; font-size: 12px; color: var(--text2); }
-  .filters select, .filters input[type=date] { font-size: 12px; padding: 4px 8px; height: 28px; background: var(--bg); color: var(--text); border: 0.5px solid var(--border2); border-radius: var(--radius); }
-  button { font-size: 12px; padding: 5px 12px; background: var(--bg); color: var(--text); border: 0.5px solid var(--border2); border-radius: var(--radius); cursor: pointer; }
-  button:hover { background: var(--bg2); }
-  button:disabled { opacity: .4; cursor: default; }
-  .paginacion { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 12px; color: var(--text2); }
-  .auto-info { font-size: 12px; color: var(--text2); background: var(--bg2); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
-  .divider { border: none; border-top: 0.5px solid var(--border); margin: 1rem 0; }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 13px; line-height: 1.5; min-height: 100vh; }
+
+/* ── PANTALLA DE LOGIN ─────────────────────────────── */
+#login-screen {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.login-box {
+  background: var(--surface); border: 0.5px solid var(--border2);
+  border-radius: var(--radius-lg); padding: 2.5rem; width: 340px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+.login-logo {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .15em;
+  text-transform: uppercase; color: var(--text3); margin-bottom: 1.5rem;
+}
+.login-title { font-size: 20px; font-weight: 600; margin-bottom: .25rem; }
+.login-sub { font-size: 12px; color: var(--text2); margin-bottom: 1.75rem; }
+.login-field { margin-bottom: 1rem; }
+.login-field label { display: block; font-size: 11px; font-weight: 500; color: var(--text2); margin-bottom: 5px; letter-spacing: .04em; text-transform: uppercase; }
+.login-field select, .login-field input {
+  width: 100%; padding: 9px 12px; background: var(--bg);
+  border: 0.5px solid var(--border2); border-radius: var(--radius);
+  font-family: var(--sans); font-size: 13px; color: var(--text);
+  appearance: none;
+}
+.login-field select:focus, .login-field input:focus { outline: none; border-color: var(--accent); }
+.login-btn {
+  width: 100%; padding: 10px; background: var(--text); color: var(--bg);
+  border: none; border-radius: var(--radius); font-family: var(--sans);
+  font-size: 13px; font-weight: 500; cursor: pointer; margin-top: .5rem;
+  transition: opacity .15s;
+}
+.login-btn:hover { opacity: .85; }
+.login-error { font-size: 12px; color: var(--danger); margin-top: .75rem; display: none; }
+
+/* ── LAYOUT PRINCIPAL ──────────────────────────────── */
+#app { display: none; }
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--surface); border-bottom: 0.5px solid var(--border);
+  padding: 0 1.5rem; height: 48px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.topbar-left { display: flex; align-items: center; gap: 1.5rem; }
+.topbar-brand { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--text2); }
+.topbar-tabs { display: flex; gap: 2px; }
+.topbar-tab {
+  font-size: 12px; padding: 5px 12px; border-radius: var(--radius);
+  cursor: pointer; color: var(--text2); border: none; background: none;
+  transition: all .12s; font-family: var(--sans);
+}
+.topbar-tab:hover { background: var(--bg2); color: var(--text); }
+.topbar-tab.active { background: var(--bg2); color: var(--text); font-weight: 500; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.user-chip {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text2); font-family: var(--mono);
+}
+.user-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.btn-logout { font-size: 11px; color: var(--text3); background: none; border: none; cursor: pointer; font-family: var(--sans); }
+.btn-logout:hover { color: var(--text); }
+
+/* ── BARRA DE FILTROS ──────────────────────────────── */
+.filter-bar {
+  background: var(--surface); border-bottom: 0.5px solid var(--border);
+  padding: 8px 1.5rem; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.filter-group { display: flex; flex-direction: column; gap: 2px; }
+.filter-label { font-size: 10px; font-weight: 500; color: var(--text3); letter-spacing: .05em; text-transform: uppercase; }
+.filter-bar select, .filter-bar input[type=date] {
+  height: 28px; padding: 0 8px; background: var(--bg);
+  border: 0.5px solid var(--border2); border-radius: var(--radius);
+  font-family: var(--sans); font-size: 12px; color: var(--text);
+  appearance: none; min-width: 120px;
+}
+.filter-bar input[type=date] { min-width: 130px; }
+.filter-sep { width: 0.5px; background: var(--border2); height: 28px; margin: 0 4px; }
+.btn-sm {
+  height: 28px; padding: 0 12px; border-radius: var(--radius);
+  font-family: var(--sans); font-size: 12px; cursor: pointer;
+  border: 0.5px solid var(--border2); background: var(--bg); color: var(--text);
+  transition: background .12s;
+}
+.btn-sm:hover { background: var(--bg2); }
+.btn-sm.primary { background: var(--text); color: var(--bg); border-color: transparent; }
+.btn-sm.primary:hover { opacity: .85; }
+
+/* ── CONTENIDO ──────────────────────────────────────── */
+.content { padding: 1.25rem 1.5rem; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── RESUMEN ────────────────────────────────────────── */
+.kpi-grid { display: grid; grid-template-columns: repeat(3,1fr) repeat(4,auto); gap: 10px; margin-bottom: 1.25rem; }
+.kpi-macro {
+  border-radius: var(--radius-lg); padding: 14px 18px;
+  border: 0.5px solid var(--border);
+}
+.kpi-macro.pend { background: var(--warn2); }
+.kpi-macro.curso { background: var(--info2); }
+.kpi-macro.term { background: var(--accent2); }
+.kpi-macro-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+.kpi-macro.pend .kpi-macro-label { color: var(--warn); }
+.kpi-macro.curso .kpi-macro-label { color: var(--info); }
+.kpi-macro.term .kpi-macro-label { color: var(--accent); }
+.kpi-macro-num { font-size: 32px; font-weight: 600; line-height: 1; font-family: var(--mono); }
+.kpi-macro-sub { font-size: 10px; color: var(--text2); margin-top: 4px; }
+.kpi-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 18px; }
+.kpi-card-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+.kpi-card-num { font-size: 24px; font-weight: 600; font-family: var(--mono); }
+.kpi-card-sub { font-size: 11px; color: var(--text2); margin-top: 3px; }
+.charts-grid { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
+.chart-box { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+.chart-title { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); margin-bottom: 12px; }
+.ciclo-row { margin-bottom: 10px; }
+.ciclo-label { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+.ciclo-label span:last-child { font-family: var(--mono); font-weight: 500; }
+.prog-bar { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
+
+/* ── TABLA DETALLE ──────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead { position: sticky; top: 0; z-index: 2; }
+.th-main {
+  font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text2); text-align: left; padding: 8px 10px 4px;
+  background: var(--surface); border-bottom: 0.5px solid var(--border);
+  white-space: nowrap;
+}
+.th-filter { padding: 4px 10px 8px; background: var(--surface); }
+.th-filter input {
+  width: 100%; height: 24px; padding: 0 7px;
+  background: var(--bg); border: 0.5px solid var(--border2);
+  border-radius: var(--radius); font-family: var(--sans); font-size: 11px;
+  color: var(--text);
+}
+.th-filter input:focus { outline: none; border-color: var(--accent); }
+td {
+  padding: 8px 10px; border-bottom: 0.5px solid var(--border);
+  vertical-align: middle; color: var(--text);
+}
+tr:hover td { background: var(--bg2); }
+tr.clickable { cursor: pointer; }
+.badge {
+  display: inline-block; font-size: 10px; font-weight: 500;
+  padding: 2px 7px; border-radius: 20px; white-space: nowrap;
+  font-family: var(--mono);
+}
+.b-pendiente  { background: var(--bg3);    color: var(--text2); }
+.b-asignado   { background: var(--info2);  color: var(--info); }
+.b-proceso    { background: #dbeafe;       color: #1d4ed8; }
+.b-cancelado  { background: var(--danger2);color: var(--danger); }
+.b-abortado   { background: #fce7f3;       color: #9d174d; }
+.b-finalizado { background: var(--accent2);color: var(--accent); }
+.b-integrado  { background: #d1fae5;       color: #065f46; }
+.b-pagado     { background: #a7f3d0;       color: #064e3b; }
+.b-prog    { background: var(--warn2);  color: var(--warn); }
+.b-demanda { background: var(--info2);  color: var(--info); }
+.b-fgestion{ background: var(--bg3);    color: var(--text2); }
+.ciclo-ok  { font-size: 11px; color: var(--accent); font-family: var(--mono); }
+.ciclo-pen { font-size: 11px; color: var(--warn); font-family: var(--mono); }
+.ciclo-no  { font-size: 11px; color: var(--text3); }
+.pag { display: flex; gap: 8px; align-items: center; padding: 10px 0; font-size: 12px; color: var(--text2); }
+
+/* ── PANEL DE EDICIÓN ────────────────────────────────── */
+#edit-panel {
+  position: fixed; right: 0; top: 0; bottom: 0; width: 380px;
+  background: var(--surface); border-left: 0.5px solid var(--border2);
+  transform: translateX(100%); transition: transform .25s ease;
+  z-index: 60; display: flex; flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+}
+#edit-panel.open { transform: translateX(0); }
+.edit-header {
+  padding: 16px 20px; border-bottom: 0.5px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.edit-st { font-family: var(--mono); font-size: 18px; font-weight: 500; }
+.edit-close { background: none; border: none; cursor: pointer; color: var(--text2); font-size: 18px; padding: 4px; }
+.edit-close:hover { color: var(--text); }
+.edit-body { flex: 1; overflow-y: auto; padding: 20px; }
+.edit-section { margin-bottom: 1.5rem; }
+.edit-section-title { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+.edit-field { margin-bottom: 12px; }
+.edit-field label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 4px; font-weight: 500; }
+.edit-field select, .edit-field textarea {
+  width: 100%; padding: 8px 10px; background: var(--bg);
+  border: 0.5px solid var(--border2); border-radius: var(--radius);
+  font-family: var(--sans); font-size: 12px; color: var(--text); resize: vertical;
+}
+.edit-field select:focus, .edit-field textarea:focus { outline: none; border-color: var(--accent); }
+.edit-footer { padding: 16px 20px; border-top: 0.5px solid var(--border); }
+.edit-info { font-size: 11px; color: var(--text3); margin-bottom: 10px; font-family: var(--mono); }
+.readonly-field { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 8px 10px; font-size: 12px; color: var(--text2); }
+
+/* ── LOADING ─────────────────────────────────────────── */
+#loader {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 200; gap: 12px;
+}
+.loader-ring {
+  width: 32px; height: 32px; border: 2px solid var(--border2);
+  border-top-color: var(--text); border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-text { font-size: 12px; color: var(--text2); font-family: var(--mono); }
 </style>
 </head>
 <body>
-<div class="container">
-  <div class="top-bar">
-    <div style="display:flex;align-items:center;gap:12px;"><h1>Dashboard operativo — transporte</h1><a href="https://alexanderortega2000-glitch.github.io/AuTransp" target="_blank" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);color:var(--text2);text-decoration:none;white-space:nowrap;">Ver pantalla completa ↗</a></div>
-    <div class="meta">
-      <span id="last-update">Cargando datos...</span>
-      <span class="badge-loading" id="badge-loading"><span class="dot-spin"></span>Cargando</span>
-      <span class="badge-live" id="live-badge" style="display:none"><span class="dot"></span>Datos cargados</span>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-ring"></div>
+  <div class="loader-text" id="loader-text">Iniciando...</div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:none;">
+  <div class="login-box">
+    <div class="login-logo">Grupo CASSA · Transporte</div>
+    <div class="login-title">Operaciones</div>
+    <div class="login-sub">Ingresa con tu usuario y PIN</div>
+    <div class="login-field">
+      <label>Usuario</label>
+      <select id="login-user">
+        <option value="">Selecciona tu usuario...</option>
+      </select>
+    </div>
+    <div class="login-field">
+      <label>PIN</label>
+      <input type="password" id="login-pin" placeholder="····" maxlength="4" inputmode="numeric">
+    </div>
+    <button class="login-btn" onclick="intentarLogin()">Ingresar</button>
+    <div class="login-error" id="login-error">PIN incorrecto. Intenta de nuevo.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-brand">Transporte · Ops</span>
+      <div class="topbar-tabs">
+        <button class="topbar-tab active" onclick="setPage('resumen')">Resumen</button>
+        <button class="topbar-tab" onclick="setPage('detalle')">Detalle</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="user-chip">
+        <span class="user-dot"></span>
+        <span id="user-display"></span>
+      </span>
+      <button class="btn-logout" onclick="cerrarSesion()">Salir</button>
     </div>
   </div>
 
-  <div class="tabs">
-    <button class="tab active" onclick="setTab('resumen')">Resumen</button>
-    <button class="tab" onclick="setTab('detalle')">Detalle de viajes</button>
-    <button class="tab" onclick="setTab('datos')">Actualizar datos</button>
+  <!-- FILTROS -->
+  <div class="filter-bar">
+    <div class="filter-group">
+      <span class="filter-label">Desde</span>
+      <input type="date" id="f-desde" onchange="aplicarFiltros()">
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Hasta</span>
+      <input type="date" id="f-hasta" onchange="aplicarFiltros()">
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-group">
+      <span class="filter-label">Origen solicitud</span>
+      <select id="f-origen" onchange="aplicarFiltros()">
+        <option value="">Todos</option>
+        <option>Programado</option>
+        <option>A demanda</option>
+        <option>Fuera de gestión</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Estado viaje</span>
+      <select id="f-estado" onchange="aplicarFiltros()">
+        <option value="">Todos</option>
+        <option>Pendiente</option>
+        <option>Asignado</option>
+        <option>En proceso</option>
+        <option>Cancelado</option>
+        <option>Abortado</option>
+        <option>Finalizado</option>
+        <option>Integrado</option>
+        <option>Pagado</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Coordinador</span>
+      <select id="f-coord" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Zona</span>
+      <select id="f-zona" onchange="aplicarFiltros()"><option value="">Todas</option></select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Área</span>
+      <select id="f-area" onchange="aplicarFiltros()">
+        <option value="">Todas</option>
+        <option>Cosecha</option>
+        <option>Varios</option>
+        <option>Red Vial</option>
+      </select>
+    </div>
+    <div class="filter-sep"></div>
+    <button class="btn-sm" onclick="limpiarFiltros()">Limpiar</button>
+    <button class="btn-sm primary" onclick="recargarDatos()">↻ Actualizar</button>
   </div>
 
-  <div id="tab-resumen" class="page active">
-    <div class="macro-grid">
-      <div class="macro-card pending">
-        <div class="macro-title">Pendientes</div>
-        <div class="macro-num" id="m-pend">—</div>
-        <div class="macro-detail">No prog · Programado · A demanda</div>
-      </div>
-      <div class="macro-card active">
-        <div class="macro-title">En curso</div>
-        <div class="macro-num" id="m-curso">—</div>
-        <div class="macro-detail">En proceso</div>
-      </div>
-      <div class="macro-card done">
-        <div class="macro-title">Terminados</div>
-        <div class="macro-num" id="m-term">—</div>
-        <div class="macro-detail">Finalizado · Integrado · Pagado</div>
-      </div>
-    </div>
-    <div class="metrics-grid">
-      <div class="metric-card"><div class="metric-label">Total viajes</div><div class="metric-value" id="kpi-total">—</div></div>
-      <div class="metric-card"><div class="metric-label">Ciclo cerrado</div><div class="metric-value" id="kpi-ciclo">—</div><div class="metric-sub" id="kpi-ciclo-sub"></div></div>
-      <div class="metric-card"><div class="metric-label">Sin cerrar ciclo</div><div class="metric-value" id="kpi-nociclo">—</div><div class="metric-sub">finalizados no en costos</div></div>
-      <div class="metric-card"><div class="metric-label">Abortados</div><div class="metric-value" id="kpi-abort">—</div></div>
-    </div>
-    <div class="section-title">Distribución por estado</div>
-    <div style="position:relative;width:100%;height:240px;margin-bottom:1.5rem;">
-      <canvas id="chart-estados" role="img" aria-label="Distribución de viajes por estado"></canvas>
-    </div>
-    <div class="section-title">Progreso de ciclo de vida</div>
-    <div id="ciclo-bars" style="margin-bottom:1rem;"></div>
-  </div>
+  <!-- PÁGINAS -->
+  <div class="content">
 
-  <div id="tab-detalle" class="page">
-    <div class="filters">
-      <label>Fecha:</label><input type="date" id="f-fecha" onchange="aplicarFiltros()">
-      <label>Estado:</label><select id="f-estado" onchange="aplicarFiltros()"><option value="">Todos</option></select>
-      <label>Coordinador:</label><select id="f-coord" onchange="aplicarFiltros()"><option value="">Todos</option></select>
-      <label>Zona:</label><select id="f-zona" onchange="aplicarFiltros()"><option value="">Todas</option></select>
-      <button onclick="aplicarFiltros()">Filtrar</button>
-      <button onclick="limpiarFiltros()">Limpiar</button>
-    </div>
-    <div style="overflow-x:auto;">
-      <table>
-        <thead><tr>
-          <th>ST</th><th>Estado</th><th>Tipo viaje</th><th>Origen</th><th>Destino</th>
-          <th>Coordinador</th><th>Zona</th><th>Hora plan</th><th>Hora real</th><th>Ciclo</th>
-        </tr></thead>
-        <tbody id="tbody"></tbody>
-      </table>
-    </div>
-    <div class="paginacion" id="paginacion"></div>
-  </div>
-
-  <div id="tab-datos" class="page">
-    <div class="auto-info">
-      <span>Los datos se cargan automáticamente desde GitHub al abrir el dashboard.</span>
-      <button onclick="cargarDesdeGitHub(true)" style="margin-left:auto;">Recargar ahora</button>
-    </div>
-    <hr class="divider">
-    <p style="font-size:12px;color:var(--text2);margin-bottom:1rem;">¿Tienes datos más recientes? Arrastra los archivos <strong>.json.gz</strong> para sobreescribir los datos actuales.</p>
-    <div class="upload-zone" onclick="document.getElementById('fi').click()">
-      <p style="font-size:13px;color:var(--text2);margin-bottom:4px;">Arrastra archivos <strong>.json.gz</strong> o haz clic para seleccionar</p>
-      <p style="font-size:11px;color:var(--text2);">programa_consolidado · seguimiento_consolidado · api_historico · costos_limpio</p>
-      <input type="file" id="fi" multiple accept=".gz" style="display:none" onchange="handleFiles(this.files)">
-      <div class="file-chips">
-        <span class="chip" id="c-prog">programa</span>
-        <span class="chip" id="c-seg">seguimiento</span>
-        <span class="chip" id="c-api">api_historico</span>
-        <span class="chip" id="c-cos">costos</span>
+    <!-- RESUMEN -->
+    <div id="page-resumen" class="page active">
+      <div class="kpi-grid">
+        <div class="kpi-macro pend">
+          <div class="kpi-macro-label">Pendientes</div>
+          <div class="kpi-macro-num" id="k-pend">—</div>
+          <div class="kpi-macro-sub">Pendiente · Asignado</div>
+        </div>
+        <div class="kpi-macro curso">
+          <div class="kpi-macro-label">En curso</div>
+          <div class="kpi-macro-num" id="k-curso">—</div>
+          <div class="kpi-macro-sub">En proceso</div>
+        </div>
+        <div class="kpi-macro term">
+          <div class="kpi-macro-label">Terminados</div>
+          <div class="kpi-macro-num" id="k-term">—</div>
+          <div class="kpi-macro-sub">Finalizado · Integrado · Pagado</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">Total viajes</div>
+          <div class="kpi-card-num" id="k-total">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">Ciclo cerrado</div>
+          <div class="kpi-card-num" id="k-ciclo">—</div>
+          <div class="kpi-card-sub" id="k-ciclo-sub"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">Sin cerrar ciclo</div>
+          <div class="kpi-card-num" id="k-nociclo">—</div>
+          <div class="kpi-card-sub">finalizados sin costos</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">Cancelados</div>
+          <div class="kpi-card-num" id="k-cancel">—</div>
+        </div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-box">
+          <div class="chart-title">Distribución por estado</div>
+          <div style="position:relative;height:220px;">
+            <canvas id="chart-estados" role="img" aria-label="Distribución de viajes por estado"></canvas>
+          </div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Ciclo de vida</div>
+          <div id="ciclo-bars"></div>
+        </div>
       </div>
     </div>
-    <div class="log" id="log">Iniciando carga automática...</div>
+
+    <!-- DETALLE -->
+    <div id="page-detalle" class="page">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-main">ST</th>
+              <th class="th-main">Origen solicitud</th>
+              <th class="th-main">Estado viaje</th>
+              <th class="th-main">Tipo viaje</th>
+              <th class="th-main">Origen</th>
+              <th class="th-main">Destino</th>
+              <th class="th-main">Coordinador</th>
+              <th class="th-main">Zona</th>
+              <th class="th-main">Área</th>
+              <th class="th-main">Hora plan</th>
+              <th class="th-main">Hora real</th>
+              <th class="th-main">Ciclo</th>
+            </tr>
+            <tr>
+              <th class="th-filter"><input placeholder="ST" id="tf-st" oninput="aplicarFiltros()"></th>
+              <th class="th-filter"><input placeholder="Origen..." id="tf-origen" oninput="aplicarFiltros()"></th>
+              <th class="th-filter"><input placeholder="Estado..." id="tf-estado" oninput="aplicarFiltros()"></th>
+              <th class="th-filter"><input placeholder="Tipo..." id="tf-tipo" oninput="aplicarFiltros()"></th>
+              <th class="th-filter"><input placeholder="Origen..." id="tf-origen2" oninput="aplicarFiltros()"></th>
+              <th class="th-filter"><input placeholder="Destino..." id="tf-destino" oninput="aplicarFiltros()"></th>
+              <th class="th-filter"><input placeholder="Coord..." id="tf-coord" oninput="aplicarFiltros()"></th>
+              <th class="th-filter"><input placeholder="Zona..." id="tf-zona" oninput="aplicarFiltros()"></th>
+              <th class="th-filter"><input placeholder="Área..." id="tf-area" oninput="aplicarFiltros()"></th>
+              <th class="th-filter"></th>
+              <th class="th-filter"></th>
+              <th class="th-filter"></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="pag" id="pag"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- PANEL EDICIÓN -->
+<div id="edit-panel">
+  <div class="edit-header">
+    <div>
+      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">ST</div>
+      <div class="edit-st" id="edit-st-num">—</div>
+    </div>
+    <button class="edit-close" onclick="cerrarPanel()">×</button>
+  </div>
+  <div class="edit-body">
+    <!-- Info de solo lectura -->
+    <div class="edit-section">
+      <div class="edit-section-title">Información del viaje</div>
+      <div class="edit-field"><label>Estado</label><div class="readonly-field" id="ep-estado">—</div></div>
+      <div class="edit-field"><label>Tipo viaje</label><div class="readonly-field" id="ep-tipo">—</div></div>
+      <div class="edit-field"><label>Origen → Destino</label><div class="readonly-field" id="ep-ruta">—</div></div>
+      <div class="edit-field"><label>Motorista</label><div class="readonly-field" id="ep-motorista">—</div></div>
+    </div>
+    <!-- Campos editables según rol -->
+    <div class="edit-section" id="edit-campos">
+      <div class="edit-section-title">Seguimiento</div>
+      <div class="edit-field">
+        <label>Motivo retraso inicio</label>
+        <select id="ep-mot-inicio">
+          <option value="">Sin motivo</option>
+          <option>Tráfico</option>
+          <option>Falla mecánica</option>
+          <option>Problema en ruta</option>
+          <option>Retraso en carga</option>
+          <option>Espera de instrucciones</option>
+          <option>Condiciones climáticas</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="edit-field">
+        <label>Motivo retraso entrega</label>
+        <select id="ep-mot-entrega">
+          <option value="">Sin motivo</option>
+          <option>Tráfico</option>
+          <option>Falla mecánica</option>
+          <option>Problema en ruta</option>
+          <option>Demora en descarga</option>
+          <option>Condiciones climáticas</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="edit-field">
+        <label>Comentario cabina</label>
+        <textarea id="ep-comentario" rows="3" placeholder="Observaciones del viaje..."></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="edit-footer">
+    <div class="edit-info" id="edit-info"></div>
+    <button class="btn-sm primary" style="width:100%" onclick="guardarEdicion()">Guardar cambios</button>
   </div>
 </div>
 
 <script>
-const BASE_URL = 'https://raw.githubusercontent.com/alexanderortega2000-glitch/AuTransp/main/data/';
-const ARCHIVOS_GH = {
-  prog: 'programa_consolidado.json.gz',
-  seg:  'seguimiento_consolidado.json.gz',
-  api:  'api_historico.json.gz',
-  cos:  'costos_limpio.json.gz',
+// ============================================================
+// CONFIGURACIÓN
+// ============================================================
+const BASE_URL     = 'https://raw.githubusercontent.com/alexanderortega2000-glitch/AuTransp/main/';
+const GITHUB_API   = 'https://api.github.com/repos/alexanderortega2000-glitch/AuTransp/contents/';
+const GITHUB_TOKEN = ''; // Se llena desde localStorage si el usuario es admin
+
+const ARCHIVOS = {
+  apiHist:  'data/api_historico.json.gz',
+  apiAct:   'data/api_actual.json.gz',
+  prog:     'data/prog_actual.json.gz',
+  costos:   'data/costos_actual.json.gz',
+  segWeb:   'data/seg_web.json.gz',
+  usuarios: 'usuarios.json',
 };
 
-const ESTADOS_CSS = {
-  'No programado':'s-noprog','A demanda':'s-demand','Programado':'s-prog',
-  'Programado a demanda':'s-progdem','En proceso':'s-enproceso','Abortado':'s-abortado',
-  'Finalizado':'s-finalizado','Integrado':'s-integrado','Pagado':'s-pagado'
+// ============================================================
+// ESTADO GLOBAL
+// ============================================================
+let usuariosData = {};
+let sesion       = null;  // { usuario, nombre, rol }
+let viajes       = [];
+let vFilt        = [];
+let anotaciones  = {};
+let segWebData   = [];
+let pg           = 0;
+const PX         = 50;
+let chartInst    = null;
+
+// ============================================================
+// COLORES POR ESTADO
+// ============================================================
+const ESTADO_COLORS = {
+  'Pendiente':  '#94a3b8',
+  'Asignado':   '#60a5fa',
+  'En proceso': '#3b82f6',
+  'Cancelado':  '#f87171',
+  'Abortado':   '#f472b6',
+  'Finalizado': '#4ade80',
+  'Integrado':  '#22c55e',
+  'Pagado':     '#16a34a',
 };
-const MACRO_PEND  = ['No programado','A demanda','Programado','Programado a demanda'];
-const MACRO_CURSO = ['En proceso'];
-const MACRO_TERM  = ['Finalizado','Integrado','Pagado'];
-const COLORS = {
-  'No programado':'#b4b2a9','A demanda':'#888780','Programado':'#ef9f27',
-  'Programado a demanda':'#fac775','En proceso':'#378add','Abortado':'#e24b4a',
-  'Finalizado':'#1d9e75','Integrado':'#0f6e56','Pagado':'#085041'
+const ESTADO_BADGE = {
+  'Pendiente':  'b-pendiente',
+  'Asignado':   'b-asignado',
+  'En proceso': 'b-proceso',
+  'Cancelado':  'b-cancelado',
+  'Abortado':   'b-abortado',
+  'Finalizado': 'b-finalizado',
+  'Integrado':  'b-integrado',
+  'Pagado':     'b-pagado',
+};
+const ORIGEN_BADGE = {
+  'Programado':      'b-prog',
+  'A demanda':       'b-demanda',
+  'Fuera de gestión':'b-fgestion',
 };
 
-let viajes=[], vFilt=[], pg=0, chartInst=null;
-const PX=50;
-const datos={prog:null,seg:null,api:null,cos:null};
+// ============================================================
+// UTILIDADES
+// ============================================================
+function n(v) { return (v==null||v===''||v==='nan'||v==='None'||v==='<NA>'||v==='NaT') ? null : String(v).trim(); }
+function g(obj,...keys) { for(const k of keys){if(obj[k]!=null&&obj[k]!=='')return obj[k];}return null; }
+function loader(msg) { document.getElementById('loader-text').textContent = msg; }
 
-function log(msg){
-  const el=document.getElementById('log');
-  el.innerHTML+='\n'+new Date().toLocaleTimeString('es-SV')+' — '+msg;
-  el.scrollTop=el.scrollHeight;
-}
-
-function setTab(t){
-  ['resumen','detalle','datos'].forEach((n,i)=>{
-    document.querySelectorAll('.tab')[i].classList.toggle('active',n===t);
-    document.getElementById('tab-'+n).classList.toggle('active',n===t);
-  });
-}
-
-async function descomprimirJSON(buffer){
-  const uint8 = new Uint8Array(buffer);
-  const dec   = pako.inflate(uint8);
+async function fetchGZ(ruta) {
+  const resp = await fetch(BASE_URL + ruta + '?t=' + Date.now());
+  if (!resp.ok) return [];
+  const buf  = await resp.arrayBuffer();
+  const dec  = pako.inflate(new Uint8Array(buf));
   return JSON.parse(new TextDecoder('utf-8').decode(dec));
 }
 
-async function cargarDesdeGitHub(manual=false){
-  if(manual) log('Recargando datos desde GitHub...');
-  else log('Cargando datos automáticamente desde GitHub...');
+async function fetchJSON(ruta) {
+  const resp = await fetch(BASE_URL + ruta + '?t=' + Date.now());
+  if (!resp.ok) return {};
+  return resp.json();
+}
 
-  document.getElementById('badge-loading').style.display='inline-flex';
-  document.getElementById('live-badge').style.display='none';
-  document.getElementById('last-update').textContent='Cargando...';
+// ============================================================
+// ARRANQUE
+// ============================================================
+window.addEventListener('load', async () => {
+  document.getElementById('loader').style.display = 'flex';
+  loader('Cargando usuarios...');
 
-  let alguno=false;
-  for(const [key,nombre] of Object.entries(ARCHIVOS_GH)){
-    const url = BASE_URL + nombre + '?t=' + Date.now(); // evitar caché
-    log('Descargando '+nombre+'...');
-    try{
-      const resp = await fetch(url);
-      if(!resp.ok) throw new Error('HTTP '+resp.status);
-      const buf  = await resp.arrayBuffer();
-      const rows = await descomprimirJSON(buf);
-      datos[key] = rows;
-      log(nombre+' — '+rows.length.toLocaleString()+' registros OK');
-      alguno=true;
-    }catch(e){
-      log('Error descargando '+nombre+': '+e.message);
+  try {
+    usuariosData = await fetchJSON(ARCHIVOS.usuarios);
+    // Poblar selector de login
+    const sel = document.getElementById('login-user');
+    Object.values(usuariosData).sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.usuario;
+      opt.textContent = u.nombre;
+      sel.appendChild(opt);
+    });
+  } catch(e) {
+    console.error('Error cargando usuarios:', e);
+  }
+
+  document.getElementById('loader').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+
+  // Enter en PIN
+  document.getElementById('login-pin').addEventListener('keydown', e => {
+    if(e.key === 'Enter') intentarLogin();
+  });
+});
+
+// ============================================================
+// LOGIN
+// ============================================================
+function intentarLogin() {
+  const usuario = document.getElementById('login-user').value;
+  const pin     = document.getElementById('login-pin').value;
+  const errEl   = document.getElementById('login-error');
+
+  if (!usuario) { errEl.style.display = 'block'; errEl.textContent = 'Selecciona tu usuario.'; return; }
+
+  const u = usuariosData[usuario];
+  if (!u || String(u.pin) !== String(pin)) {
+    errEl.style.display = 'block'; errEl.textContent = 'PIN incorrecto. Intenta de nuevo.';
+    document.getElementById('login-pin').value = '';
+    return;
+  }
+
+  sesion = { usuario: u.usuario, nombre: u.nombre, rol: u.rol };
+  errEl.style.display = 'none';
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('user-display').textContent = u.usuario + ' · ' + u.rol;
+  document.getElementById('app').style.display = 'block';
+
+  cargarDatos();
+}
+
+function cerrarSesion() {
+  sesion = null; viajes = []; vFilt = [];
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('login-user').value = '';
+}
+
+// ============================================================
+// CARGA DE DATOS
+// ============================================================
+async function cargarDatos() {
+  document.getElementById('loader').style.display = 'flex';
+  loader('Cargando datos de API...');
+
+  const [apiHist, apiAct, progData, costosData] = await Promise.all([
+    fetchGZ(ARCHIVOS.apiHist).catch(()=>[]),
+    fetchGZ(ARCHIVOS.apiAct).catch(()=>[]),
+    fetchGZ(ARCHIVOS.prog).catch(()=>[]),
+    fetchGZ(ARCHIVOS.costos).catch(()=>[]),
+  ]);
+
+  loader('Procesando viajes...');
+
+  // Fusionar API hist + actual (actual tiene prioridad)
+  const idsAct = new Set(apiAct.map(r => n(r.ID_ST)).filter(Boolean));
+  const apiFull = [...apiHist.filter(r => !idsAct.has(n(r.ID_ST))), ...apiAct];
+
+  procesarViajes(apiFull, progData, costosData);
+
+  document.getElementById('loader').style.display = 'none';
+}
+
+async function recargarDatos() { await cargarDatos(); }
+
+// ============================================================
+// PROCESAMIENTO DE VIAJES
+// ============================================================
+function procesarViajes(apiData, progData, costosData) {
+  const m = {};
+  const mk = st => { if(!m[st]) m[st]={st,enAPI:false,enProg:false,enSeg:false,enCostos:false,pagado:false,fueAbortado:false,area:null}; return m[st]; };
+
+  // API
+  apiData.forEach(r => {
+    const st = n(g(r,'ID_ST')); if(!st) return;
+    const v  = mk(st);
+    v.enAPI      = true;
+    v.estadoAPI  = n(r.Estado);
+    v.tipoViaje  = n(r.TipoViaje);
+    // Prioridad de fuentes — origen y destino
+    v.origen_api  = n(r.DsPuntoPartida);
+    v.destino_api = n(r.DsPuntoEntrega);
+    v.fechaEntrega= n(r.FechaEntrega);
+    v.fechaInicio = n(r.FechaInicioViaje);
+    v.fechaFin    = n(r.FechaFinalizacion);
+    v.motorista   = n(r.Nom_Motorista);
+    v.km          = r.Km;
+    v.osApi       = n(r.OS);
+  });
+
+  // Prog
+  progData.forEach(r => {
+    const st = n(g(r,'ST','st')); if(!st) return;
+    const v  = mk(st);
+    v.enProg      = true;
+    v.coordinador = n(g(r,'Coordinador'));
+    v.zona        = n(g(r,'Zona'));
+    v.horaPlan    = n(g(r,'HoraPlanInicio'));
+    v.estadoViaje = n(g(r,'EstatusViaje'));
+    v.fechaEjec   = n(g(r,'FechaEjecucion'));
+    v.tipoProg    = n(r.TipoProg);
+    // Fuentes de fallback
+    v.origen_prog  = n(g(r,'NombreOrigen'));
+    v.destino_prog = n(g(r,'NombreDestino'));
+    v.tipoViaje_prog = n(g(r,'NombreServicio'));
+    v.subflota    = n(r.Subflota);
+    v.proveedor_prog = n(g(r,'ProveedorTransp'));
+    if(v.estadoViaje === 'Abortado') v.fueAbortado = true;
+  });
+
+  // Seg web
+  segWebData.forEach(r => {
+    const st = n(g(r,'ST','st')); if(!st) return;
+    const v  = mk(st);
+    v.enSeg = true;
+    if(!v.coordinador) v.coordinador = n(g(r,'Coordinador'));
+    if(!v.fechaEjec)   v.fechaEjec   = n(g(r,'FechaEjecucion'));
+    v.origen_seg  = n(g(r,'NombreOrigen'));
+    v.destino_seg = n(g(r,'NombreDestino'));
+    v.tipoViaje_seg = n(g(r,'NombreServicio'));
+    if(n(g(r,'EstatusViaje')) === 'Abortado') v.fueAbortado = true;
+  });
+
+  // Costos
+  costosData.forEach(r => {
+    const st = n(g(r,'ST','st')); if(!st) return;
+    const v  = mk(st);
+    v.enCostos  = true;
+    v.area      = n(r.Area);
+    const fp    = n(g(r,'FechaIntegracionSAPPago'));
+    const fc    = n(g(r,'FechaIntegracionSAPCobro'));
+    v.pagado    = (fp && fp !== 'NaT' && fp !== '') || (fc && fc !== 'NaT' && fc !== '');
+  });
+
+  // Aplicar anotaciones web
+  Object.entries(anotaciones).forEach(([st, anot]) => {
+    if(m[st]) {
+      if(anot.motivoRetrasoInicio)  m[st].motivoRetrasoInicio  = anot.motivoRetrasoInicio;
+      if(anot.motivoRetrasoEntrega) m[st].motivoRetrasoEntrega = anot.motivoRetrasoEntrega;
+      if(anot.comentarioCabina)     m[st].comentarioCabina     = anot.comentarioCabina;
+      if(anot.actualizadoPor)       m[st].actualizadoPor       = anot.actualizadoPor;
     }
-  }
-
-  if(alguno){
-    log('Procesando viajes...');
-    procesarFuentes();
-  } else {
-    document.getElementById('badge-loading').style.display='none';
-    document.getElementById('last-update').textContent='Error al cargar datos';
-    log('No se pudieron cargar los datos desde GitHub.');
-  }
-}
-
-async function handleFiles(files){
-  log('Cargando '+files.length+' archivo(s) manual(es)...');
-  for(const f of Array.from(files)){
-    const nom=f.name.toLowerCase();
-    let key=null;
-    if(nom.includes('programa')&&!nom.includes('seg')) key='prog';
-    else if(nom.includes('seguimiento')) key='seg';
-    else if(nom.includes('api')||nom.includes('historico')) key='api';
-    else if(nom.includes('costo')) key='cos';
-    if(!key){log('No reconocido: '+f.name);continue;}
-    const chip=document.getElementById('c-'+key);
-    chip.className='chip loading';
-    try{
-      const buf=await f.arrayBuffer();
-      const rows=await descomprimirJSON(buf);
-      datos[key]=rows;
-      chip.className='chip ok';
-      chip.textContent=key+' ✓ ('+rows.length.toLocaleString()+')';
-      log(f.name+' — '+rows.length.toLocaleString()+' registros OK');
-    }catch(e){
-      chip.className='chip err';
-      log('Error en '+f.name+': '+e.message);
-    }
-  }
-  log('Procesando...');
-  procesarFuentes();
-}
-
-const dz=document.querySelector('.upload-zone');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='var(--bg2)';});
-dz.addEventListener('dragleave',()=>{dz.style.background='';});
-dz.addEventListener('drop',e=>{e.preventDefault();dz.style.background='';handleFiles(e.dataTransfer.files);});
-
-function n(v){return(v==null||v===''||v==='nan'||v==='None'||v==='<NA>')?null:String(v).trim();}
-function g(obj,...keys){for(const k of keys){if(obj[k]!=null&&obj[k]!=='')return obj[k];}return null;}
-
-function determinarEstado(v){
-  if(n(v.estadoViaje)==='Abortado')return 'Abortado';
-  if(v.pagado)return 'Pagado';
-  if(v.enCostos)return 'Integrado';
-  const ea=n(v.estadoAPI);
-  if(ea==='Finalizada'||ea==='Finalizado sin Reanudar')return 'Finalizado';
-  if(v.fechaInicio)return 'En proceso';
-  if(v.enAPI&&v.enProg)return 'Programado';
-  if(v.enAPI&&v.enSeg&&!v.enProg)return 'Programado a demanda';
-  if(!v.enAPI&&v.enSeg&&!v.enProg)return 'A demanda';
-  if(v.enProg&&!v.enAPI)return 'No programado';
-  return 'Programado';
-}
-
-function procesarFuentes(){
-  const m={};
-  const mk=st=>{if(!m[st])m[st]={st,enAPI:false,enProg:false,enSeg:false,enCostos:false,pagado:false};return m[st];};
-  if(datos.api)datos.api.forEach(r=>{
-    const st=n(g(r,'ID_ST'));if(!st)return;
-    const v=mk(st);v.enAPI=true;v.estadoAPI=n(r.Estado);v.tipoViaje=n(r.TipoViaje);
-    v.origen=n(r.DsPuntoPartida);v.destino=n(r.DsPuntoEntrega);
-    v.fechaInicio=n(r.FechaInicioViaje);v.motorista=n(r.Nom_Motorista);
-    v.fechaEntrega=n(r.FechaEntrega);v.km=r.Km;
   });
-  if(datos.prog)datos.prog.forEach(r=>{
-    const st=n(g(r,'ST','st'));if(!st)return;
-    const v=mk(st);v.enProg=true;
-    v.coordinador=n(g(r,'Coordinador','coordinador'));
-    v.zona=n(g(r,'Zona','zona'));
-    v.horaPlan=n(g(r,'HoraPlanInicio'));
-    v.estadoViaje=n(g(r,'EstatusViaje'));
-    v.fechaEjec=n(g(r,'FechaEjecucion'));
-    v.tipoPrograma=n(r.TipoPrograma);
-    if(!v.tipoViaje)v.tipoViaje=n(g(r,'NombreServicio'));
-    if(!v.origen)v.origen=n(g(r,'NombreOrigen'));
-    if(!v.destino)v.destino=n(g(r,'NombreDestino'));
+
+  // Calcular campos derivados
+  Object.values(m).forEach(v => {
+    // Prioridad de fuentes: API → Prog → Seg
+    v.origen   = v.origen_api   || v.origen_prog   || v.origen_seg   || null;
+    v.destino  = v.destino_api  || v.destino_prog  || v.destino_seg  || null;
+    v.tipoViaje= v.tipoViaje    || v.tipoViaje_prog || v.tipoViaje_seg|| null;
+    v.proveedor= v.proveedor_prog || null;
+
+    // Fecha de referencia para filtros
+    v.fechaRef = v.fechaEjec || v.fechaEntrega || null;
+
+    // Origen solicitud
+    if(v.enProg)                        v.origenSolicitud = 'Programado';
+    else if(!v.enProg && v.enSeg)       v.origenSolicitud = 'A demanda';
+    else                                v.origenSolicitud = 'Fuera de gestión';
+
+    // Estado viaje
+    v.estadoViaje = determinarEstado(v);
   });
-  if(datos.seg)datos.seg.forEach(r=>{
-    const st=n(g(r,'ST','st'));if(!st)return;
-    const v=mk(st);v.enSeg=true;
-    v.horaReal=n(g(r,'HoraRealInicio'));
-    v.estadoViaje=n(g(r,'EstatusViaje'))||v.estadoViaje;
-    if(!v.coordinador)v.coordinador=n(g(r,'Coordinador'));
-    if(!v.fechaEjec)v.fechaEjec=n(g(r,'FechaEjecucion'));
-  });
-  if(datos.cos)datos.cos.forEach(r=>{
-    const st=n(g(r,'ST','st'));if(!st)return;
-    const v=mk(st);v.enCostos=true;
-    const ip=n(g(r,'IntegracionPago','IntegracionCobro'));
-    v.pagado=ip&&ip.includes('PROCESADO');
-  });
-  viajes=Object.values(m).map(v=>{v.estado=determinarEstado(v);return v;});
-  vFilt=[...viajes];
-  poblarFiltros();actualizarKPIs();pg=0;renderTabla();
-  const ahora = new Date().toLocaleTimeString('es-SV');
-  document.getElementById('last-update').textContent='Actualizado: '+ahora;
-  document.getElementById('badge-loading').style.display='none';
-  document.getElementById('live-badge').style.display='inline-flex';
-  setTab('resumen');
-  log('Listo. '+viajes.length.toLocaleString()+' viajes únicos.');
+
+  viajes = Object.values(m);
+  poblarFiltrosDinamicos();
+  aplicarFiltros();
 }
 
-function actualizarKPIs(){
-  const cnt={};Object.keys(ESTADOS_CSS).forEach(e=>cnt[e]=0);
-  viajes.forEach(v=>{if(cnt[v.estado]!==undefined)cnt[v.estado]++;});
-  const pend=MACRO_PEND.reduce((s,e)=>s+(cnt[e]||0),0);
-  const curso=MACRO_CURSO.reduce((s,e)=>s+(cnt[e]||0),0);
-  const term=MACRO_TERM.reduce((s,e)=>s+(cnt[e]||0),0);
-  document.getElementById('m-pend').textContent=pend.toLocaleString();
-  document.getElementById('m-curso').textContent=curso.toLocaleString();
-  document.getElementById('m-term').textContent=term.toLocaleString();
-  document.getElementById('kpi-total').textContent=viajes.length.toLocaleString();
-  document.getElementById('kpi-abort').textContent=(cnt['Abortado']||0).toLocaleString();
-  const finTot=(cnt['Finalizado']||0)+(cnt['Integrado']||0)+(cnt['Pagado']||0);
-  const cerrad=(cnt['Integrado']||0)+(cnt['Pagado']||0);
-  const sinCer=cnt['Finalizado']||0;
-  const pct=finTot>0?Math.round(cerrad/finTot*100):0;
-  document.getElementById('kpi-ciclo').textContent=pct+'%';
-  document.getElementById('kpi-ciclo-sub').textContent=cerrad+' de '+finTot+' terminados';
-  document.getElementById('kpi-nociclo').textContent=sinCer.toLocaleString();
-  actualizarGrafico(cnt);
-  const max=Math.max(finTot,cerrad,sinCer,1);
-  document.getElementById('ciclo-bars').innerHTML=[
-    {label:'Finalizados en API',val:finTot,color:'#1d9e75'},
-    {label:'Integrados en costos',val:cerrad,color:'#0f6e56'},
-    {label:'Sin cerrar ciclo',val:sinCer,color:'#ef9f27'},
-  ].map(e=>`<div style="margin-bottom:10px;">
-    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
-      <span style="color:var(--text2)">${e.label}</span>
-      <span style="font-weight:500">${e.val.toLocaleString()}</span>
-    </div>
-    <div class="progress-bar"><div class="progress-fill" style="width:${Math.round(e.val/max*100)}%;background:${e.color}"></div></div>
-  </div>`).join('');
+function determinarEstado(v) {
+  // Abortado — flag permanente
+  if(v.fueAbortado || v.estadoViaje === 'Abortado') { v.fueAbortado = true; }
+
+  // Cancelado — por EstatusViaje en prog/seg O estado API = Cancelada
+  if(v.estadoViaje === 'Cancelado' || v.estadoAPI === 'Cancelada') return 'Cancelado';
+
+  // Pagado
+  if(v.pagado) return 'Pagado';
+
+  // Integrado — finalizado + en costos
+  if(v.enCostos && (v.estadoAPI === 'Finalizada' || v.estadoAPI === 'Finalizado sin Reanudar')) return 'Integrado';
+
+  // Finalizado
+  if(v.estadoAPI === 'Finalizada' || v.estadoAPI === 'Finalizado sin Reanudar') return 'Finalizado';
+
+  // En proceso
+  if(v.fechaInicio && v.estadoAPI !== 'Cancelada') return 'En proceso';
+
+  // Asignado — en API pero sin inicio
+  if(v.enAPI) return 'Asignado';
+
+  // Pendiente — en prog o seg pero sin ST en API
+  if(v.enProg || v.enSeg) return 'Pendiente';
+
+  return 'Asignado';
 }
 
-function actualizarGrafico(cnt){
-  const labels=Object.keys(ESTADOS_CSS).filter(e=>cnt[e]>0);
-  const data=labels.map(e=>cnt[e]);
-  if(chartInst)chartInst.destroy();
-  chartInst=new Chart(document.getElementById('chart-estados').getContext('2d'),{
-    type:'bar',
-    data:{labels,datasets:[{data,backgroundColor:labels.map(l=>COLORS[l]),borderWidth:0,borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
-      plugins:{legend:{display:false}},
-      scales:{x:{grid:{color:'rgba(128,128,128,.1)'},ticks:{font:{size:11}}},
-              y:{grid:{display:false},ticks:{font:{size:11}}}}}
-  });
-}
-
-function poblarFiltros(){
-  const mk=(vals,id)=>{
-    const sel=document.getElementById(id);
-    const first=sel.options[0].outerHTML;
-    sel.innerHTML=first+[...new Set(vals.filter(Boolean))].sort().map(v=>`<option>${v}</option>`).join('');
+// ============================================================
+// FILTROS
+// ============================================================
+function poblarFiltrosDinamicos() {
+  const mk = (vals, id) => {
+    const sel  = document.getElementById(id);
+    const first= sel.options[0].outerHTML;
+    sel.innerHTML = first + [...new Set(vals.filter(Boolean))].sort().map(v=>`<option>${v}</option>`).join('');
   };
-  mk(viajes.map(v=>v.estado),'f-estado');
-  mk(viajes.map(v=>v.coordinador),'f-coord');
-  mk(viajes.map(v=>v.zona),'f-zona');
+  mk(viajes.map(v=>v.coordinador), 'f-coord');
+  mk(viajes.map(v=>v.zona),        'f-zona');
 }
 
-function aplicarFiltros(){
-  const fecha=document.getElementById('f-fecha').value;
-  const estado=document.getElementById('f-estado').value;
-  const coord=document.getElementById('f-coord').value;
-  const zona=document.getElementById('f-zona').value;
-  vFilt=viajes.filter(v=>{
-    if(estado&&v.estado!==estado)return false;
-    if(coord&&v.coordinador!==coord)return false;
-    if(zona&&v.zona!==zona)return false;
-    if(fecha){const fechas=[v.fechaEjec,v.fechaEntrega].filter(Boolean);if(!fechas.some(f=>String(f).startsWith(fecha)))return false;}
+function aplicarFiltros() {
+  const desde  = document.getElementById('f-desde').value;
+  const hasta  = document.getElementById('f-hasta').value;
+  const origen = document.getElementById('f-origen').value;
+  const estado = document.getElementById('f-estado').value;
+  const coord  = document.getElementById('f-coord').value;
+  const zona   = document.getElementById('f-zona').value;
+  const area   = document.getElementById('f-area').value;
+
+  // Filtros de columna en tabla
+  const tfSt     = document.getElementById('tf-st').value.toLowerCase();
+  const tfOrigen = document.getElementById('tf-origen').value.toLowerCase();
+  const tfEstado = document.getElementById('tf-estado').value.toLowerCase();
+  const tfTipo   = document.getElementById('tf-tipo').value.toLowerCase();
+  const tfOrigen2= document.getElementById('tf-origen2').value.toLowerCase();
+  const tfDest   = document.getElementById('tf-destino').value.toLowerCase();
+  const tfCoord  = document.getElementById('tf-coord').value.toLowerCase();
+  const tfZona   = document.getElementById('tf-zona').value.toLowerCase();
+  const tfArea   = document.getElementById('tf-area').value.toLowerCase();
+
+  vFilt = viajes.filter(v => {
+    // Filtros globales
+    if(origen && v.origenSolicitud !== origen) return false;
+    if(estado && v.estadoViaje !== estado)     return false;
+    if(coord  && v.coordinador !== coord)      return false;
+    if(zona   && v.zona !== zona)              return false;
+    if(area   && v.area !== area)              return false;
+
+    // Rango de fechas
+    if(desde || hasta) {
+      const fechas = [v.fechaEjec, v.fechaEntrega].filter(f => f && f !== 'NaT');
+      if(fechas.length === 0) return false;
+      const enRango = fechas.some(f => {
+        const fStr = String(f).substring(0,10);
+        if(desde && fStr < desde) return false;
+        if(hasta && fStr > hasta) return false;
+        return true;
+      });
+      if(!enRango) return false;
+    }
+
+    // Filtros de columna (texto libre)
+    if(tfSt     && !String(v.st||'').toLowerCase().includes(tfSt))              return false;
+    if(tfOrigen && !String(v.origenSolicitud||'').toLowerCase().includes(tfOrigen)) return false;
+    if(tfEstado && !String(v.estadoViaje||'').toLowerCase().includes(tfEstado)) return false;
+    if(tfTipo   && !String(v.tipoViaje||'').toLowerCase().includes(tfTipo))     return false;
+    if(tfOrigen2&& !String(v.origen||'').toLowerCase().includes(tfOrigen2))     return false;
+    if(tfDest   && !String(v.destino||'').toLowerCase().includes(tfDest))       return false;
+    if(tfCoord  && !String(v.coordinador||'').toLowerCase().includes(tfCoord))  return false;
+    if(tfZona   && !String(v.zona||'').toLowerCase().includes(tfZona))          return false;
+    if(tfArea   && !String(v.area||'').toLowerCase().includes(tfArea))          return false;
+
     return true;
   });
-  pg=0;renderTabla();
+
+  pg = 0;
+  actualizarResumen();
+  renderTabla();
 }
 
-function limpiarFiltros(){
-  ['f-fecha','f-estado','f-coord','f-zona'].forEach(id=>document.getElementById(id).value='');
-  vFilt=[...viajes];pg=0;renderTabla();
+function limpiarFiltros() {
+  ['f-desde','f-hasta','f-origen','f-estado','f-coord','f-zona','f-area'].forEach(id => {
+    const el = document.getElementById(id); el.value = '';
+  });
+  ['tf-st','tf-origen','tf-estado','tf-tipo','tf-origen2','tf-destino','tf-coord','tf-zona','tf-area'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  aplicarFiltros();
 }
 
-function renderTabla(){
-  const page=vFilt.slice(pg*PX,pg*PX+PX);
-  const tbody=document.getElementById('tbody');
-  if(!page.length){
-    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:2rem;">Sin resultados</td></tr>';
-    document.getElementById('paginacion').innerHTML='';return;
+// ============================================================
+// RESUMEN KPIs
+// ============================================================
+function actualizarResumen() {
+  const cnt = {};
+  ['Pendiente','Asignado','En proceso','Cancelado','Abortado','Finalizado','Integrado','Pagado'].forEach(e=>cnt[e]=0);
+  vFilt.forEach(v => { if(cnt[v.estadoViaje]!==undefined) cnt[v.estadoViaje]++; });
+
+  const pend  = (cnt['Pendiente']||0) + (cnt['Asignado']||0);
+  const curso = cnt['En proceso']||0;
+  const term  = (cnt['Finalizado']||0)+(cnt['Integrado']||0)+(cnt['Pagado']||0);
+
+  document.getElementById('k-pend').textContent   = pend.toLocaleString();
+  document.getElementById('k-curso').textContent  = curso.toLocaleString();
+  document.getElementById('k-term').textContent   = term.toLocaleString();
+  document.getElementById('k-total').textContent  = vFilt.length.toLocaleString();
+  document.getElementById('k-cancel').textContent = (cnt['Cancelado']||0).toLocaleString();
+
+  const finTot = term;
+  const cerrad = (cnt['Integrado']||0)+(cnt['Pagado']||0);
+  const sinCer = cnt['Finalizado']||0;
+  const pct    = finTot>0 ? Math.round(cerrad/finTot*100) : 0;
+  document.getElementById('k-ciclo').textContent     = pct+'%';
+  document.getElementById('k-ciclo-sub').textContent = cerrad+' de '+finTot;
+  document.getElementById('k-nociclo').textContent   = sinCer.toLocaleString();
+
+  actualizarGrafico(cnt);
+  actualizarCicloBars(finTot, cerrad, sinCer);
+}
+
+function actualizarGrafico(cnt) {
+  const labels = Object.keys(ESTADO_COLORS).filter(e=>cnt[e]>0);
+  const data   = labels.map(e=>cnt[e]);
+  if(chartInst) chartInst.destroy();
+  const isDark = window.matchMedia('(prefers-color-scheme:dark)').matches;
+  const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const tickColor = isDark ? '#6b6860' : '#a8a5a0';
+  chartInst = new Chart(document.getElementById('chart-estados').getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:labels.map(l=>ESTADO_COLORS[l]),borderWidth:0,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:gridColor},ticks:{font:{size:11,family:'DM Mono'},color:tickColor}},
+        y:{grid:{display:false},ticks:{font:{size:11,family:'DM Sans'},color:tickColor}}
+      }}
+  });
+}
+
+function actualizarCicloBars(finTot, cerrad, sinCer) {
+  const max = Math.max(finTot,cerrad,sinCer,1);
+  document.getElementById('ciclo-bars').innerHTML = [
+    {label:'Finalizados',val:finTot,color:'#4ade80'},
+    {label:'Integrados en costos',val:cerrad,color:'#22c55e'},
+    {label:'Sin cerrar ciclo',val:sinCer,color:'#fcd34d'},
+  ].map(e=>`
+    <div class="ciclo-row">
+      <div class="ciclo-label">
+        <span style="color:var(--text2)">${e.label}</span>
+        <span>${e.val.toLocaleString()}</span>
+      </div>
+      <div class="prog-bar">
+        <div class="prog-fill" style="width:${Math.round(e.val/max*100)}%;background:${e.color}"></div>
+      </div>
+    </div>`).join('');
+}
+
+// ============================================================
+// TABLA DETALLE
+// ============================================================
+function renderTabla() {
+  const page  = vFilt.slice(pg*PX, pg*PX+PX);
+  const tbody = document.getElementById('tbody');
+
+  if(!page.length) {
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:3rem;font-family:var(--mono)">Sin resultados</td></tr>`;
+    document.getElementById('pag').innerHTML = '';
+    return;
   }
-  tbody.innerHTML=page.map(v=>{
-    const ciclo=v.estado==='Pagado'?'<span style="font-size:11px;color:var(--success-text)">Pagado</span>'
-      :v.estado==='Integrado'?'<span style="font-size:11px;color:var(--success-text)">Integrado</span>'
-      :v.estado==='Finalizado'?'<span style="font-size:11px;color:var(--warning-text)">Pendiente</span>'
-      :'<span style="font-size:11px;color:var(--text3)">—</span>';
-    return `<tr>
-      <td style="font-weight:500">${v.st}</td>
-      <td><span class="status-pill ${ESTADOS_CSS[v.estado]||'s-noprog'}">${v.estado}</span></td>
-      <td style="color:var(--text2);font-size:11px">${v.tipoViaje||'—'}</td>
-      <td>${v.origen||'—'}</td><td>${v.destino||'—'}</td>
-      <td>${v.coordinador||'—'}</td><td>${v.zona||'—'}</td>
-      <td style="color:var(--text2)">${v.horaPlan||'—'}</td>
-      <td style="color:var(--text2)">${v.horaReal||'—'}</td>
+
+  tbody.innerHTML = page.map(v => {
+    const ciclo = v.estadoViaje==='Pagado'    ? `<span class="ciclo-ok">Pagado</span>`
+      : v.estadoViaje==='Integrado' ? `<span class="ciclo-ok">Integrado</span>`
+      : v.estadoViaje==='Finalizado'? `<span class="ciclo-pen">Pendiente</span>`
+      : `<span class="ciclo-no">—</span>`;
+
+    const editable = sesion && ['admin','controlador','coordinador'].includes(sesion.rol);
+    const trClass  = editable ? 'clickable' : '';
+    const trClick  = editable ? `onclick="abrirPanel('${v.st}')"` : '';
+
+    return `<tr class="${trClass}" ${trClick}>
+      <td style="font-family:var(--mono);font-weight:500">${v.st}</td>
+      <td><span class="badge ${ORIGEN_BADGE[v.origenSolicitud]||'b-fgestion'}">${v.origenSolicitud||'—'}</span></td>
+      <td><span class="badge ${ESTADO_BADGE[v.estadoViaje]||'b-pendiente'}">${v.estadoViaje||'—'}</span></td>
+      <td style="color:var(--text2);font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.tipoViaje||'—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.origen||'—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.destino||'—'}</td>
+      <td>${v.coordinador||'—'}</td>
+      <td style="color:var(--text2)">${v.zona||'—'}</td>
+      <td style="color:var(--text2)">${v.area||'—'}</td>
+      <td style="color:var(--text2);font-family:var(--mono)">${v.horaPlan||'—'}</td>
+      <td style="color:var(--text2);font-family:var(--mono)">${formatHora(v.fechaInicio)||'—'}</td>
       <td>${ciclo}</td>
     </tr>`;
   }).join('');
-  const tot=Math.ceil(vFilt.length/PX);
-  document.getElementById('paginacion').innerHTML=`
-    <button onclick="irPag(${pg-1})" ${pg===0?'disabled':''}>‹</button>
-    <span>Pág ${pg+1} de ${tot} · ${vFilt.length.toLocaleString()} viajes</span>
-    <button onclick="irPag(${pg+1})" ${pg>=tot-1?'disabled':''}>›</button>`;
+
+  const tot = Math.ceil(vFilt.length/PX);
+  document.getElementById('pag').innerHTML = `
+    <button class="btn-sm" onclick="irPag(${pg-1})" ${pg===0?'disabled':''}>‹</button>
+    <span style="font-family:var(--mono)">Pág ${pg+1} / ${tot} · ${vFilt.length.toLocaleString()} viajes</span>
+    <button class="btn-sm" onclick="irPag(${pg+1})" ${pg>=tot-1?'disabled':''}>›</button>`;
 }
 
-function irPag(n){
-  const tot=Math.ceil(vFilt.length/PX);
-  if(n<0||n>=tot)return;
-  pg=n;renderTabla();
+function irPag(n) {
+  const tot = Math.ceil(vFilt.length/PX);
+  if(n<0||n>=tot) return;
+  pg=n; renderTabla();
 }
 
-// Carga automática al abrir
-window.addEventListener('load', () => cargarDesdeGitHub(false));
+function formatHora(dt) {
+  if(!dt || dt==='null' || dt==='NaT') return null;
+  const m = String(dt).match(/(\d{2}:\d{2})/);
+  return m ? m[1] : null;
+}
+
+// ============================================================
+// NAVEGACIÓN
+// ============================================================
+function setPage(p) {
+  document.querySelectorAll('.topbar-tab').forEach((t,i)=>{
+    t.classList.toggle('active', ['resumen','detalle'][i]===p);
+  });
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+}
+
+// ============================================================
+// PANEL DE EDICIÓN
+// ============================================================
+function abrirPanel(st) {
+  const v = viajes.find(x=>x.st===st);
+  if(!v) return;
+
+  // Verificar permisos — coordinador solo puede editar sus viajes
+  if(sesion.rol==='coordinador' && v.coordinador !== sesion.nombre) return;
+
+  document.getElementById('edit-st-num').textContent = st;
+  document.getElementById('ep-estado').textContent    = v.estadoViaje||'—';
+  document.getElementById('ep-tipo').textContent      = v.tipoViaje||'—';
+  document.getElementById('ep-ruta').textContent      = (v.origen||'—')+' → '+(v.destino||'—');
+  document.getElementById('ep-motorista').textContent = v.motorista||'—';
+
+  // Cargar anotaciones existentes
+  const anot = anotaciones[st] || {};
+  document.getElementById('ep-mot-inicio').value   = anot.motivoRetrasoInicio  || '';
+  document.getElementById('ep-mot-entrega').value  = anot.motivoRetrasoEntrega || '';
+  document.getElementById('ep-comentario').value   = anot.comentarioCabina     || '';
+
+  if(anot.actualizadoPor) {
+    document.getElementById('edit-info').textContent = 'Última edición: '+anot.actualizadoPor+' · '+anot.fechaActualizacion;
+  } else {
+    document.getElementById('edit-info').textContent = '';
+  }
+
+  // Campos editables solo si tiene permiso
+  const editable = ['admin','controlador','coordinador'].includes(sesion.rol);
+  document.getElementById('edit-campos').style.display = editable ? 'block' : 'none';
+
+  document.getElementById('edit-panel').classList.add('open');
+}
+
+function cerrarPanel() {
+  document.getElementById('edit-panel').classList.remove('open');
+}
+
+async function guardarEdicion() {
+  const st = document.getElementById('edit-st-num').textContent;
+  if(!st || st==='—') return;
+
+  const anot = {
+    motivoRetrasoInicio:  document.getElementById('ep-mot-inicio').value,
+    motivoRetrasoEntrega: document.getElementById('ep-mot-entrega').value,
+    comentarioCabina:     document.getElementById('ep-comentario').value,
+    actualizadoPor:       sesion.usuario,
+    fechaActualizacion:   new Date().toLocaleString('es-SV'),
+  };
+
+  anotaciones[st] = anot;
+
+  // Actualizar en el viaje en memoria
+  const v = viajes.find(x=>x.st===st);
+  if(v) {
+    v.motivoRetrasoInicio  = anot.motivoRetrasoInicio;
+    v.motivoRetrasoEntrega = anot.motivoRetrasoEntrega;
+    v.comentarioCabina     = anot.comentarioCabina;
+  }
+
+  document.getElementById('edit-info').textContent = 'Guardado localmente · Sincronizando...';
+
+  // Subir a GitHub
+  try {
+    await subirAnotaciones();
+    document.getElementById('edit-info').textContent = '✓ Guardado · '+anot.fechaActualizacion;
+  } catch(e) {
+    document.getElementById('edit-info').textContent = '⚠️ Error al guardar en GitHub';
+    console.error(e);
+  }
+}
+
+async function subirAnotaciones() {
+  const token = localStorage.getItem('gh_token') || '';
+  if(!token) {
+    console.warn('Sin token para guardar anotaciones');
+    return;
+  }
+  const contenido = JSON.stringify(anotaciones, null, 2);
+  const b64       = btoa(unescape(encodeURIComponent(contenido)));
+  const url       = GITHUB_API + 'data/seg_web.json';
+
+  // Obtener SHA actual
+  const getResp = await fetch(url, { headers: { 'Authorization': 'token '+token } });
+  const sha     = getResp.ok ? (await getResp.json()).sha : undefined;
+
+  const payload = { message: 'Actualizar seg_web', content: b64 };
+  if(sha) payload.sha = sha;
+
+  await fetch(url, {
+    method: 'PUT',
+    headers: { 'Authorization': 'token '+token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
 </script>
 </body>
 </html>
