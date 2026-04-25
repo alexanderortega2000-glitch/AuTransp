@@ -498,6 +498,11 @@ tr.clickable { cursor: pointer; }
       <div class="edit-field"><label>Tipo viaje</label><div class="readonly-field" id="ep-tipo">—</div></div>
       <div class="edit-field"><label>Origen → Destino</label><div class="readonly-field" id="ep-ruta">—</div></div>
       <div class="edit-field"><label>Motorista</label><div class="readonly-field" id="ep-motorista">—</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div class="edit-field"><label>ATD</label><div class="readonly-field" id="ep-atd">—</div></div>
+        <div class="edit-field"><label>ETA</label><div class="readonly-field" id="ep-eta">—</div></div>
+        <div class="edit-field"><label>ATA</label><div class="readonly-field" id="ep-ata">—</div></div>
+      </div>
     </div>
     <!-- Campos editables según rol -->
     <div class="edit-section" id="edit-campos">
@@ -939,9 +944,12 @@ function aplicarFiltros() {
 
     // Filtro de turno — basado en ETA (FechaEntrega planificada)
     if(turno) {
-      const h = formatHora(v.horaPlanEntrega);
-      if(!h) return false;
-      const [hh] = h.split(':').map(Number);
+      const eta = v.horaPlanEntrega;
+      if(!eta) return false;
+      const s = String(eta);
+      const m = s.match(/(\d{2}):(\d{2})/);
+      if(!m) return false;
+      const hh = parseInt(m[1]);
       if(turno==='madrugada' && !(hh >= 3  && hh <= 6)) return false;
       if(turno==='dia'       && !(hh >= 6  && hh < 14)) return false;
       if(turno==='tarde'     && !(hh >= 14 && hh < 18)) return false;
@@ -1143,6 +1151,9 @@ function abrirPanel(st) {
   document.getElementById('ep-estado').textContent    = v.estadoViaje||'—';
   document.getElementById('ep-tipo').textContent      = v.tipoViaje||'—';
   document.getElementById('ep-ruta').textContent      = (v.origen||'—')+' → '+(v.destino||'—');
+  document.getElementById('ep-eta').textContent       = formatHora(v.horaPlanEntrega)||'—';
+  document.getElementById('ep-ata').textContent       = formatHora(v.horaRealEntrega)||'—';
+  document.getElementById('ep-atd').textContent       = formatHora(v.horaRealInicio)||'—';
   document.getElementById('ep-motorista').textContent = v.motorista||'—';
 
   // Cargar anotaciones existentes
