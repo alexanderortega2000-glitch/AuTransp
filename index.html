@@ -220,6 +220,21 @@ tr.clickable { cursor: pointer; }
 .ciclo-pen { font-size: 11px; color: var(--warn); font-family: var(--mono); }
 .ciclo-no  { font-size: 11px; color: var(--text3); }
 .pag { display: flex; gap: 8px; align-items: center; padding: 10px 0; font-size: 12px; color: var(--text2); }
+.th-wrap { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.th-label { flex: 1; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+.th-btn { background: none; border: none; cursor: pointer; color: var(--text3); padding: 2px 3px; border-radius: 3px; font-size: 11px; line-height: 1; display: flex; align-items: center; }
+.th-btn:hover { background: var(--bg2); color: var(--text); }
+.th-btn.active { color: var(--text); }
+.th-search-wrap { position: relative; }
+.th-search-input {
+  position: absolute; top: 100%; left: 0; z-index: 10;
+  width: 160px; padding: 5px 8px;
+  background: var(--surface); border: 0.5px solid var(--border2);
+  border-radius: var(--radius); font-family: var(--sans); font-size: 12px;
+  color: var(--text); box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  display: none;
+}
+.th-search-input.open { display: block; }
 
 /* ── PANEL DE EDICIÓN ────────────────────────────────── */
 #edit-panel {
@@ -444,32 +459,18 @@ tr.clickable { cursor: pointer; }
         <table>
           <thead>
             <tr>
-              <th class="th-main">ST</th>
-              <th class="th-main">Origen solicitud</th>
-              <th class="th-main">Estado viaje</th>
-              <th class="th-main">Tipo viaje</th>
-              <th class="th-main">Origen</th>
-              <th class="th-main">Destino</th>
-              <th class="th-main">Coordinador</th>
-              <th class="th-main" id="th-etd" onclick="sortBy('etd')" style="cursor:pointer;user-select:none">ETD</th>
-              <th class="th-main" id="th-atd" onclick="sortBy('atd')" style="cursor:pointer;user-select:none">ATD</th>
-              <th class="th-main" id="th-eta" onclick="sortBy('eta')" style="cursor:pointer;user-select:none">ETA</th>
-              <th class="th-main" id="th-ata" onclick="sortBy('ata')" style="cursor:pointer;user-select:none">ATA</th>
-              <th class="th-main">Ciclo</th>
-            </tr>
-            <tr>
-              <th class="th-filter"><input placeholder="ST" id="tf-st" oninput="aplicarFiltros()"></th>
-              <th class="th-filter"><input placeholder="Origen..." id="tf-origen" oninput="aplicarFiltros()"></th>
-              <th class="th-filter"><input placeholder="Estado..." id="tf-estado" oninput="aplicarFiltros()"></th>
-              <th class="th-filter"><input placeholder="Tipo..." id="tf-tipo" oninput="aplicarFiltros()"></th>
-              <th class="th-filter"><input placeholder="Origen..." id="tf-origen2" oninput="aplicarFiltros()"></th>
-              <th class="th-filter"><input placeholder="Destino..." id="tf-destino" oninput="aplicarFiltros()"></th>
-              <th class="th-filter"><input placeholder="Coord..." id="tf-coord" oninput="aplicarFiltros()"></th>
-              <th class="th-filter"></th>
-              <th class="th-filter"></th>
-              <th class="th-filter"></th>
-              <th class="th-filter"></th>
-              <th class="th-filter"></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">ST</span><button class="th-btn" onclick="sortByCol('st')" id="srt-st" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-st')" title="Buscar">⌕</button><input class="th-search-input" id="tf-st" placeholder="Buscar ST..." oninput="aplicarFiltros()"></div></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">Origen sol.</span><button class="th-btn" onclick="sortByCol('origenSolicitud')" id="srt-origenSolicitud" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-origen')" title="Buscar">⌕</button><input class="th-search-input" id="tf-origen" placeholder="Buscar..." oninput="aplicarFiltros()"></div></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">Estado</span><button class="th-btn" onclick="sortByCol('estadoViaje')" id="srt-estadoViaje" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-estado')" title="Buscar">⌕</button><input class="th-search-input" id="tf-estado" placeholder="Buscar..." oninput="aplicarFiltros()"></div></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">Tipo viaje</span><button class="th-btn" onclick="sortByCol('tipoViaje')" id="srt-tipoViaje" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-tipo')" title="Buscar">⌕</button><input class="th-search-input" id="tf-tipo" placeholder="Buscar..." oninput="aplicarFiltros()"></div></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">Origen</span><button class="th-btn" onclick="sortByCol('origen')" id="srt-origen" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-origen2')" title="Buscar">⌕</button><input class="th-search-input" id="tf-origen2" placeholder="Buscar..." oninput="aplicarFiltros()"></div></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">Destino</span><button class="th-btn" onclick="sortByCol('destino')" id="srt-destino" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="tf-destino" placeholder="Buscar..." oninput="aplicarFiltros()"></div></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">Coordinador</span><button class="th-btn" onclick="sortByCol('coordinador')" id="srt-coordinador" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-coord')" title="Buscar">⌕</button><input class="th-search-input" id="tf-coord" placeholder="Buscar..." oninput="aplicarFiltros()"></div></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">ETD</span><button class="th-btn" onclick="sortByCol('horaPlanInicio')" id="srt-horaPlanInicio" title="Ordenar">↕</button></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">ATD</span><button class="th-btn" onclick="sortByCol('horaRealInicio')" id="srt-horaRealInicio" title="Ordenar">↕</button></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">ETA</span><button class="th-btn" onclick="sortByCol('horaPlanEntrega')" id="srt-horaPlanEntrega" title="Ordenar">↕</button></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">ATA</span><button class="th-btn" onclick="sortByCol('horaRealEntrega')" id="srt-horaRealEntrega" title="Ordenar">↕</button></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">Ciclo</span></div></th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
@@ -881,21 +882,34 @@ function poblarFiltrosDinamicos() {
   mk(viajes.map(v=>v.zona),        'f-zona');
 }
 
-function sortBy(col) {
+function sortByCol(col) {
   if(sortCol === col) sortDir *= -1;
   else { sortCol = col; sortDir = 1; }
-  // Update header indicators
-  ['etd','atd','eta','ata'].forEach(c => {
-    const el = document.getElementById('th-'+c);
-    if(el) el.textContent = c.toUpperCase() + (sortCol===c ? (sortDir===1?' ↑':' ↓') : '');
-  });
-  const getVal = v => {
-    const f = col==='etd'?v.horaPlanEntrega:col==='atd'?v.horaRealInicio:col==='eta'?v.horaPlanEntrega:v.horaRealEntrega;
-    return f || '99:99';
-  };
+  // Update sort indicators
+  document.querySelectorAll('.th-btn[id^="srt-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('srt-'+col);
+  if(btn) { btn.classList.add('active'); btn.textContent = sortDir===1 ? '↑' : '↓'; }
+  const getVal = v => String(v[col]||'').toLowerCase();
   vFilt.sort((a,b) => getVal(a) < getVal(b) ? -sortDir : getVal(a) > getVal(b) ? sortDir : 0);
   pg=0; renderTabla();
 }
+
+function toggleSearch(id) {
+  const inp = document.getElementById(id);
+  if(!inp) return;
+  inp.classList.toggle('open');
+  if(inp.classList.contains('open')) { inp.focus(); }
+  else { inp.value=''; aplicarFiltros(); }
+}
+
+// Close search inputs when clicking outside
+document.addEventListener('click', e => {
+  if(!e.target.closest('.th-search-wrap') && !e.target.closest('.th-btn')) {
+    document.querySelectorAll('.th-search-input.open').forEach(el => {
+      el.classList.remove('open');
+    });
+  }
+});
 
 function setHoy() {
   const hoy = new Date().toISOString().substring(0,10);
@@ -990,6 +1004,7 @@ function limpiarFiltros() {
   ['f-desde','f-hasta','f-origen','f-estado','f-coord','f-zona','f-area','f-turno'].forEach(id => {
     const el = document.getElementById(id); el.value = '';
   });
+  document.querySelectorAll('.th-search-input').forEach(el => { el.value=''; el.classList.remove('open'); });
   ['tf-st','tf-origen','tf-estado','tf-tipo','tf-origen2','tf-destino','tf-coord'].forEach(id => {
     document.getElementById(id).value = '';
   });
@@ -1118,10 +1133,16 @@ function irPag(n) {
 function formatHora(dt) {
   if(!dt || dt==='null' || dt==='NaT' || dt==='' || dt==='None') return null;
   const s = String(dt).trim();
-  // Format: YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM
+  // Format: YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM (API format)
   const m = s.match(/(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
   if(m) return m[3]+'/'+m[2]+' '+m[4]+':'+m[5];
-  // Format: date only YYYY-MM-DD — show as DD/MM without time
+  // Format: DD/MM/YYYY HH:MM (already formatted by Python)
+  const p = s.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+  if(p) return p[1]+'/'+p[2]+' '+p[4]+':'+p[5];
+  // Format: DD/MM HH:MM (short)
+  const q = s.match(/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/);
+  if(q) return q[0];
+  // Format: date only YYYY-MM-DD
   const d = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if(d) return d[3]+'/'+d[2];
   // Format: time only HH:MM
