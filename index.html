@@ -367,6 +367,16 @@ tr.clickable { cursor: pointer; }
         <option>Red Vial</option>
       </select>
     </div>
+    <div class="filter-group">
+      <span class="filter-label">Turno</span>
+      <select id="f-turno" onchange="aplicarFiltros()">
+        <option value="">Todos</option>
+        <option value="madrugada">Madrugada (03-06)</option>
+        <option value="dia">Día (06-14)</option>
+        <option value="tarde">Tarde (14-18)</option>
+        <option value="nocturno">Nocturno (18-03)</option>
+      </select>
+    </div>
     <div class="filter-sep"></div>
     <button class="btn-sm" onclick="setHoy()">Hoy</button>
     <button class="btn-sm" onclick="setEstaSemana()">Esta semana</button>
@@ -441,10 +451,10 @@ tr.clickable { cursor: pointer; }
               <th class="th-main">Origen</th>
               <th class="th-main">Destino</th>
               <th class="th-main">Coordinador</th>
-              <th class="th-main">ETD</th>
-              <th class="th-main">ATD</th>
-              <th class="th-main">ETA</th>
-              <th class="th-main">ATA</th>
+              <th class="th-main" id="th-etd" onclick="sortBy('etd')" style="cursor:pointer;user-select:none">ETD</th>
+              <th class="th-main" id="th-atd" onclick="sortBy('atd')" style="cursor:pointer;user-select:none">ATD</th>
+              <th class="th-main" id="th-eta" onclick="sortBy('eta')" style="cursor:pointer;user-select:none">ETA</th>
+              <th class="th-main" id="th-ata" onclick="sortBy('ata')" style="cursor:pointer;user-select:none">ATA</th>
               <th class="th-main">Ciclo</th>
             </tr>
             <tr>
@@ -558,6 +568,8 @@ let segWebData   = [];
 let pg           = 0;
 const PX         = 50;
 let chartInst    = null;
+let sortCol      = null;  // 'etd','atd','eta','ata'
+let sortDir      = 1;     // 1 asc, -1 desc
 
 // ============================================================
 // COLORES POR ESTADO
@@ -864,6 +876,22 @@ function poblarFiltrosDinamicos() {
   mk(viajes.map(v=>v.zona),        'f-zona');
 }
 
+function sortBy(col) {
+  if(sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = 1; }
+  // Update header indicators
+  ['etd','atd','eta','ata'].forEach(c => {
+    const el = document.getElementById('th-'+c);
+    if(el) el.textContent = c.toUpperCase() + (sortCol===c ? (sortDir===1?' ↑':' ↓') : '');
+  });
+  const getVal = v => {
+    const f = col==='etd'?v.horaPlanEntrega:col==='atd'?v.horaRealInicio:col==='eta'?v.horaPlanEntrega:v.horaRealEntrega;
+    return f || '99:99';
+  };
+  vFilt.sort((a,b) => getVal(a) < getVal(b) ? -sortDir : getVal(a) > getVal(b) ? sortDir : 0);
+  pg=0; renderTabla();
+}
+
 function setHoy() {
   const hoy = new Date().toISOString().substring(0,10);
   document.getElementById('f-desde').value = hoy;
@@ -890,6 +918,7 @@ function aplicarFiltros() {
   const coord  = document.getElementById('f-coord').value;
   const zona   = document.getElementById('f-zona').value;
   const area   = document.getElementById('f-area').value;
+  const turno  = document.getElementById('f-turno').value;
 
   // Filtros de columna en tabla
   const tfSt     = document.getElementById('tf-st').value.toLowerCase();
@@ -907,6 +936,17 @@ function aplicarFiltros() {
     if(coord  && v.coordinador !== coord)      return false;
     if(zona   && v.zona !== zona)              return false;
     if(area   && v.area !== area)              return false;
+
+    // Filtro de turno — basado en ATD (FechaInicioViaje)
+    if(turno) {
+      const h = formatHora(v.horaRealInicio);
+      if(!h) return false;
+      const [hh] = h.split(':').map(Number);
+      if(turno==='madrugada' && !(hh >= 3  && hh < 6))  return false;
+      if(turno==='dia'       && !(hh >= 6  && hh < 14)) return false;
+      if(turno==='tarde'     && !(hh >= 14 && hh < 18)) return false;
+      if(turno==='nocturno'  && !((hh >= 18) || hh < 3)) return false;
+    }
 
     // Rango de fechas
     if(desde || hasta) {
@@ -939,7 +979,7 @@ function aplicarFiltros() {
 }
 
 function limpiarFiltros() {
-  ['f-desde','f-hasta','f-origen','f-estado','f-coord','f-zona','f-area'].forEach(id => {
+  ['f-desde','f-hasta','f-origen','f-estado','f-coord','f-zona','f-area','f-turno'].forEach(id => {
     const el = document.getElementById(id); el.value = '';
   });
   ['tf-st','tf-origen','tf-estado','tf-tipo','tf-origen2','tf-destino','tf-coord'].forEach(id => {
