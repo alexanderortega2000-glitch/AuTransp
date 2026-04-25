@@ -1116,14 +1116,18 @@ function irPag(n) {
 }
 
 function formatHora(dt) {
-  if(!dt || dt==='null' || dt==='NaT') return null;
-  const s = String(dt);
-  // Try to extract date and time: YYYY-MM-DD HH:MM or similar
-  const m = s.match(/(\d{4})-(\d{2})-(\d{2})[T ]?(\d{2}):(\d{2})/);
+  if(!dt || dt==='null' || dt==='NaT' || dt==='' || dt==='None') return null;
+  const s = String(dt).trim();
+  // Format: YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM
+  const m = s.match(/(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
   if(m) return m[3]+'/'+m[2]+' '+m[4]+':'+m[5];
-  // Fallback: just time
-  const t = s.match(/(\d{2}:\d{2})/);
-  return t ? t[1] : null;
+  // Format: date only YYYY-MM-DD — show as DD/MM without time
+  const d = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(d) return d[3]+'/'+d[2];
+  // Format: time only HH:MM
+  const t = s.match(/^(\d{2}):(\d{2})/);
+  if(t) return t[1]+':'+t[2];
+  return null;
 }
 
 // ============================================================
