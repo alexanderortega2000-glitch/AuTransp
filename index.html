@@ -142,6 +142,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 .btn-sm:hover { background: var(--bg2); }
 .btn-sm.primary { background: var(--text); color: var(--bg); border-color: transparent; }
 .btn-sm.primary:hover { opacity: .85; }
+.btn-sm.active-filter { background: var(--accent2); color: var(--accent); border-color: var(--accent); font-weight: 500; }
 
 /* ── CONTENIDO ──────────────────────────────────────── */
 .content { padding: 1.25rem 1.5rem; }
@@ -298,9 +299,8 @@ tr.clickable { cursor: pointer; }
     <div class="login-sub">Ingresa con tu usuario y PIN</div>
     <div class="login-field">
       <label>Usuario</label>
-      <select id="login-user">
-        <option value="">Selecciona tu usuario...</option>
-      </select>
+      <input type="text" id="login-user" placeholder="Ej. ARIVAS" autocomplete="off"
+             style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
     </div>
     <div class="login-field">
       <label>PIN</label>
@@ -357,9 +357,14 @@ tr.clickable { cursor: pointer; }
         <option value="">Todos</option>
         <option>Pendiente</option>
         <option>Asignado</option>
+        <option>Prov. sin confirmar</option>
+        <option>En carga</option>
         <option>En proceso</option>
         <option>Cancelado</option>
+        <option>Rechazado</option>
         <option>Abortado</option>
+        <option>Inconsistente</option>
+        <option>Fin. c/obs</option>
         <option>Finalizado</option>
         <option>Integrado</option>
         <option>Contabilizado</option>
@@ -393,8 +398,8 @@ tr.clickable { cursor: pointer; }
       </select>
     </div>
     <div class="filter-sep"></div>
-    <button class="btn-sm" onclick="setHoy()">Hoy</button>
-    <button class="btn-sm" onclick="setEstaSemana()">Esta semana</button>
+    <button class="btn-sm" id="btn-hoy" onclick="setHoy()">Hoy</button>
+    <button class="btn-sm" id="btn-semana" onclick="setEstaSemana()">Esta semana</button>
     <button class="btn-sm" onclick="limpiarFiltros()">Limpiar</button>
     <button class="btn-sm primary" onclick="recargarDatos()">↻ Actualizar</button>
   </div>
@@ -510,28 +515,11 @@ tr.clickable { cursor: pointer; }
       <div class="edit-section-title">Seguimiento</div>
       <div class="edit-field">
         <label>Motivo retraso inicio</label>
-        <select id="ep-mot-inicio">
-          <option value="">Sin motivo</option>
-          <option>Tráfico</option>
-          <option>Falla mecánica</option>
-          <option>Problema en ruta</option>
-          <option>Retraso en carga</option>
-          <option>Espera de instrucciones</option>
-          <option>Condiciones climáticas</option>
-          <option>Otro</option>
-        </select>
+        <select id="ep-mot-inicio"><option value="">Sin motivo</option></select>
       </div>
       <div class="edit-field">
         <label>Motivo retraso entrega</label>
-        <select id="ep-mot-entrega">
-          <option value="">Sin motivo</option>
-          <option>Tráfico</option>
-          <option>Falla mecánica</option>
-          <option>Problema en ruta</option>
-          <option>Demora en descarga</option>
-          <option>Condiciones climáticas</option>
-          <option>Otro</option>
-        </select>
+        <select id="ep-mot-entrega"><option value="">Sin motivo</option></select>
       </div>
       <div class="edit-field">
         <label>Comentario cabina</label>
@@ -560,12 +548,14 @@ const ARCHIVOS = {
   costos:   'data/costos_actual.json.gz',
   segWeb:   'data/seg_web.json.gz',
   usuarios: 'usuarios.json',
+  config:   'config.json',
 };
 
 // ============================================================
 // ESTADO GLOBAL
 // ============================================================
 let usuariosData = {};
+let configData   = {};
 let sesion       = null;  // { usuario, nombre, rol }
 let viajes       = [];
 let vFilt        = [];
@@ -635,15 +625,11 @@ window.addEventListener('load', async () => {
   loader('Cargando usuarios...');
 
   try {
-    usuariosData = await fetchJSON(ARCHIVOS.usuarios);
-    // Poblar selector de login
-    const sel = document.getElementById('login-user');
-    Object.values(usuariosData).sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(u => {
-      const opt = document.createElement('option');
-      opt.value = u.usuario;
-      opt.textContent = u.nombre;
-      sel.appendChild(opt);
-    });
+    [usuariosData, configData] = await Promise.all([
+      fetchJSON(ARCHIVOS.usuarios),
+      fetchJSON(ARCHIVOS.config).catch(()=>({})),
+    ]);
+    // Login listo — usuario ingresa su código directamente
   } catch(e) {
     console.error('Error cargando usuarios:', e);
   }
@@ -655,26 +641,55 @@ window.addEventListener('load', async () => {
   document.getElementById('login-pin').addEventListener('keydown', e => {
     if(e.key === 'Enter') intentarLogin();
   });
+  document.getElementById('login-user').addEventListener('keydown', e => {
+    if(e.key === 'Enter') document.getElementById('login-pin').focus();
+  });
 });
 
 // ============================================================
 // LOGIN
 // ============================================================
-function intentarLogin() {
-  const usuario = document.getElementById('login-user').value;
+function poblarSelectsConfig() {
+  const llenar = (id, lista) => {
+    const sel = document.getElementById(id);
+    if(!sel || !lista) return;
+    const val = sel.value;
+    sel.innerHTML = '<option value="">Sin motivo</option>' +
+      lista.map(m => `<option>${m}</option>`).join('');
+    sel.value = val;
+  };
+  llenar('ep-mot-inicio',   configData.motivosRetrasoInicio);
+  llenar('ep-mot-entrega',  configData.motivosRetrasoEntrega);
+}
+
+async function hashPin(pin) {
+  const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function intentarLogin() {
+  const usuario = document.getElementById('login-user').value.trim().toUpperCase();
   const pin     = document.getElementById('login-pin').value;
   const errEl   = document.getElementById('login-error');
 
-  if (!usuario) { errEl.style.display = 'block'; errEl.textContent = 'Selecciona tu usuario.'; return; }
+  if (!usuario) { errEl.style.display = 'block'; errEl.textContent = 'Ingresa tu usuario.'; return; }
+  if (!pin)     { errEl.style.display = 'block'; errEl.textContent = 'Ingresa tu PIN.'; return; }
 
   const u = usuariosData[usuario];
-  if (!u || String(u.pin) !== String(pin)) {
+  if (!u) {
+    errEl.style.display = 'block'; errEl.textContent = 'Usuario no encontrado.';
+    return;
+  }
+
+  const pinHash = await hashPin(pin);
+  if (pinHash !== u.pin_hash) {
     errEl.style.display = 'block'; errEl.textContent = 'PIN incorrecto. Intenta de nuevo.';
     document.getElementById('login-pin').value = '';
     return;
   }
 
   sesion = { usuario: u.usuario, nombre: u.nombre, rol: u.rol };
+  poblarSelectsConfig();
   errEl.style.display = 'none';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('user-display').textContent = u.usuario + ' · ' + u.rol;
@@ -689,6 +704,7 @@ function cerrarSesion() {
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-pin').value = '';
   document.getElementById('login-user').value = '';
+  document.getElementById('login-user').focus();
 }
 
 // ============================================================
@@ -842,31 +858,61 @@ function procesarViajes(apiData, progData, costosData) {
 }
 
 function determinarEstado(v) {
-  // Abortado — flag permanente
-  if(v.fueAbortado || v.estadoViaje === 'Abortado') { v.fueAbortado = true; }
+  // Abortado — flag permanente (no reemplaza estado)
+  if(v.fueAbortado || v.estadoViaje === 'Abortado') v.fueAbortado = true;
 
-  // Cancelado — por EstatusViaje en prog/seg O estado API = Cancelada
-  if(v.estadoViaje === 'Cancelado' || v.estadoAPI === 'Cancelada') return 'Cancelado';
-
-  // Pagado
+  // Contabilizado — tiene fecha de integración SAP
   if(v.pagado) return 'Contabilizado';
 
-  // Integrado — finalizado + en costos
-  if(v.enCostos && (v.estadoAPI === 'Finalizada' || v.estadoAPI === 'Finalizado sin Reanudar')) return 'Integrado';
+  // Estados basados en API
+  if(v.enAPI) {
+    const ea = v.estadoAPI;
 
-  // Finalizado
-  if(v.estadoAPI === 'Finalizada' || v.estadoAPI === 'Finalizado sin Reanudar') return 'Finalizado';
+    // Cancelado — API o Prog/Seg
+    if(ea === 'Cancelada' || v.estadoViaje === 'Cancelado') return 'Cancelado';
 
-  // En proceso
-  if(v.fechaInicio && v.estadoAPI !== 'Cancelada') return 'En proceso';
+    // Rechazado — proveedor rechazó
+    if(ea === 'Rechazada') return 'Rechazado';
 
-  // Asignado — en API pero sin inicio
-  if(v.enAPI) return 'Asignado';
+    // Proveedor sin confirmar
+    if(ea === 'No Aceptada') return 'Prov. sin confirmar';
 
-  // Pendiente — en prog o seg pero sin ST en API
+    // Inconsistente — error en sistema
+    if(ea === 'Inconsistente') return 'Inconsistente';
+
+    // Finalizado con observaciones
+    if(ea === 'Finalizada sin Aceptar' || ea === 'Finalizado sin Reanudar') {
+      if(v.enCostos) return v.pagado ? 'Contabilizado' : 'Integrado';
+      return 'Fin. c/obs';
+    }
+
+    // Integrado — finalizado + en costos
+    if(ea === 'Finalizada' && v.enCostos) return 'Integrado';
+
+    // Finalizado
+    if(ea === 'Finalizada') return 'Finalizado';
+
+    // En proceso
+    if(ea === 'En Proceso' || v.fechaInicio) return 'En proceso';
+
+    // En carga
+    if(ea === 'En Carga') return 'En carga';
+
+    // Aceptada — asignado sin inicio
+    if(ea === 'Aceptada') return 'Asignado';
+
+    // Cualquier otro estado API
+    return 'Asignado';
+  }
+
+  // Sin API — solo en Prog/Seg
+  if(v.estadoViaje === 'Cancelado') return 'Cancelado';
   if(v.enProg || v.enSeg) return 'Pendiente';
 
-  return 'Asignado';
+  // Solo en Costos — sin API ni Prog
+  if(v.enCostos) return v.pagado ? 'Contabilizado' : 'Integrado';
+
+  return 'Pendiente';
 }
 
 // ============================================================
@@ -915,6 +961,7 @@ function setHoy() {
   const hoy = new Date().toISOString().substring(0,10);
   document.getElementById('f-desde').value = hoy;
   document.getElementById('f-hasta').value = hoy;
+  setActiveFilterBtn('btn-hoy');
   aplicarFiltros();
 }
 
@@ -926,6 +973,7 @@ function setEstaSemana() {
   domingo.setDate(lunes.getDate() + 6);
   document.getElementById('f-desde').value = lunes.toISOString().substring(0,10);
   document.getElementById('f-hasta').value = domingo.toISOString().substring(0,10);
+  setActiveFilterBtn('btn-semana');
   aplicarFiltros();
 }
 
@@ -1000,7 +1048,19 @@ function aplicarFiltros() {
   renderTabla();
 }
 
+function setActiveFilterBtn(id) {
+  ['btn-hoy','btn-semana'].forEach(b => {
+    const el = document.getElementById(b);
+    if(el) el.classList.remove('active-filter');
+  });
+  if(id) {
+    const el = document.getElementById(id);
+    if(el) el.classList.add('active-filter');
+  }
+}
+
 function limpiarFiltros() {
+  setActiveFilterBtn(null);
   ['f-desde','f-hasta','f-origen','f-estado','f-coord','f-zona','f-area','f-turno'].forEach(id => {
     const el = document.getElementById(id); el.value = '';
   });
