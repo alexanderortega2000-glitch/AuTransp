@@ -307,7 +307,7 @@ tr.clickable { cursor: pointer; }
       <label>PIN</label>
       <input type="password" id="login-pin" placeholder="····" maxlength="4" inputmode="numeric">
     </div>
-    <button class="login-btn" onclick="intentarLogin()">Ingresar</button>
+    <button class="login-btn" onclick="intentarLogin().catch(e=>console.error(e))">Ingresar</button>
     <div class="login-error" id="login-error">PIN incorrecto. Intenta de nuevo.</div>
   </div>
 </div>
@@ -403,7 +403,7 @@ tr.clickable { cursor: pointer; }
     <button class="btn-sm" id="btn-hoy" onclick="setHoy()">Hoy</button>
     <button class="btn-sm" id="btn-semana" onclick="setEstaSemana()">Esta semana</button>
     <button class="btn-sm" onclick="limpiarFiltros()">Limpiar</button>
-    <button class="btn-sm primary" onclick="recargarDatos()">↻ Actualizar</button>
+    <button class="btn-sm primary" id="btn-actualizar" onclick="actualizarDesdeAPI()">↻ Actualizar</button>
   </div>
 
   <!-- PÁGINAS -->
@@ -701,6 +701,273 @@ async function fetchJSON(ruta) {
 }
 
 // ============================================================
+// BOTÓN ACTUALIZAR — dispara GitHub Actions workflow
+// ============================================================
+async function actualizarDesdeAPI() {
+  const btn = document.getElementById('btn-actualizar');
+  const token = localStorage.getItem('gh_token') || '';
+
+  if(!token) {
+    alert('Para actualizar desde la API necesitas configurar el token de GitHub.\nEjecuta en consola:\nlocalStorage.setItem("gh_token","tu_token")');
+    return;
+  }
+
+  btn.textContent = 'Actualizando...';
+  btn.disabled = true;
+
+  try {
+    // Disparar workflow via repository_dispatch
+    const resp = await fetch(
+      `https://api.github.com/repos/${GITHUB_USUARIO}/${GITHUB_REPO}/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'token ' + token,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ event_type: 'actualizar_api' })
+      }
+    );
+
+    if(resp.status === 204) {
+      btn.textContent = '✓ Procesando...';
+      btn.style.background = 'var(--accent)';
+      // Esperar ~45 segundos para que el workflow termine y recargar
+      setTimeout(async () => {
+        btn.textContent = 'Cargando datos...';
+        await recargarDatos();
+        btn.textContent = '↻ Actualizar';
+        btn.disabled = false;
+        btn.style.background = '';
+      }, 45000);
+    } else {
+      throw new Error('HTTP ' + resp.status);
+    }
+  } catch(e) {
+    btn.textContent = '↻ Actualizar';
+    btn.disabled = false;
+    btn.style.background = '';
+    // Si falla el workflow, recargar datos locales de GitHub
+    console.warn('Workflow falló, recargando datos locales:', e);
+    await recargarDatos();
+  }
+}
+
+// ============================================================
+// MÓDULO DE SOLICITUDES — CARGA MANUAL DESDE EXCEL
+// ============================================================
+let solicitudesRaw = [];
+
+async function cargarSolicitud(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const status = document.getElementById('sol-status');
+  status.textContent = 'Leyendo archivo...';
+
+  try {
+    const buf  = await file.arrayBuffer();
+    const wb   = XLSX.read(buf, {type:'array', cellDates:true});
+    const sheetName = wb.SheetNames.includes('BD_Solicitud') ? 'BD_Solicitud' : wb.SheetNames[0];
+    // Detectar si la primera fila está vacía (encabezados en fila 2)
+    const ws = wb.Sheets[sheetName];
+    const allRows = XLSX.utils.sheet_to_json(ws, {defval:'', header:1});
+    const firstRow = allRows[0] || [];
+    const hasEmptyHeader = firstRow.every(v => v === '' || v == null);
+    let rows;
+    if(hasEmptyHeader && allRows.length > 1) {
+      // Encabezados en fila 2 — usar fila 2 como header
+      const headers = allRows[1];
+      rows = allRows.slice(2).map(r => {
+        const obj = {};
+        headers.forEach((h, i) => { if(h) obj[h] = r[i] ?? ''; });
+        return obj;
+      });
+    } else {
+      rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+    }
+
+    // Excluir filas de transporte (CodRecurso = 9013)
+    const sinTransp = rows.filter(r => String(r['Codigo Recurso']||r['CodRecurso']||'').trim() !== '9013');
+
+    if(!sinTransp.length) {
+      status.textContent = '⚠️ No se encontraron filas de producto en el archivo.';
+      return;
+    }
+
+    // Agrupar por ID
+    const grupos = {};
+    sinTransp.forEach(r => {
+      const id = String(r['ID']||'').trim();
+      if(!id) return;
+      if(!grupos[id]) {
+        grupos[id] = {
+          id, zona: n(r['Zona'])||'', os: String(r['OS']||''),
+          destCod: String(r['Cod.']||r['Cod_x002e_']||''),
+          destNom: n(r['NomHacienda'])||'',
+          lote: String(r['Lote']||''),
+          actividad: n(r['Actividad'])||'',
+          jefe: (n(r['Jefe'])||'').trim(),
+          respProd: (n(r['Resp Prod'])||'').trim(),
+          codAct: String(r['Cod Act']||''),
+          sociedad: n(r['Sociedad'])||'',
+          origen: n(r['Almacen Sugerido'])||'',
+          tipoApl: n(r['Tipo Aplicación'])||'',
+          productos: [],
+          fechaSol: r['Fecha Solicitud']||'',
+        };
+      }
+      grupos[id].productos.push({
+        producto: n(r['Producto'])||'', cantidad: r['Cantidad Programada']||0,
+        um: n(r['UM'])||'', dosis: r['Dosis Programada']||0,
+        area: r['HA Programada']||0, sacos: r['Sacos']||0,
+      });
+    });
+
+    solicitudesRaw = Object.values(grupos);
+    status.textContent = `✓ ${solicitudesRaw.length} solicitudes cargadas (${sinTransp.length} filas, ${rows.length - sinTransp.length} de transporte excluidas)`;
+    renderSolicitudes();
+    document.getElementById('sol-tabla-wrap').style.display = 'block';
+  } catch(e) {
+    status.textContent = '✗ Error: ' + e.message;
+    console.error(e);
+  }
+}
+
+function renderSolicitudes() {
+  const subflotas = ['','PICK UP','BUS','CAMION','RASTRA','LOWBOY'];
+  const tbody = document.getElementById('sol-tbody');
+  tbody.innerHTML = solicitudesRaw.map((g, i) => {
+    const prods = g.productos.map(p => p.producto + (p.cantidad ? ` (${p.cantidad} ${p.um})` : '')).join(' / ');
+    return `<tr>
+      <td style="font-family:var(--font-mono);font-weight:500">${g.id}</td>
+      <td style="color:var(--text2)">${g.zona}</td>
+      <td style="font-family:var(--font-mono);color:var(--text2);font-size:11px">${g.os}</td>
+      <td title="${g.destNom}">${g.destNom.length>25?g.destNom.substring(0,25)+'…':g.destNom}</td>
+      <td style="font-size:11px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${prods}">${prods}</td>
+      <td style="font-size:11px;color:var(--text2)">${g.actividad}</td>
+      <td><input type="text" id="sol-st-${i}" placeholder="Nº ST"
+          style="width:80px;height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:var(--font-mono);"
+          onchange="heredarST(${i})"></td>
+      <td><input type="text" id="sol-origen-${i}" value="${g.origen}" placeholder="Origen"
+          style="width:130px;height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);"
+          oninput="this.value=this.value.toUpperCase()"></td>
+      <td><select id="sol-sub-${i}"
+          style="height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);">
+          ${subflotas.map(s=>`<option value="${s}">${s||'Seleccionar...'}</option>`).join('')}
+      </select></td>
+      <td><input type="text" id="sol-prov-${i}" placeholder="Proveedor"
+          style="width:160px;height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);"
+          oninput="this.value=this.value.toUpperCase()"></td>
+    </tr>`;
+  }).join('');
+}
+
+function heredarST(idx) {
+  const stVal = document.getElementById('sol-st-'+idx)?.value.trim();
+  if(!stVal) return;
+  solicitudesRaw.forEach((_, i) => {
+    if(i === idx) return;
+    const stOther = document.getElementById('sol-st-'+i)?.value.trim();
+    if(stOther === stVal) {
+      const origen = document.getElementById('sol-origen-'+i)?.value;
+      const sub    = document.getElementById('sol-sub-'+i)?.value;
+      const prov   = document.getElementById('sol-prov-'+i)?.value;
+      if(!document.getElementById('sol-origen-'+idx)?.value && origen)
+        document.getElementById('sol-origen-'+idx).value = origen;
+      if(!document.getElementById('sol-sub-'+idx)?.value && sub)
+        document.getElementById('sol-sub-'+idx).value = sub;
+      if(!document.getElementById('sol-prov-'+idx)?.value && prov)
+        document.getElementById('sol-prov-'+idx).value = prov;
+    }
+  });
+}
+
+async function confirmarSolicitudes() {
+  const fecha = document.getElementById('sol-fecha').value;
+  const coord = document.getElementById('sol-coord').value.trim();
+  if(!fecha) { alert('Por favor selecciona la fecha de ejecución.'); return; }
+  if(!coord) { alert('Por favor ingresa el nombre del coordinador.'); return; }
+
+  const porST = {};
+  const errores = [];
+
+  solicitudesRaw.forEach((g, i) => {
+    const st      = document.getElementById('sol-st-'+i)?.value.trim();
+    const origen  = document.getElementById('sol-origen-'+i)?.value.trim()||'';
+    const subflota= document.getElementById('sol-sub-'+i)?.value.trim();
+    const prov    = document.getElementById('sol-prov-'+i)?.value.trim()||'';
+    if(!st)       { errores.push(`ID ${g.id}: falta ST`); return; }
+    if(!subflota) { errores.push(`ID ${g.id}: falta Subflota`); return; }
+    if(!porST[st]) {
+      porST[st] = {
+        ST: st, TipoProg: 'Produccion',
+        FechaSolicitud: g.fechaSol ? new Date(g.fechaSol).toISOString().substring(0,10) : fecha,
+        FechaEjecucion: fecha, Coordinador: coord,
+        Jefe: g.jefe, RespProd: g.respProd, CodActividad: g.codAct,
+        Actividad: g.actividad, OS: g.os, Sociedad: g.sociedad, Zona: g.zona,
+        CodDestino: g.destCod, NombreDestino: g.destNom, LoteDestino: g.lote,
+        NombreOrigen: origen, Subflota: subflota, ProveedorTransp: prov,
+        TipoAplicacion: g.tipoApl,
+        Producto: g.productos.map(p=>p.producto).join(' / '),
+        UM: g.productos[0]?.um||'',
+        CantidadProgramada: g.productos.reduce((s,p)=>s+(Number(p.cantidad)||0),0),
+        AreaProgramada: g.productos.reduce((s,p)=>s+(Number(p.area)||0),0),
+        _idsSolicitud: [g.id], _origen: 'solicitud_excel',
+        _cargadoPor: sesion.usuario, _fechaCarga: new Date().toISOString(),
+      };
+    } else {
+      porST[st]._idsSolicitud.push(g.id);
+      porST[st].Producto += ' / ' + g.productos.map(p=>p.producto).join(' / ');
+      porST[st].CantidadProgramada += g.productos.reduce((s,p)=>s+(Number(p.cantidad)||0),0);
+    }
+  });
+
+  if(errores.length) { alert('Faltan campos obligatorios:\n' + errores.join('\n')); return; }
+  const nuevos = Object.values(porST);
+  if(!nuevos.length) { alert('No hay registros válidos.'); return; }
+
+  const btn = document.getElementById('btn-confirmar-sol');
+  btn.textContent = 'Guardando...'; btn.disabled = true;
+
+  try {
+    const resp = await fetch(BASE_URL + 'data/prog_actual.json.gz?t=' + Date.now());
+    let progActual = [];
+    if(resp.ok) {
+      const buf = await resp.arrayBuffer();
+      const dec = pako.inflate(new Uint8Array(buf));
+      progActual = JSON.parse(new TextDecoder().decode(dec));
+    }
+    const progFinal  = [...progActual, ...nuevos];
+    const jsonBytes  = new TextEncoder().encode(JSON.stringify(progFinal));
+    const gz         = pako.gzip(jsonBytes, {level:6});
+    const b64        = btoa(String.fromCharCode(...new Uint8Array(gz.buffer)));
+    const token      = localStorage.getItem('gh_token')||'';
+    if(!token) throw new Error('Sin token de GitHub. Ejecuta: localStorage.setItem("gh_token","tu_token")');
+    const url  = GITHUB_API + 'data/prog_actual.json.gz';
+    const getR = await fetch(url, {headers:{'Authorization':'token '+token}});
+    const sha  = getR.ok ? (await getR.json()).sha : undefined;
+    const payload = {message:`Solicitudes Excel — ${nuevos.length} viajes`, content:b64};
+    if(sha) payload.sha = sha;
+    const putR = await fetch(url, {
+      method:'PUT', headers:{'Authorization':'token '+token,'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    if(putR.ok) {
+      btn.textContent = `✓ ${nuevos.length} viajes agregados`;
+      document.getElementById('sol-status').textContent = `✓ ${nuevos.length} viajes agregados al programa.`;
+      document.getElementById('sol-tabla-wrap').style.display = 'none';
+      document.getElementById('sol-file').value = '';
+      solicitudesRaw = [];
+      setTimeout(() => { btn.textContent = 'Agregar al programa'; btn.disabled = false; }, 3000);
+    } else throw new Error('HTTP ' + putR.status);
+  } catch(e) {
+    btn.textContent = 'Error'; btn.disabled = false;
+    alert('Error: ' + e.message); console.error(e);
+  }
+}
+
+// ============================================================
 // ARRANQUE
 // ============================================================
 window.addEventListener('load', async () => {
@@ -722,7 +989,7 @@ window.addEventListener('load', async () => {
 
   // Enter en PIN
   document.getElementById('login-pin').addEventListener('keydown', e => {
-    if(e.key === 'Enter') intentarLogin();
+    if(e.key === 'Enter') intentarLogin().catch(e=>console.error(e));
   });
   document.getElementById('login-user').addEventListener('keydown', e => {
     if(e.key === 'Enter') document.getElementById('login-pin').focus();
@@ -773,7 +1040,6 @@ async function intentarLogin() {
 
   sesion = { usuario: u.usuario, nombre: u.nombre, rol: u.rol };
   poblarSelectsConfig();
-  renderSolicitudesGitHub();
   // Mostrar tab Solicitudes para admin, coordinador y controlador
   const tabSol = document.getElementById('tab-sol');
   if(tabSol && ['admin','coordinador','controlador'].includes(sesion.rol)) {
@@ -786,7 +1052,7 @@ async function intentarLogin() {
   document.getElementById('user-display').textContent = u.usuario + ' · ' + u.rol;
   document.getElementById('app').style.display = 'block';
 
-  cargarDatos();
+  cargarDatos().then(() => renderSolicitudesGitHub());
 }
 
 function cerrarSesion() {
@@ -860,21 +1126,29 @@ function procesarViajes(apiData, progData, costosData) {
   // Prog — filas sin ST se muestran como Pendiente con ID temporal
   progData.forEach((r, idx) => {
     let st = n(g(r,'ST','st'));
+    const idSol = n(r.ID_Solicitud);
     if(!st) {
       // Sin ST — aún no programado, mostrar como Pendiente
       const coord = n(g(r,'Coordinador')) || 'SIN-COORD';
-      st = 'PEND-' + coord.split(' ')[0] + '-' + idx;
+      st = idSol ? 'SOL-' + idSol : 'PEND-' + coord.split(' ')[0] + '-' + idx;
       r._sinST = true;
     }
     const v  = mk(st);
     v.enProg      = true;
+    if(n(r._origen) === 'solicitud_planificada') v._origenRaw = 'solicitud_planificada';
     v.coordinador = n(g(r,'Coordinador'));
     v.zona        = n(g(r,'Zona'));
-    v.horaPlan    = n(g(r,'HoraPlanInicio','HoraPlan InicioViaje','HoraPlan Inicio'));
+    v.horaPlan      = n(g(r,'HoraPlanInicio','HoraPlan InicioViaje','HoraPlan Inicio'));
+    v.ID_Solicitud  = n(r.ID_Solicitud);
+    v.Producto      = n(r.Producto);
+    v.Actividad     = n(r.Actividad) || v.tipoViaje;
     v.estadoViaje = n(g(r,'EstatusViaje'));
     v.fechaEjec   = n(g(r,'FechaEjecucion'));
     v.tipoProg    = n(r.TipoProg);
-    v.horaPlan    = n(g(r,'HoraPlanInicio','HoraPlan InicioViaje','HoraPlan Inicio'));
+    v.horaPlan      = n(g(r,'HoraPlanInicio','HoraPlan InicioViaje','HoraPlan Inicio'));
+    v.ID_Solicitud  = n(r.ID_Solicitud);
+    v.Producto      = n(r.Producto);
+    v.Actividad     = n(r.Actividad) || v.tipoViaje;
     // Fuentes de fallback
     v.origen_prog  = n(g(r,'NombreOrigen'));
     v.destino_prog = n(g(r,'NombreDestino'));
@@ -939,6 +1213,8 @@ function procesarViajes(apiData, progData, costosData) {
     if(v.enProg)                        v.origenSolicitud = 'Programado';
     else if(!v.enProg && v.enSeg)       v.origenSolicitud = 'A demanda';
     else                                v.origenSolicitud = 'Fuera de gestión';
+    // Preservar _origen de solicitudes planificadas
+    if(v._origenRaw === 'solicitud_planificada') v._origen = 'solicitud_planificada';
 
     // Estado viaje
     v.estadoViaje = determinarEstado(v);
