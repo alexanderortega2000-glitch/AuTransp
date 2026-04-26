@@ -586,6 +586,10 @@ tr.clickable { cursor: pointer; }
       <div class="edit-field"><label>Tipo viaje</label><div class="readonly-field" id="ep-tipo">—</div></div>
       <div class="edit-field"><label>Origen → Destino</label><div class="readonly-field" id="ep-ruta">—</div></div>
       <div class="edit-field"><label>Motorista</label><div class="readonly-field" id="ep-motorista">—</div></div>
+      <div class="edit-field" id="ep-destinos-wrap" style="display:none;">
+        <label>Destinos de la solicitud</label>
+        <div id="ep-destinos" style="font-size:11px;color:var(--text2);line-height:1.8;"></div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
         <div class="edit-field"><label>ATD</label><div class="readonly-field" id="ep-atd">—</div></div>
         <div class="edit-field"><label>ETA</label><div class="readonly-field" id="ep-eta">—</div></div>
@@ -870,13 +874,43 @@ async function cargarSolicitud(input) {
 function renderSolicitudes() {
   const subflotas = ['','PICK UP','BUS','CAMION','RASTRA','LOWBOY'];
   const tbody = document.getElementById('sol-tbody');
-  tbody.innerHTML = solicitudesRaw.map((g, i) => {
+
+  // Mostrar una fila por línea de producto (no agrupar por ID)
+  // solicitudesRaw tiene grupos por ID, cada grupo puede tener múltiples productos/destinos
+  const filas = [];
+  solicitudesRaw.forEach((g, gi) => {
+    // Si hay múltiples destinos únicos en el grupo, mostrar una fila por destino
+    const destUnicos = [...new Set(g.productos.map(p => p.destNom || g.destNom).filter(Boolean))];
+    const usarFilasPorDest = destUnicos.length > 1;
+
+    if(usarFilasPorDest) {
+      // Agrupar productos por destino
+      const porDest = {};
+      g.productos.forEach(p => {
+        const d = p.destNom || g.destNom;
+        if(!porDest[d]) porDest[d] = {destNom: d, destCod: p.destCod||g.destCod, lote: p.lote||g.lote, productos: []};
+        porDest[d].productos.push(p);
+      });
+      Object.values(porDest).forEach(d => {
+        filas.push({...g, destNom: d.destNom, destCod: d.destCod, lote: d.lote, productos: d.productos, _subIdx: d.destNom});
+      });
+    } else {
+      filas.push(g);
+    }
+  });
+
+  // Store filas globally for confirmarSolicitudes
+  window._solFilas = filas;
+
+  tbody.innerHTML = filas.map((g, i) => {
     const prods = g.productos.map(p => p.producto + (p.cantidad ? ` (${p.cantidad} ${p.um})` : '')).join(' / ');
+    const totalKg = g.productos.reduce((s,p) => s+(Number(p.cantidad)||0), 0);
+    const gi = solicitudesRaw.findIndex(r => r.id === g.id);
     return `<tr>
       <td style="font-family:var(--font-mono);font-weight:500">${g.id}</td>
       <td style="color:var(--text2)">${g.zona}</td>
       <td style="font-family:var(--font-mono);color:var(--text2);font-size:11px">${g.os}</td>
-      <td title="${g.destNom}">${g.destNom.length>25?g.destNom.substring(0,25)+'…':g.destNom}</td>
+      <td title="${g.destNom}">${g.destNom.length>25?g.destNom.substring(0,25)+'…':g.destNom}<br><span style="font-size:10px;color:var(--text3)">Lote ${g.lote||'—'}</span></td>
       <td style="font-size:11px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${prods}">${prods}</td>
       <td style="font-size:11px;color:var(--text2)">${g.actividad}</td>
       <td><input type="text" id="sol-st-${i}" placeholder="Nº ST"
@@ -925,13 +959,14 @@ async function confirmarSolicitudes() {
   const porST = {};
   const errores = [];
 
-  solicitudesRaw.forEach((g, i) => {
+  const filas = window._solFilas || solicitudesRaw;
+  filas.forEach((g, i) => {
     const st      = document.getElementById('sol-st-'+i)?.value.trim();
     const origen  = document.getElementById('sol-origen-'+i)?.value.trim()||'';
     const subflota= document.getElementById('sol-sub-'+i)?.value.trim();
     const prov    = document.getElementById('sol-prov-'+i)?.value.trim()||'';
-    if(!st)       { errores.push(`ID ${g.id}: falta ST`); return; }
-    if(!subflota) { errores.push(`ID ${g.id}: falta Subflota`); return; }
+    if(!st)       { errores.push(`ID ${g.id} / ${g.destNom||''}: falta ST`); return; }
+    if(!subflota) { errores.push(`ID ${g.id} / ${g.destNom||''}: falta Subflota`); return; }
     if(!porST[st]) {
       porST[st] = {
         ST: st, TipoProg: 'Produccion',
@@ -946,13 +981,24 @@ async function confirmarSolicitudes() {
         UM: g.productos[0]?.um||'',
         CantidadProgramada: g.productos.reduce((s,p)=>s+(Number(p.cantidad)||0),0),
         AreaProgramada: g.productos.reduce((s,p)=>s+(Number(p.area)||0),0),
-        _idsSolicitud: [g.id], _origen: 'solicitud_excel',
+        _idsSolicitud: [g.id],
+        _destinos: [{destNom: g.destNom, destCod: g.destCod, lote: g.lote,
+                     productos: g.productos.map(p=>p.producto).join(' / '),
+                     cantidad: g.productos.reduce((s,p)=>s+(Number(p.cantidad)||0),0),
+                     um: g.productos[0]?.um||''}],
+        _origen: 'solicitud_excel',
         _cargadoPor: sesion.usuario, _fechaCarga: new Date().toISOString(),
       };
     } else {
-      porST[st]._idsSolicitud.push(g.id);
+      // Consolidar destino adicional en la misma ST
+      if(!porST[st]._idsSolicitud.includes(g.id)) porST[st]._idsSolicitud.push(g.id);
+      porST[st]._destinos.push({destNom: g.destNom, destCod: g.destCod, lote: g.lote,
+        productos: g.productos.map(p=>p.producto).join(' / '),
+        cantidad: g.productos.reduce((s,p)=>s+(Number(p.cantidad)||0),0),
+        um: g.productos[0]?.um||''});
       porST[st].Producto += ' / ' + g.productos.map(p=>p.producto).join(' / ');
       porST[st].CantidadProgramada += g.productos.reduce((s,p)=>s+(Number(p.cantidad)||0),0);
+      porST[st].AreaProgramada     += g.productos.reduce((s,p)=>s+(Number(p.area)||0),0);
     }
   });
 
@@ -1637,6 +1683,25 @@ function abrirPanel(st) {
   document.getElementById('ep-estado').textContent    = v.estadoViaje||'—';
   document.getElementById('ep-tipo').textContent      = v.tipoViaje||'—';
   document.getElementById('ep-ruta').textContent      = (v.origen||'—')+' → '+(v.destino||'—');
+  // Mostrar destinos múltiples si existen
+  const destinosWrap = document.getElementById('ep-destinos-wrap');
+  const destinosEl   = document.getElementById('ep-destinos');
+  if(v._destinos && v._destinos.length > 1 && destinosWrap && destinosEl) {
+    destinosWrap.style.display = '';
+    destinosEl.innerHTML = v._destinos.map((d,i) =>
+      `<div style="padding:4px 0;border-bottom:0.5px solid var(--border);">
+        <span style="color:var(--text);font-weight:500">${i+1}. ${d.destNom||'—'}</span>
+        <span style="color:var(--text3);margin-left:6px">Lote ${d.lote||'—'}</span><br>
+        <span style="color:var(--text2)">${d.productos||'—'}</span>
+        <span style="color:var(--text3);margin-left:6px">${d.cantidad||0} ${d.um||''}</span>
+      </div>`
+    ).join('') +
+    `<div style="padding:4px 0;font-weight:500;color:var(--text)">
+      Total: ${v._destinos.reduce((s,d)=>s+(d.cantidad||0),0)} ${v._destinos[0]?.um||''}
+    </div>`;
+  } else if(destinosWrap) {
+    destinosWrap.style.display = 'none';
+  }
   document.getElementById('ep-eta').textContent       = formatHora(v.horaPlanEntrega)||'—';
   document.getElementById('ep-ata').textContent       = formatHora(v.horaRealEntrega)||'—';
   document.getElementById('ep-atd').textContent       = formatHora(v.horaRealInicio)||'—';
