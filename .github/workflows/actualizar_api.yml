@@ -1,0 +1,28 @@
+name: Actualizar API Actual
+
+on:
+  repository_dispatch:
+    types: [actualizar_api]
+  workflow_dispatch:  # permite ejecución manual desde GitHub
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install pandas requests
+
+      - name: Actualizar api_actual
+        env:
+          TOKEN_REPO: ${{ secrets.TOKEN_REPO }}
+          API_USUARIO: ${{ secrets.API_USUARIO }}
+        run: python data/actualizar_api_actual.py
