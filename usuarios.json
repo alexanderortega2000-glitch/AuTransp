@@ -3,84 +3,84 @@
     "nombre": "RENE RIVAS",
     "usuario": "ARIVAS",
     "rol": "admin",
-    "pin": "9624"
+    "pin_hash": "0c83de60dbd8a02a82aac4fb42225abf1ef8677f3ff40f9cebb23f9ee24802a1"
   },
   "WAMAYA": {
     "nombre": "WALTER AMAYA",
     "usuario": "WAMAYA",
     "rol": "coordinador",
-    "pin": "2840"
+    "pin_hash": "8a15fadc48d9f05e22123427d4564f5ca35293abfc1a5afdbcdfd8cb50353ad2"
   },
   "NCONRADO": {
     "nombre": "NORMA CONRADO",
     "usuario": "NCONRADO",
     "rol": "coordinador",
-    "pin": "5455"
+    "pin_hash": "c1bf9243686ece9e777c3b2c5fc45c602a1e1d5b4cfb0c17ca586e7a855aabe6"
   },
   "JAPARICIO": {
     "nombre": "JUAN APARICIO",
     "usuario": "JAPARICIO",
     "rol": "coordinador",
-    "pin": "8447"
+    "pin_hash": "891d72848822b42b30e7710a2be07e384310617d65ad6a780725714c06347341"
   },
   "EGUIROLA": {
     "nombre": "ELMER GUIROLA",
     "usuario": "EGUIROLA",
     "rol": "coordinador",
-    "pin": "9538"
+    "pin_hash": "b5d3d9cfe207daa5ee360723db61688df6c395d52da564132fff885538f00eae"
   },
   "JMONROY": {
     "nombre": "JOSUE MONROY",
     "usuario": "JMONROY",
     "rol": "coordinador",
-    "pin": "1909"
+    "pin_hash": "8e614d39a1f1279958da1c9f7e8df51db4aabca8cc3a3e84f8c3dc5f88e1fcfb"
   },
   "WSANDOVAL": {
     "nombre": "WILLIAN SANDOVAL",
     "usuario": "WSANDOVAL",
     "rol": "coordinador",
-    "pin": "9199"
+    "pin_hash": "07f7a61b7777ad5fa4dc6ee0ae207e1ae4a9f84ccc7906ab422eab6f8e543356"
   },
   "MWHERNANDEZ": {
     "nombre": "MARIO HERNANDEZ",
     "usuario": "MWHERNANDEZ",
     "rol": "coordinador",
-    "pin": "6674"
+    "pin_hash": "8a541e403b7f7dd048d2b9b0c807ed86169bd712228075f82ba414e6a5979f5b"
   },
   "KGARCIA": {
     "nombre": "KEVIN GARCIA",
     "usuario": "KGARCIA",
     "rol": "coordinador",
-    "pin": "9640"
+    "pin_hash": "661edc0299e0ea111e30e9abafa8041deaa27c180d33d172efe15886059aa3ea"
   },
   "IBARRERA": {
     "nombre": "INGRID BARRERA",
     "usuario": "IBARRERA",
     "rol": "coordinador",
-    "pin": "7631"
+    "pin_hash": "84e3bdd4fb8e81ade3e60d1f63eeae6c750514475730878e965a8971b6138d81"
   },
   "DCARIAS": {
     "nombre": "DANIEL CARIAS",
     "usuario": "DCARIAS",
     "rol": "controlador",
-    "pin": "2253"
+    "pin_hash": "605e9e90d5370dfd14f2b61f34cbc58c2c9cf5686160cc483a0c5a4b4f421fc9"
   },
   "PCONTRERAS": {
     "nombre": "PAMELA CONTRERAS",
     "usuario": "PCONTRERAS",
     "rol": "controlador",
-    "pin": "9834"
+    "pin_hash": "382c03434980ac37b16a907ebcef301b16d4ed2622f7775a81b67c2f4665a3df"
   },
   "KROSA": {
     "nombre": "KARINA ROSA",
     "usuario": "KROSA",
     "rol": "controlador",
-    "pin": "2335"
+    "pin_hash": "de74413100cf58e0bba86d129818212e044ae3e37e77989469b5ee8f4c4b612b"
   },
   "BSANCHEZ": {
     "nombre": "BRENDA SANCHEZ",
     "usuario": "BSANCHEZ",
     "rol": "controlador",
-    "pin": "6576"
+    "pin_hash": "343c8d52baa0c98d0bbf5bef33246aa618dd628f73092ff20b8856293e8cb589"
   }
 }
