@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 /* ── TEMA ──────────────────────────────────────────── */
@@ -320,6 +321,7 @@ tr.clickable { cursor: pointer; }
       <div class="topbar-tabs">
         <button class="topbar-tab active" onclick="setPage('resumen')">Resumen</button>
         <button class="topbar-tab" onclick="setPage('detalle')">Detalle</button>
+        <button class="topbar-tab" id="tab-sol" onclick="setPage('solicitudes')" style="display:none">Solicitudes</button>
       </div>
     </div>
     <div class="topbar-right">
@@ -484,6 +486,86 @@ tr.clickable { cursor: pointer; }
       <div class="pag" id="pag"></div>
     </div>
 
+    <!-- SOLICITUDES -->
+    <div id="page-solicitudes" class="page">
+      <div style="max-width:1100px;">
+        <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px;">
+          <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin-bottom:12px;">Cargar solicitud de transporte</div>
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+            <div style="flex:1;min-width:220px;">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Archivo Excel (.xlsx)</div>
+              <input type="file" id="sol-file" accept=".xlsx" onchange="cargarSolicitud(this)" style="font-size:12px;width:100%">
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Fecha ejecución</div>
+              <input type="date" id="sol-fecha" style="height:28px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Coordinador</div>
+              <input type="text" id="sol-coord" placeholder="Nombre completo" style="height:28px;padding:0 8px;width:200px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);" oninput="this.value=this.value.toUpperCase()">
+            </div>
+          </div>
+          <div id="sol-status" style="font-size:12px;color:var(--text2);margin-top:10px;font-family:var(--font-mono);min-height:18px;"></div>
+          <div id="sol-github-status" style="font-size:11px;color:var(--text3);margin-top:6px;"></div>
+        </div>
+
+        <!-- Solicitudes desde GitHub (Power Automate) -->
+        <div id="sol-github-wrap" style="margin-bottom:20px;display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div>
+              <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);">Solicitudes planificadas — desde GitHub</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px;" id="sol-github-count"></div>
+            </div>
+            <button class="btn-sm" onclick="recargarDatos()">↻ Actualizar</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead><tr>
+                <th class="th-main">ID sol.</th>
+                <th class="th-main">Zona</th>
+                <th class="th-main">Destino</th>
+                <th class="th-main">Producto(s)</th>
+                <th class="th-main">Actividad</th>
+                <th class="th-main">Origen</th>
+                <th class="th-main">ST asignada</th>
+                <th class="th-main">Coordinador</th>
+                <th class="th-main">Estado</th>
+              </tr></thead>
+              <tbody id="sol-github-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Carga manual desde Excel -->
+        <div id="sol-tabla-wrap" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div>
+              <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);">Carga manual desde Excel</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px;">Asigna ST a cada fila. Filas con la misma ST se consolidan en un viaje. Completa <span style="color:var(--accent)">*</span> por ST.</div>
+            </div>
+            <button class="btn-sm primary" id="btn-confirmar-sol" onclick="confirmarSolicitudes()">Agregar al programa</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead><tr>
+                <th class="th-main">ID sol.</th>
+                <th class="th-main">Zona</th>
+                <th class="th-main">OS</th>
+                <th class="th-main">Destino</th>
+                <th class="th-main">Producto(s)</th>
+                <th class="th-main">Actividad</th>
+                <th class="th-main" style="color:var(--accent)">ST *</th>
+                <th class="th-main" style="color:var(--accent)">Origen *</th>
+                <th class="th-main" style="color:var(--accent)">Subflota *</th>
+                <th class="th-main">Proveedor</th>
+              </tr></thead>
+              <tbody id="sol-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -547,6 +629,7 @@ const ARCHIVOS = {
   prog:     'data/prog_actual.json.gz',
   costos:   'data/costos_actual.json.gz',
   segWeb:   'data/seg_web.json.gz',
+  solicitudes: 'data/solicitudes.json.gz',
   usuarios: 'usuarios.json',
   config:   'config.json',
 };
@@ -690,6 +773,14 @@ async function intentarLogin() {
 
   sesion = { usuario: u.usuario, nombre: u.nombre, rol: u.rol };
   poblarSelectsConfig();
+  renderSolicitudesGitHub();
+  // Mostrar tab Solicitudes para admin, coordinador y controlador
+  const tabSol = document.getElementById('tab-sol');
+  if(tabSol && ['admin','coordinador','controlador'].includes(sesion.rol)) {
+    tabSol.style.display = '';
+    // Pre-poblar coordinador con nombre del usuario
+    document.getElementById('sol-coord').value = sesion.nombre || '';
+  }
   errEl.style.display = 'none';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('user-display').textContent = u.usuario + ' · ' + u.rol;
@@ -714,11 +805,12 @@ async function cargarDatos() {
   document.getElementById('loader').style.display = 'flex';
   loader('Cargando datos de API...');
 
-  const [apiHist, apiAct, progData, costosData] = await Promise.all([
+  const [apiHist, apiAct, progData, costosData, solData] = await Promise.all([
     fetchGZ(ARCHIVOS.apiHist).catch(()=>[]),
     fetchGZ(ARCHIVOS.apiAct).catch(()=>[]),
     fetchGZ(ARCHIVOS.prog).catch(()=>[]),
     fetchGZ(ARCHIVOS.costos).catch(()=>[]),
+    fetchGZ(ARCHIVOS.solicitudes).catch(()=>[]),
   ]);
 
   loader('Procesando viajes...');
@@ -727,7 +819,7 @@ async function cargarDatos() {
   const idsAct = new Set(apiAct.map(r => n(r.ID_ST)).filter(Boolean));
   const apiFull = [...apiHist.filter(r => !idsAct.has(n(r.ID_ST))), ...apiAct];
 
-  procesarViajes(apiFull, progData, costosData);
+  procesarViajes(apiFull, [...progData, ...solData], costosData);
 
   document.getElementById('loader').style.display = 'none';
 }
@@ -1216,7 +1308,7 @@ function formatHora(dt) {
 // ============================================================
 function setPage(p) {
   document.querySelectorAll('.topbar-tab').forEach((t,i)=>{
-    t.classList.toggle('active', ['resumen','detalle'][i]===p);
+    t.classList.toggle('active', ['resumen','detalle','solicitudes'][i]===p);
   });
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
