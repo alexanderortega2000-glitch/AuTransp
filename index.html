@@ -322,6 +322,7 @@ tr.clickable { cursor: pointer; }
         <button class="topbar-tab active" onclick="setPage('resumen')">Resumen</button>
         <button class="topbar-tab" onclick="setPage('detalle')">Detalle</button>
         <button class="topbar-tab" id="tab-sol" onclick="setPage('solicitudes')" style="display:none">Solicitudes</button>
+        <button class="topbar-tab" id="tab-info" onclick="setPage('info')" style="display:none">Info</button>
       </div>
     </div>
     <div class="topbar-right">
@@ -566,6 +567,51 @@ tr.clickable { cursor: pointer; }
       </div>
     </div>
 
+    <!-- INFO / CALIDAD DE DATOS -->
+    <div id="page-info" class="page">
+      <div style="max-width:1000px;">
+
+        <!-- Header -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:500;color:var(--text);">Panel de calidad de datos</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px;" id="info-updated">Calculado al cargar los datos</div>
+        </div>
+
+        <!-- Resumen de fuentes -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;" id="info-fuentes"></div>
+
+        <!-- Cruces entre fuentes -->
+        <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px;">
+          <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin-bottom:14px;">Cruces entre fuentes</div>
+          <div id="info-cruces"></div>
+        </div>
+
+        <!-- Tabla maestra — cobertura de campos -->
+        <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px;">
+          <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin-bottom:14px;">Tabla maestra — cobertura de campos</div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead><tr>
+                <th class="th-main" style="width:160px">Campo</th>
+                <th class="th-main" style="width:100px">Fuente primaria</th>
+                <th class="th-main" style="width:80px">Cobertura</th>
+                <th class="th-main">Barra</th>
+                <th class="th-main" style="width:80px">Vacíos</th>
+              </tr></thead>
+              <tbody id="info-campos"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Flujo de datos -->
+        <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;">
+          <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin-bottom:14px;">Flujo de datos → Tabla maestra</div>
+          <div id="info-flujo" style="font-size:12px;"></div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -756,6 +802,123 @@ async function actualizarDesdeAPI() {
     console.warn('Workflow falló, recargando datos locales:', e);
     await recargarDatos();
   }
+}
+
+// ============================================================
+// PANEL DE CALIDAD DE DATOS
+// ============================================================
+function calcularInfo() {
+  if(!viajes.length) return;
+  const total = viajes.length;
+
+  // Conteos por fuente
+  const enAPI    = viajes.filter(v=>v.enAPI).length;
+  const enProg   = viajes.filter(v=>v.enProg).length;
+  const enSeg    = viajes.filter(v=>v.enSeg).length;
+  const enCostos = viajes.filter(v=>v.enCostos).length;
+
+  // Cruces
+  const apiYprog   = viajes.filter(v=>v.enAPI && v.enProg).length;
+  const apiYcostos = viajes.filter(v=>v.enAPI && v.enCostos).length;
+  const soloAPI    = viajes.filter(v=>v.enAPI && !v.enProg && !v.enSeg).length;
+  const sinAPI     = viajes.filter(v=>!v.enAPI && (v.enProg||v.enSeg)).length;
+  const cicloC     = viajes.filter(v=>v.pagado||(v.enCostos&&v.enAPI)).length;
+
+  // Cobertura de campos
+  const pct = (arr) => arr.length ? Math.round(arr.filter(Boolean).length / arr.length * 100) : 0;
+  const campos = [
+    { campo:'Estado viaje',    fuente:'Calculado', vals: viajes.map(v=>v.estadoViaje||v.estadoAPI) },
+    { campo:'Origen / Destino',fuente:'API → Prog', vals: viajes.map(v=>v.origen||v.destino) },
+    { campo:'Coordinador',     fuente:'Prog',      vals: viajes.map(v=>v.coordinador) },
+    { campo:'Zona',            fuente:'Prog',      vals: viajes.map(v=>v.zona) },
+    { campo:'ETA (plan)',      fuente:'API',       vals: viajes.map(v=>v.horaPlanEntrega) },
+    { campo:'ATD (real inicio)',fuente:'API',      vals: viajes.map(v=>v.horaRealInicio) },
+    { campo:'ATA (real entrega)',fuente:'API',     vals: viajes.map(v=>v.horaRealEntrega) },
+    { campo:'Motorista',       fuente:'API',       vals: viajes.map(v=>v.motorista) },
+    { campo:'Área (Costos)',   fuente:'Costos',    vals: viajes.map(v=>v.area) },
+    { campo:'Ciclo cerrado',   fuente:'Costos',    vals: viajes.map(v=>v.pagado||v.enCostos?true:null) },
+  ];
+
+  // Render fuentes
+  const fuenteCard = (label, n, color, icon) => `
+    <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin-bottom:6px;">${icon} ${label}</div>
+      <div style="font-size:24px;font-weight:500;color:var(--text)">${n.toLocaleString()}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px;">${Math.round(n/total*100)}% del total</div>
+      <div style="height:3px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden;">
+        <div style="height:100%;width:${Math.round(n/total*100)}%;background:${color};border-radius:2px;"></div>
+      </div>
+    </div>`;
+
+  document.getElementById('info-fuentes').innerHTML =
+    fuenteCard('API', enAPI, '#378add', '⬡') +
+    fuenteCard('Programa', enProg, '#ef9f27', '◈') +
+    fuenteCard('Seguimiento', enSeg, '#9b59b6', '◎') +
+    fuenteCard('Costos', enCostos, '#1d9e75', '◇');
+
+  // Render cruces
+  const cruceLine = (label, n, color) => {
+    const p = Math.round(n/total*100);
+    return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+      <div style="width:180px;font-size:12px;color:var(--text2);flex-shrink:0">${label}</div>
+      <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${p}%;background:${color};border-radius:3px;"></div>
+      </div>
+      <div style="width:60px;text-align:right;font-size:12px;font-family:var(--font-mono);color:var(--text)">${n.toLocaleString()}</div>
+      <div style="width:36px;text-align:right;font-size:11px;color:var(--text3)">${p}%</div>
+    </div>`;
+  };
+
+  document.getElementById('info-cruces').innerHTML =
+    cruceLine('API ∩ Programa', apiYprog, '#378add') +
+    cruceLine('API ∩ Costos', apiYcostos, '#1d9e75') +
+    cruceLine('Solo en API (sin Prog/Seg)', soloAPI, '#94a3b8') +
+    cruceLine('Sin API (solo Prog/Seg)', sinAPI, '#ef9f27') +
+    cruceLine('Ciclo cerrado', cicloC, '#0f6e56');
+
+  // Render campos
+  document.getElementById('info-campos').innerHTML = campos.map(c => {
+    const p = pct(c.vals);
+    const vacios = c.vals.filter(v=>!v).length;
+    const color = p >= 80 ? '#1d9e75' : p >= 50 ? '#ef9f27' : '#e24b4a';
+    return `<tr>
+      <td style="font-weight:500">${c.campo}</td>
+      <td><span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--bg2);color:var(--text2)">${c.fuente}</span></td>
+      <td style="font-family:var(--font-mono);color:${color};font-weight:500">${p}%</td>
+      <td><div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${p}%;background:${color};border-radius:3px;"></div>
+      </div></td>
+      <td style="font-family:var(--font-mono);color:var(--text3);font-size:11px">${vacios.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+
+  // Render flujo
+  const flujoFuente = (label, n, color, campos) => `
+    <div style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <div style="width:10px;height:10px;border-radius:2px;background:${color};flex-shrink:0"></div>
+        <div style="font-size:12px;font-weight:500;color:var(--text)">${label}</div>
+        <div style="font-size:11px;color:var(--text3)">${n.toLocaleString()} registros</div>
+        <div style="flex:1;height:0.5px;background:var(--border);margin:0 8px;"></div>
+        <div style="font-size:11px;color:var(--text3)">→ Tabla maestra</div>
+      </div>
+      <div style="margin-left:18px;display:flex;flex-wrap:wrap;gap:6px;">
+        ${campos.map(c=>`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg2);color:var(--text2);border:0.5px solid var(--border)">${c}</span>`).join('')}
+      </div>
+    </div>`;
+
+  document.getElementById('info-flujo').innerHTML =
+    flujoFuente('API (histórico + actual)', enAPI, '#378add',
+      ['Estado API','Origen (DsPuntoPartida)','Destino (DsPuntoEntrega)','ATD (FechaInicioViaje)','ETA (FechaEntrega)','ATA (FechaEntregaST)','Motorista','Km','OS']) +
+    flujoFuente('Programa (coordinadores)', enProg, '#ef9f27',
+      ['Coordinador','Zona','ETD (HoraPlanInicio)','Subflota','Proveedor','FechaEjecucion','EstatusViaje']) +
+    flujoFuente('Seguimiento web', enSeg, '#9b59b6',
+      ['HoraRealInicio','MotivoRetraso','ComentarioCabina','EstatusViaje']) +
+    flujoFuente('Costos (CostosAgricampo)', enCostos, '#1d9e75',
+      ['Área (Red Vial/Cosecha/Varios)','Ciclo cerrado','A_COBRAR','A_PAGAR','IntegracionSAP']);
+
+  document.getElementById('info-updated').textContent =
+    `Calculado en tiempo real · ${total.toLocaleString()} viajes · ${new Date().toLocaleString('es-SV')}`;
 }
 
 // ============================================================
@@ -1123,15 +1286,17 @@ async function intentarLogin() {
   const tabSol = document.getElementById('tab-sol');
   if(tabSol && ['admin','coordinador','controlador'].includes(sesion.rol)) {
     tabSol.style.display = '';
-    // Pre-poblar coordinador con nombre del usuario
     document.getElementById('sol-coord').value = sesion.nombre || '';
   }
+  // Mostrar tab Info solo para admin
+  const tabInfo = document.getElementById('tab-info');
+  if(tabInfo && sesion.rol === 'admin') tabInfo.style.display = '';
   errEl.style.display = 'none';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('user-display').textContent = u.usuario + ' · ' + u.rol;
   document.getElementById('app').style.display = 'block';
 
-  cargarDatos().then(() => renderSolicitudesGitHub());
+  cargarDatos().then(() => { renderSolicitudesGitHub(); calcularInfo(); });
 }
 
 function cerrarSesion() {
