@@ -754,53 +754,58 @@ async function fetchJSON(ruta) {
 // BOTÓN ACTUALIZAR — dispara GitHub Actions workflow
 // ============================================================
 async function actualizarDesdeAPI() {
-  const btn = document.getElementById('btn-actualizar');
+  const btn   = document.getElementById('btn-actualizar');
   const token = localStorage.getItem('gh_token') || '';
 
   if(!token) {
-    alert('Para actualizar desde la API necesitas configurar el token de GitHub.\nEjecuta en consola:\nlocalStorage.setItem("gh_token","tu_token")');
+    alert('Para actualizar necesitas configurar el token de GitHub.\nEjecuta en consola:\nlocalStorage.setItem("gh_token","tu_token")');
     return;
   }
 
-  btn.textContent = 'Actualizando...';
-  btn.disabled = true;
+  btn.textContent = 'Procesando...';
+  btn.disabled    = true;
 
   try {
-    // Disparar workflow via repository_dispatch
+    // Disparar workflow actualizar_api via repository_dispatch
+    const dispatchUrl = GITHUB_API.replace('/contents/', '/dispatches').replace('/contents', '/dispatches');
     const resp = await fetch(
-      `https://api.github.com/repos/${GITHUB_USUARIO}/${GITHUB_REPO}/dispatches`,
+      'https://api.github.com/repos/alexanderortega2000-glitch/AuTransp/dispatches',
       {
-        method: 'POST',
+        method:  'POST',
         headers: {
           'Authorization': 'token ' + token,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
+          'Accept':        'application/vnd.github.v3+json',
+          'Content-Type':  'application/json',
         },
         body: JSON.stringify({ event_type: 'actualizar_api' })
       }
     );
 
     if(resp.status === 204) {
-      btn.textContent = '✓ Procesando...';
-      btn.style.background = 'var(--accent)';
-      // Esperar ~45 segundos para que el workflow termine y recargar
-      setTimeout(async () => {
-        btn.textContent = 'Cargando datos...';
-        await recargarDatos();
-        btn.textContent = '↻ Actualizar';
-        btn.disabled = false;
-        btn.style.background = '';
-      }, 45000);
+      // Workflow iniciado — mostrar contador regresivo
+      let seg = 50;
+      const intervalo = setInterval(() => {
+        seg--;
+        btn.textContent = `Actualizando... ${seg}s`;
+        if(seg <= 0) {
+          clearInterval(intervalo);
+          btn.textContent = 'Cargando datos...';
+          recargarDatos().then(() => {
+            btn.textContent = '↻ Actualizar';
+            btn.disabled    = false;
+          });
+        }
+      }, 1000);
+    } else if(resp.status === 401) {
+      throw new Error('Token inválido o expirado. Renueva el token en GitHub.');
     } else {
-      throw new Error('HTTP ' + resp.status);
+      throw new Error('Error HTTP ' + resp.status);
     }
   } catch(e) {
     btn.textContent = '↻ Actualizar';
-    btn.disabled = false;
-    btn.style.background = '';
-    // Si falla el workflow, recargar datos locales de GitHub
-    console.warn('Workflow falló, recargando datos locales:', e);
-    await recargarDatos();
+    btn.disabled    = false;
+    alert('No se pudo actualizar: ' + e.message);
+    console.error(e);
   }
 }
 
