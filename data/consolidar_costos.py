@@ -43,7 +43,7 @@ import os
 GITHUB_TOKEN   = os.environ.get("TOKEN_REPO", "")
 GITHUB_USUARIO = "alexanderortega2000-glitch"
 GITHUB_REPO    = "AuTransp"
-RUTA_EXCEL_REPO = "data/costos_raw.xlsx"
+RUTA_EXCEL_REPO = "data/costos_actual.csv"
 
 # Fecha de corte
 FECHA_CORTE = date(2026, 2, 1)
@@ -158,7 +158,9 @@ def procesar_costos(modo_github=False) -> pd.DataFrame:
     if modo_github:
         print(f"  Leyendo desde GitHub: {RUTA_EXCEL_REPO}")
         excel_bytes = leer_excel_github()
-        df = pd.read_excel(BytesIO(excel_bytes), dtype=str, engine="openpyxl")
+        # Power Automate sube CSV — leer directamente
+        from io import StringIO
+        df = pd.read_csv(StringIO(excel_bytes.decode('utf-8', errors='replace')), dtype=str)
     else:
         if not RUTA_COSTOS_LOCAL.exists():
             print(f"  [ERROR] Archivo no encontrado: {RUTA_COSTOS_LOCAL}")
