@@ -675,14 +675,15 @@ const GITHUB_API   = 'https://api.github.com/repos/alexanderortega2000-glitch/Au
 const GITHUB_TOKEN = ''; // Se llena desde localStorage si el usuario es admin
 
 const ARCHIVOS = {
-  apiHist:  'data/api_historico.json.gz',
-  apiAct:   'data/api_actual.json.gz',
-  prog:     'data/prog_actual.json.gz',
-  costos:   'data/costos_actual.json.gz',
-  segWeb:   'data/seg_web.json.gz',
-  solicitudes: 'data/solicitudes.json.gz',
-  usuarios: 'usuarios.json',
-  config:   'config.json',
+  apiHist:      'data/api_historico.json.gz',
+  apiAct:       'data/api_actual.json.gz',
+  prog:         'data/prog_actual.json.gz',
+  costos:       'data/costos_actual.json.gz',
+  costosHist:   'data/costos_historico.json.gz',
+  segWeb:       'data/seg_web.json.gz',
+  solicitudes:  'data/solicitudes.json.gz',
+  usuarios:     'usuarios.json',
+  config:       'config.json',
 };
 
 // ============================================================
@@ -1343,13 +1344,15 @@ async function cargarDatos() {
   document.getElementById('loader').style.display = 'flex';
   loader('Cargando datos de API...');
 
-  const [apiHist, apiAct, progData, costosData, solData] = await Promise.all([
+  const [apiHist, apiAct, progData, costosAct, costosHist, solData] = await Promise.all([
     fetchGZ(ARCHIVOS.apiHist).catch(()=>[]),
     fetchGZ(ARCHIVOS.apiAct).catch(()=>[]),
     fetchGZ(ARCHIVOS.prog).catch(()=>[]),
     fetchGZ(ARCHIVOS.costos).catch(()=>[]),
+    fetchGZ(ARCHIVOS.costosHist).catch(()=>[]),
     fetchGZ(ARCHIVOS.solicitudes).catch(()=>[]),
   ]);
+  const costosData = [...costosHist, ...costosAct];
 
   loader('Procesando viajes...');
 
@@ -1660,12 +1663,24 @@ function aplicarFiltros() {
 
     // Rango de fechas
     if(desde || hasta) {
-      const fechas = [v.fechaEjec, v.fechaEntrega].filter(f => f && f !== 'NaT');
+      // Normalizar fecha a YYYY-MM-DD para comparar correctamente
+      const normFecha = f => {
+        if(!f || f === 'NaT') return null;
+        const s = String(f).trim();
+        // Formato DD/MM/YYYY HH:MM o DD/MM/YYYY
+        const m1 = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if(m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
+        // Formato YYYY-MM-DD
+        const m2 = s.match(/^(\d{4}-\d{2}-\d{2})/);
+        if(m2) return m2[1];
+        return null;
+      };
+      const fechas = [v.fechaEjec, v.fechaEntrega, v.horaPlanEntrega, v.horaRealEntrega]
+        .map(normFecha).filter(Boolean);
       if(fechas.length === 0) return false;
       const enRango = fechas.some(f => {
-        const fStr = String(f).substring(0,10);
-        if(desde && fStr < desde) return false;
-        if(hasta && fStr > hasta) return false;
+        if(desde && f < desde) return false;
+        if(hasta && f > hasta) return false;
         return true;
       });
       if(!enRango) return false;
