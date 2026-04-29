@@ -770,20 +770,35 @@ async function actualizarDesdeAPI() {
     });
 
     if(resp.ok || resp.status === 202) {
-      // Flujo iniciado — contador regresivo mientras GitHub Actions corre
-      let seg = 50;
-      const intervalo = setInterval(() => {
-        seg--;
+      // Flujo iniciado — polling cada 10s hasta que api_actual.json.gz cambie
+      const tsAntes = await fetch(BASE_URL + 'data/api_actual.json.gz?t=' + Date.now(), {method:'HEAD'})
+        .then(r => r.headers.get('Last-Modified') || r.headers.get('ETag') || '')
+        .catch(() => '');
+
+      let seg = 0;
+      const maxEspera = 180; // máximo 3 minutos
+      const intervalo = setInterval(async () => {
+        seg += 10;
         btn.textContent = `Actualizando... ${seg}s`;
-        if(seg <= 0) {
+
+        // Verificar si el archivo cambió
+        const tsAhora = await fetch(BASE_URL + 'data/api_actual.json.gz?t=' + Date.now(), {method:'HEAD'})
+          .then(r => r.headers.get('Last-Modified') || r.headers.get('ETag') || '')
+          .catch(() => '');
+
+        const cambio = tsAhora && tsAntes && tsAhora !== tsAntes;
+
+        if(cambio || seg >= maxEspera) {
           clearInterval(intervalo);
           btn.textContent = 'Cargando datos...';
-          recargarDatos().then(() => {
-            btn.textContent = '↻ Actualizar';
-            btn.disabled    = false;
-          });
+          await recargarDatos();
+          renderSolicitudesGitHub();
+          calcularInfo();
+          btn.textContent = cambio ? '✓ Actualizado' : '↻ Actualizar';
+          btn.disabled    = false;
+          setTimeout(() => { btn.textContent = '↻ Actualizar'; }, 3000);
         }
-      }, 1000);
+      }, 10000);
     } else {
       throw new Error('Error HTTP ' + resp.status);
     }
@@ -1294,9 +1309,25 @@ async function intentarLogin() {
   document.getElementById('app').style.display = 'block';
 
   cargarDatos().then(() => { renderSolicitudesGitHub(); calcularInfo(); });
+
+  // Auto-refresh cada 2 minutos — recarga todas las fuentes silenciosamente
+  if(window._autoRefreshInterval) clearInterval(window._autoRefreshInterval);
+  window._autoRefreshInterval = setInterval(async () => {
+    // No refrescar si el panel de edición está abierto
+    const panelAbierto = document.getElementById('edit-panel')?.style.display !== 'none' &&
+                         document.getElementById('edit-panel')?.style.display !== '';
+    if(panelAbierto) return;
+    await recargarDatos();
+    renderSolicitudesGitHub();
+    calcularInfo();
+  }, 2 * 60 * 1000);
 }
 
 function cerrarSesion() {
+  if(window._autoRefreshInterval) {
+    clearInterval(window._autoRefreshInterval);
+    window._autoRefreshInterval = null;
+  }
   sesion = null; viajes = []; vFilt = [];
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
