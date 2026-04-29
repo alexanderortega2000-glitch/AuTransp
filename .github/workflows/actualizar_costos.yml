@@ -1,0 +1,28 @@
+name: Actualizar Costos
+
+on:
+  push:
+    paths:
+      - 'data/costos_raw.xlsx'   # se dispara cuando Power Automate sube el Excel
+  workflow_dispatch:              # permite ejecución manual desde GitHub
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install pandas openpyxl requests
+
+      - name: Procesar costos y publicar
+        env:
+          TOKEN_REPO: ${{ secrets.TOKEN_REPO }}
+        run: python data/consolidar_costos.py --solo-actual --github
