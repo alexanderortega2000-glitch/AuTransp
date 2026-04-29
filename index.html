@@ -678,6 +678,7 @@ const ARCHIVOS = {
   apiHist:      'data/api_historico.json.gz',
   apiAct:       'data/api_actual.json.gz',
   prog:         'data/prog_actual.json.gz',
+  progHist:     'data/prog_historico_consolidado.json.gz',
   costos:       'data/costos_actual.json.gz',
   costosHist:   'data/costos_historico.json.gz',
   segWeb:       'data/seg_web.json.gz',
@@ -685,6 +686,72 @@ const ARCHIVOS = {
   usuarios:     'usuarios.json',
   config:       'config.json',
 };
+
+// Google Sheet publicado — solicitudes de planificación
+const GSHEET_SOLICITUDES_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQi_X36WR9wL9okFL21oKJo3UG2gGMW6wXWbE_GgnYxVi58y_HUILhZh0duZimQcg/pub?output=xlsx';
+
+async function fetchSolicitudesGSheet() {
+  try {
+    const resp = await fetch(GSHEET_SOLICITUDES_URL + '&t=' + Date.now());
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const buf  = await resp.arrayBuffer();
+    const wb   = XLSX.read(buf, { type: 'array', cellDates: true });
+    // Usar primera hoja disponible
+    const sheetName = wb.SheetNames[0];
+    const ws   = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    if (!rows.length) return [];
+
+    // Normalizar campos del GSheet al formato que espera procesarViajes
+    return rows.map((r, idx) => {
+      // Normalizar FechaIntencion — puede venir como Date o string
+      let fechaEjec = '';
+      const fi = r['FechaIntencion'] || r['Fecha Intencion'] || r['FechaIntención'] || '';
+      if (fi instanceof Date) {
+        fechaEjec = fi.toISOString().substring(0, 10);
+      } else if (fi) {
+        fechaEjec = String(fi).trim();
+      }
+
+      const hacLote = String(r['Hacienda Lote'] || r['HaciendaLote'] || '').trim();
+      const actividad = String(r['Actividad'] || '').trim();
+      const status    = String(r['Status']    || '').trim();
+      const proveedor = String(r['Proveedor'] || '').trim();
+      const planAgreg = String(r['Plan/Agregado'] || '').trim();
+      const ha        = Number(r['HA']) || 0;
+      const comentario = String(r['Comentario'] || '').trim();
+
+      return {
+        // Campos de identificación — sin ST aún
+        ST: null,
+        ID_Solicitud: String(r['ID'] || ('GSHEET-' + (idx + 1))).trim(),
+        FechaEjecucion: fechaEjec,
+        Actividad: actividad,
+        NombreDestino: hacLote,   // Hacienda Lote como destino
+        LoteDestino: hacLote,
+        NombreOrigen: '',
+        Subflota: '',
+        ProveedorTransp: proveedor,
+        Producto: actividad,
+        UM: 'HA',
+        CantidadProgramada: ha,
+        AreaProgramada: ha,
+        Zona: '',
+        EstatusViaje: status || 'Pendiente',
+        Coordinador: '',
+        TipoProg: planAgreg || 'Planificado',
+        _origen: 'solicitud_gsheet',
+        _origenRaw: 'solicitud_planificada',
+        // Campos extra para mostrar en tabla de solicitudes
+        _comentario: comentario,
+        _planAgreg: planAgreg,
+      };
+    });
+  } catch(e) {
+    console.warn('[GSheet] No se pudo cargar solicitudes:', e.message);
+    return [];
+  }
+}
 
 // ============================================================
 // ESTADO GLOBAL
@@ -771,35 +838,23 @@ async function actualizarDesdeAPI() {
     });
 
     if(resp.ok || resp.status === 202) {
-      // Flujo iniciado — polling cada 10s hasta que api_actual.json.gz cambie
-      const tsAntes = await fetch(BASE_URL + 'data/api_actual.json.gz?t=' + Date.now(), {method:'HEAD'})
-        .then(r => r.headers.get('Last-Modified') || r.headers.get('ETag') || '')
-        .catch(() => '');
-
-      let seg = 0;
-      const maxEspera = 180; // máximo 3 minutos
+      // Flujo iniciado — esperar 90s fijo y recargar
+      // (GitHub CDN no es confiable para detectar cambios por headers)
+      let seg = 90;
       const intervalo = setInterval(async () => {
-        seg += 10;
+        seg--;
         btn.textContent = `Actualizando... ${seg}s`;
-
-        // Verificar si el archivo cambió
-        const tsAhora = await fetch(BASE_URL + 'data/api_actual.json.gz?t=' + Date.now(), {method:'HEAD'})
-          .then(r => r.headers.get('Last-Modified') || r.headers.get('ETag') || '')
-          .catch(() => '');
-
-        const cambio = tsAhora && tsAntes && tsAhora !== tsAntes;
-
-        if(cambio || seg >= maxEspera) {
+        if(seg <= 0) {
           clearInterval(intervalo);
           btn.textContent = 'Cargando datos...';
           await recargarDatos();
           renderSolicitudesGitHub();
           calcularInfo();
-          btn.textContent = cambio ? '✓ Actualizado' : '↻ Actualizar';
+          btn.textContent = '✓ Actualizado';
           btn.disabled    = false;
           setTimeout(() => { btn.textContent = '↻ Actualizar'; }, 3000);
         }
-      }, 10000);
+      }, 1000);
     } else {
       throw new Error('Error HTTP ' + resp.status);
     }
@@ -946,25 +1001,62 @@ function renderSolicitudesGitHub() {
   const sols = viajes.filter(v =>
     v._origenRaw === 'solicitud_planificada' ||
     v._origen    === 'solicitud_planificada' ||
+    v._origen    === 'solicitud_gsheet'      ||
     (v.st && v.st.startsWith('SOL-'))
   );
 
   if(!sols.length) { wrap.style.display = 'none'; return; }
 
   wrap.style.display = 'block';
-  if(count) count.textContent = `${sols.length} solicitudes cargadas desde Power Automate`;
+  const desdeGSheet = sols.filter(v => v._origen === 'solicitud_gsheet').length;
+  const desdeGH     = sols.length - desdeGSheet;
+  let countTxt = `${sols.length} solicitudes`;
+  if(desdeGSheet) countTxt += ` · ${desdeGSheet} desde Planificación (Google Sheet)`;
+  if(desdeGH)     countTxt += ` · ${desdeGH} desde GitHub`;
+  if(count) count.textContent = countTxt;
 
-  tbody.innerHTML = sols.map(v => `<tr>
-    <td style="font-family:var(--font-mono);font-weight:500">${v.ID_Solicitud||v.st||'—'}</td>
-    <td style="color:var(--text2)">${v.zona||'—'}</td>
-    <td>${v.destino||'—'}</td>
-    <td style="font-size:11px;color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.Producto||v.tipoViaje||'—'}</td>
-    <td style="font-size:11px;color:var(--text2)">${v.Actividad||'—'}</td>
-    <td style="color:var(--text2)">${v.origen||'—'}</td>
-    <td style="font-family:var(--font-mono)">${v.st&&!v.st.startsWith('SOL-')?v.st:'<span style="color:var(--text3)">Sin asignar</span>'}</td>
-    <td>${v.coordinador||'<span style="color:var(--text3)">Sin asignar</span>'}</td>
-    <td>${v.st&&!v.st.startsWith('SOL-')?'<span class="badge b-asignado">Con ST</span>':'<span class="badge b-pendiente">Pendiente</span>'}</td>
-  </tr>`).join('');
+  // Actualizar encabezados de tabla para campos GSheet
+  const thead = wrap.querySelector('thead tr');
+  if(thead) thead.innerHTML = `
+    <th class="th-main">ID sol.</th>
+    <th class="th-main">Fecha</th>
+    <th class="th-main">Actividad / Destino</th>
+    <th class="th-main">HA</th>
+    <th class="th-main">Proveedor</th>
+    <th class="th-main">Plan/Agr.</th>
+    <th class="th-main">ST asignada</th>
+    <th class="th-main">Coordinador</th>
+    <th class="th-main">Estado</th>
+  `;
+
+  tbody.innerHTML = sols.map(v => {
+    const esGSheet = v._origen === 'solicitud_gsheet';
+    const idLabel  = v.ID_Solicitud || v.st || '—';
+    const fecha    = v.fechaEjec   ? v.fechaEjec.substring(0,10) : '—';
+    const destino  = v.LoteDestino || v.destino || v.NombreDestino || '—';
+    const actividad= v.Actividad   || '—';
+    const ha       = v.AreaProgramada || v.CantidadProgramada || '';
+    const prov     = v.proveedor   || v.ProveedorTransp || '—';
+    const planAgreg= v._planAgreg  || v.tipoProg || '—';
+    const sinST    = !v.st || v.st.startsWith('SOL-') || v.st.startsWith('PEND-') || v.st.startsWith('GSHEET-');
+    const fuenteBadge = esGSheet
+      ? `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#d1fae5;color:#065f46;margin-left:4px">GSheet</span>`
+      : `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:var(--info2);color:var(--info);margin-left:4px">GH</span>`;
+    return `<tr>
+      <td style="font-family:var(--mono);font-weight:500;white-space:nowrap">${idLabel}${fuenteBadge}</td>
+      <td style="font-family:var(--mono);color:var(--text2);font-size:11px">${fecha}</td>
+      <td>
+        <div style="font-weight:500">${destino.length>30?destino.substring(0,30)+'…':destino}</div>
+        <div style="font-size:10px;color:var(--text3)">${actividad}</div>
+      </td>
+      <td style="font-family:var(--mono);text-align:right">${ha?ha:''}</td>
+      <td style="font-size:11px;color:var(--text2)">${prov}</td>
+      <td style="font-size:11px;color:var(--text2)">${planAgreg}</td>
+      <td style="font-family:var(--mono)">${sinST?'<span style="color:var(--text3)">Sin asignar</span>':v.st}</td>
+      <td>${v.coordinador||'<span style="color:var(--text3)">—</span>'}</td>
+      <td>${sinST?'<span class="badge b-pendiente">Pendiente</span>':'<span class="badge b-asignado">Con ST</span>'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ============================================================
@@ -1344,15 +1436,34 @@ async function cargarDatos() {
   document.getElementById('loader').style.display = 'flex';
   loader('Cargando datos de API...');
 
-  const [apiHist, apiAct, progData, costosAct, costosHist, solData] = await Promise.all([
+  // Carga principal — fuentes que cambian frecuentemente
+  const [apiHist, apiAct, progData, costosAct, costosHist, solGZ, solGSheet] = await Promise.all([
     fetchGZ(ARCHIVOS.apiHist).catch(()=>[]),
     fetchGZ(ARCHIVOS.apiAct).catch(()=>[]),
     fetchGZ(ARCHIVOS.prog).catch(()=>[]),
     fetchGZ(ARCHIVOS.costos).catch(()=>[]),
     fetchGZ(ARCHIVOS.costosHist).catch(()=>[]),
     fetchGZ(ARCHIVOS.solicitudes).catch(()=>[]),
+    fetchSolicitudesGSheet(),
   ]);
   const costosData = [...costosHist, ...costosAct];
+  // Combinar solicitudes: GZ (legacy/manual) + Google Sheet (planificación)
+  const solData = [...solGZ, ...solGSheet];
+  if(solGSheet.length) console.log(`[GSheet] ${solGSheet.length} solicitudes de planificación cargadas`);
+
+  // Carga lazy — histórico de prog/seg (quemado, no cambia frecuentemente)
+  // Se carga en segundo plano y actualiza la vista cuando termina
+  fetchGZ(ARCHIVOS.progHist).then(progHistData => {
+    if(progHistData && progHistData.length > 0) {
+      // Combinar con datos actuales y reprocesar
+      const progCombinado = [...progHistData, ...progData];
+      procesarViajes(apiFull, [...progCombinado, ...solData], costosData);
+      actualizarResumen();
+      renderTabla();
+      calcularInfo();
+      console.log(`[ProgHist] Cargado: ${progHistData.length.toLocaleString()} registros históricos`);
+    }
+  }).catch(() => console.log('[ProgHist] No disponible'));
 
   loader('Procesando viajes...');
 
