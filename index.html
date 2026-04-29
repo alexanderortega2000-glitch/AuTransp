@@ -326,6 +326,7 @@ tr.clickable { cursor: pointer; }
       </div>
     </div>
     <div class="topbar-right">
+      <span id="last-update" style="font-size:11px;color:var(--text3);font-family:var(--font-mono);"></span>
       <span class="user-chip">
         <span class="user-dot"></span>
         <span id="user-display"></span>
@@ -753,36 +754,23 @@ async function fetchJSON(ruta) {
 // ============================================================
 // BOTÓN ACTUALIZAR — dispara GitHub Actions workflow
 // ============================================================
+// URL del flujo de Power Automate — intermediario sin token en cliente
+const POWER_AUTOMATE_URL = 'https://default831e062ab3c2418f9e24a1af9152ee.af.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/256c7b1b74614f2380319ea79929df7f/triggers/manual/paths/invoke?api-version=1';
+
 async function actualizarDesdeAPI() {
-  const btn   = document.getElementById('btn-actualizar');
-  const token = localStorage.getItem('gh_token') || '';
-
-  if(!token) {
-    alert('Para actualizar necesitas configurar el token de GitHub.\nEjecuta en consola:\nlocalStorage.setItem("gh_token","tu_token")');
-    return;
-  }
-
+  const btn = document.getElementById('btn-actualizar');
   btn.textContent = 'Procesando...';
   btn.disabled    = true;
 
   try {
-    // Disparar workflow actualizar_api via repository_dispatch
-    const dispatchUrl = GITHUB_API.replace('/contents/', '/dispatches').replace('/contents', '/dispatches');
-    const resp = await fetch(
-      'https://api.github.com/repos/alexanderortega2000-glitch/AuTransp/dispatches',
-      {
-        method:  'POST',
-        headers: {
-          'Authorization': 'token ' + token,
-          'Accept':        'application/vnd.github.v3+json',
-          'Content-Type':  'application/json',
-        },
-        body: JSON.stringify({ event_type: 'actualizar_api' })
-      }
-    );
+    const resp = await fetch(POWER_AUTOMATE_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ evento: 'actualizar_api' })
+    });
 
-    if(resp.status === 204) {
-      // Workflow iniciado — mostrar contador regresivo
+    if(resp.ok || resp.status === 202) {
+      // Flujo iniciado — contador regresivo mientras GitHub Actions corre
       let seg = 50;
       const intervalo = setInterval(() => {
         seg--;
@@ -796,8 +784,6 @@ async function actualizarDesdeAPI() {
           });
         }
       }, 1000);
-    } else if(resp.status === 401) {
-      throw new Error('Token inválido o expirado. Renueva el token en GitHub.');
     } else {
       throw new Error('Error HTTP ' + resp.status);
     }
@@ -922,6 +908,12 @@ function calcularInfo() {
     flujoFuente('Costos (CostosAgricampo)', enCostos, '#1d9e75',
       ['Área (Red Vial/Cosecha/Varios)','Ciclo cerrado','A_COBRAR','A_PAGAR','IntegracionSAP']);
 
+  // Actualizar etiqueta datetime en topbar
+  const luEl = document.getElementById('last-update');
+  if(luEl) {
+    const ahora = new Date();
+    luEl.textContent = 'Actualizado ' + ahora.toLocaleDateString('es-SV',{day:'2-digit',month:'2-digit'}) + ' ' + ahora.toLocaleTimeString('es-SV',{hour:'2-digit',minute:'2-digit'});
+  }
   document.getElementById('info-updated').textContent =
     `Calculado en tiempo real · ${total.toLocaleString()} viajes · ${new Date().toLocaleString('es-SV')}`;
 }
