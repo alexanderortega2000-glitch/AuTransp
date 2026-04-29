@@ -62,6 +62,16 @@ def get_headers():
         "Accept": "application/vnd.github.v3+json",
     }
 
+def limpiar_nan(registros: list) -> list:
+    import math
+    def limpiar(v):
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            return None
+        if str(v) in ("nan", "NaN", "None", "NaT", "inf", "-inf"):
+            return None
+        return v
+    return [{k: limpiar(v) for k, v in r.items()} for r in registros]
+
 def subir_json_gz(ruta_repo: str, registros: list, mensaje: str):
     json_bytes = json.dumps(registros, ensure_ascii=False, default=str).encode("utf-8")
     json_gz    = gzip.compress(json_bytes, compresslevel=6)
@@ -126,7 +136,7 @@ def consultar_api_actual() -> list:
     df = df.drop(columns=["_prio"]).reset_index(drop=True)
 
     cols_pres = [c for c in COLS_API if c in df.columns]
-    registros = df[cols_pres].where(df[cols_pres].notna(), other=None).to_dict(orient="records")
+    registros = limpiar_nan(df[cols_pres].where(df[cols_pres].notna(), other=None).to_dict(orient="records"))
     print(f"  Total: {len(registros):,} registros únicos")
     return registros
 
