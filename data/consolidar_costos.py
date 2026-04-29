@@ -158,7 +158,7 @@ def procesar_costos(modo_github=False) -> pd.DataFrame:
     if modo_github:
         print(f"  Leyendo desde GitHub: {RUTA_EXCEL_REPO}")
         excel_bytes = leer_excel_github()
-        df = pd.read_excel(BytesIO(excel_bytes), dtype=str)
+        df = pd.read_excel(BytesIO(excel_bytes), dtype=str, engine="openpyxl")
     else:
         if not RUTA_COSTOS_LOCAL.exists():
             print(f"  [ERROR] Archivo no encontrado: {RUTA_COSTOS_LOCAL}")
