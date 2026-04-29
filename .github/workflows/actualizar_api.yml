@@ -1,14 +1,12 @@
 name: Actualizar API Actual
-
 on:
   repository_dispatch:
     types: [actualizar_api]
-  workflow_dispatch:  # permite ejecución manual desde GitHub
+  workflow_dispatch:
 
 jobs:
   actualizar:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -19,10 +17,22 @@ jobs:
           python-version: '3.11'
 
       - name: Instalar dependencias
-        run: pip install pandas requests
+        run: pip install pandas requests openpyxl
 
       - name: Actualizar api_actual
         env:
           TOKEN_REPO: ${{ secrets.TOKEN_REPO }}
           API_USUARIO: ${{ secrets.API_USUARIO }}
         run: python data/actualizar_api_actual.py
+
+      - name: Convertir solicitudes planificacion (si hay xlsx nuevo)
+        run: python data/convertir_solicitudes.py
+
+      - name: Commit y push cambios
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/solicitudes_planificacion.json.gz \
+                  data/solicitudes_planificacion.md5 || true
+          git diff --cached --quiet || git commit -m "Auto: actualizar solicitudes_planificacion"
+          git push
