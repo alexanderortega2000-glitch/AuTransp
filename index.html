@@ -755,7 +755,7 @@ async function fetchJSON(ruta) {
 // BOTÓN ACTUALIZAR — dispara GitHub Actions workflow
 // ============================================================
 // URL del flujo de Power Automate — intermediario sin token en cliente
-const POWER_AUTOMATE_URL = 'https://default831e062ab3c2418f9e24a1af9152ee.af.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/256c7b1b74614f2380319ea79929df7f/triggers/manual/paths/invoke?api-version=1';
+const POWER_AUTOMATE_URL = 'https://default831e062ab3c2418f9e24a1af9152ee.af.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/256c7b1b74614f2380319ea79929df7f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dPy-KGs6zBWjNLmbHB8gLKF1bph_aYxC40PAht5gXdk';
 
 async function actualizarDesdeAPI() {
   const btn = document.getElementById('btn-actualizar');
