@@ -3,8 +3,8 @@ name: Actualizar Costos
 on:
   push:
     paths:
-      - 'data/costos_raw.xlsx'   # se dispara cuando Power Automate sube el Excel
-  workflow_dispatch:              # permite ejecución manual desde GitHub
+      - 'data/costos_actual.csv'   # se dispara cuando Power Automate sube el CSV
+  workflow_dispatch:               # permite ejecución manual desde GitHub
 
 jobs:
   actualizar:
