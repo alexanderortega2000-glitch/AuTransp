@@ -491,6 +491,10 @@ tr.clickable { cursor: pointer; }
     <!-- SOLICITUDES -->
     <div id="page-solicitudes" class="page">
       <div style="max-width:1100px;">
+        <!-- Botón nueva solicitud a demanda -->
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+          <button class="btn-sm primary" onclick="abrirModalSolicitud()" style="height:32px;font-size:12px;padding:0 14px;">+ Nueva solicitud</button>
+        </div>
         <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px;">
           <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin-bottom:12px;">Cargar solicitud de transporte</div>
           <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
@@ -616,6 +620,105 @@ tr.clickable { cursor: pointer; }
   </div>
 </div>
 
+<!-- MODAL NUEVA SOLICITUD -->
+<div id="modal-solicitud" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);overflow-y:auto;padding:16px;">
+  <div style="background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius-lg);max-width:540px;margin:0 auto;padding:24px;">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div>
+        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:3px;">Nueva solicitud</div>
+        <div style="font-size:15px;font-weight:600;">Solicitud a demanda</div>
+      </div>
+      <button onclick="cerrarModalSolicitud()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);padding:4px 8px;">×</button>
+    </div>
+
+    <!-- Sección: Programación -->
+    <div style="font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;padding-bottom:6px;border-bottom:0.5px solid var(--border);">📅 Programación</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Fecha ejecución <span style="color:var(--danger)">*</span></div>
+        <input type="date" id="ns-fecha" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Hora <span style="color:var(--danger)">*</span></div>
+        <select id="ns-hora" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+          <option value="05:00">05:00</option><option value="05:30">05:30</option>
+          <option value="06:00" selected>06:00</option><option value="06:30">06:30</option>
+          <option value="07:00">07:00</option><option value="07:30">07:30</option>
+          <option value="08:00">08:00</option><option value="08:30">08:30</option>
+          <option value="09:00">09:00</option><option value="09:30">09:30</option>
+          <option value="10:00">10:00</option><option value="10:30">10:30</option>
+          <option value="11:00">11:00</option><option value="11:30">11:30</option>
+          <option value="12:00">12:00</option><option value="12:30">12:30</option>
+          <option value="13:00">13:00</option><option value="13:30">13:30</option>
+          <option value="14:00">14:00</option><option value="14:30">14:30</option>
+          <option value="15:00">15:00</option><option value="15:30">15:30</option>
+          <option value="16:00">16:00</option><option value="16:30">16:30</option>
+          <option value="17:00">17:00</option><option value="17:30">17:30</option>
+          <option value="18:00">18:00</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Solicitante <span style="color:var(--danger)">*</span></div>
+      <input type="text" id="ns-solicitante" placeholder="Nombre completo" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
+    </div>
+
+    <!-- Sección: Destino -->
+    <div style="font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;padding-bottom:6px;border-bottom:0.5px solid var(--border);">📍 Destino</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Hacienda / Destino <span style="color:var(--danger)">*</span></div>
+        <input type="text" id="ns-destino" placeholder="Nombre hacienda" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Lote</div>
+        <input type="text" id="ns-lote" placeholder="Ej: L01" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Origen</div>
+      <input type="text" id="ns-origen" placeholder="Almacén / punto de origen" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
+    </div>
+
+    <!-- Sección: Servicio -->
+    <div style="font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;padding-bottom:6px;border-bottom:0.5px solid var(--border);">📋 Servicio</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Actividad <span style="color:var(--danger)">*</span></div>
+        <input type="text" id="ns-actividad" placeholder="Ej: Cosecha" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">OS</div>
+        <input type="text" id="ns-os" placeholder="Número OS" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Tipo de servicio</div>
+        <input type="text" id="ns-tiposervicio" placeholder="Ej: Materiales varios" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Proveedor</div>
+        <input type="text" id="ns-proveedor" placeholder="Empresa de transporte" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
+      </div>
+    </div>
+
+    <!-- Sección: Notas -->
+    <div style="font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;padding-bottom:6px;border-bottom:0.5px solid var(--border);">📝 Observaciones</div>
+    <div style="margin-bottom:20px;">
+      <textarea id="ns-observaciones" rows="3" placeholder="Instrucciones adicionales, referencias, urgencia..." style="width:100%;padding:8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);resize:vertical;box-sizing:border-box;"></textarea>
+    </div>
+
+    <!-- Status y botones -->
+    <div id="ns-status" style="font-size:12px;color:var(--text2);min-height:18px;margin-bottom:12px;font-family:var(--mono);"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cerrarModalSolicitud()" class="btn-sm" style="flex:1;height:36px;">Cancelar</button>
+      <button onclick="enviarSolicitud()" class="btn-sm primary" id="ns-btn-enviar" style="flex:2;height:36px;font-size:13px;">Enviar solicitud</button>
+    </div>
+  </div>
+</div>
+
 <!-- PANEL EDICIÓN -->
 <div id="edit-panel">
   <div class="edit-header">
@@ -672,7 +775,13 @@ tr.clickable { cursor: pointer; }
 // ============================================================
 const BASE_URL     = 'https://raw.githubusercontent.com/alexanderortega2000-glitch/AuTransp/main/';
 const GITHUB_API   = 'https://api.github.com/repos/alexanderortega2000-glitch/AuTransp/contents/';
-const GITHUB_TOKEN = ''; // Se llena desde localStorage si el usuario es admin
+
+// ============================================================
+// POWER AUTOMATE — endpoints de escritura (token protegido en PA)
+// ============================================================
+const PA_GUARDAR_SEG  = 'https://default831e062ab3c2418f9e24a1af9152ee.af.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/963e7a9e1cfc49d7a8503892f3aca5cf/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=EvWKrpIqU_M38KUzi1614y8B-ms2hEi9Y0dgctUbh3s';
+const PA_GUARDAR_PROG = 'https://default831e062ab3c2418f9e24a1af9152ee.af.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/0da72ee972954d939b6c28b399ea25ca/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=5wT5FxkGfjSUSkj-nQfL2ZafVY_romB-VG7M8xgyL4g';
+const PA_NUEVA_SOL    = 'https://default831e062ab3c2418f9e24a1af9152ee.af.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ec68ddb2bc8e4a6cb9aa0302ff998549/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=g6RO6tID1VZZI-BNX0SF1EqW6fIN-hHaA-Aso8tRg04';
 
 const ARCHIVOS = {
   apiHist:      'data/api_historico.json.gz',
@@ -686,6 +795,7 @@ const ARCHIVOS = {
   usuarios:     'usuarios.json',
   config:       'config.json',
 };
+
 
 // Google Sheet publicado — solicitudes de planificación
 const GSHEET_SOLICITUDES_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQi_X36WR9wL9okFL21oKJo3UG2gGMW6wXWbE_GgnYxVi58y_HUILhZh0duZimQcg/pub?output=xlsx';
@@ -1278,36 +1388,29 @@ async function confirmarSolicitudes() {
   btn.textContent = 'Guardando...'; btn.disabled = true;
 
   try {
-    const resp = await fetch(BASE_URL + 'data/prog_actual.json.gz?t=' + Date.now());
-    let progActual = [];
-    if(resp.ok) {
-      const buf = await resp.arrayBuffer();
-      const dec = pako.inflate(new Uint8Array(buf));
-      progActual = JSON.parse(new TextDecoder().decode(dec));
+    // Enviar cada viaje nuevo como cambio individual a la cola via PA
+    let enviados = 0;
+    for(const viaje of nuevos) {
+      const payload = {
+        st:               viaje.ST,
+        campos:           viaje,
+        actualizadoPor:   sesion.usuario,
+        fechaActualizacion: new Date().toLocaleString('es-SV'),
+      };
+      const resp = await fetch(PA_GUARDAR_PROG, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+      if(!resp.ok) throw new Error('PA prog error ST ' + viaje.ST + ': ' + resp.status);
+      enviados++;
     }
-    const progFinal  = [...progActual, ...nuevos];
-    const jsonBytes  = new TextEncoder().encode(JSON.stringify(progFinal));
-    const gz         = pako.gzip(jsonBytes, {level:6});
-    const b64        = btoa(String.fromCharCode(...new Uint8Array(gz.buffer)));
-    const token      = localStorage.getItem('gh_token')||'';
-    if(!token) throw new Error('Sin token de GitHub. Ejecuta: localStorage.setItem("gh_token","tu_token")');
-    const url  = GITHUB_API + 'data/prog_actual.json.gz';
-    const getR = await fetch(url, {headers:{'Authorization':'token '+token}});
-    const sha  = getR.ok ? (await getR.json()).sha : undefined;
-    const payload = {message:`Solicitudes Excel — ${nuevos.length} viajes`, content:b64};
-    if(sha) payload.sha = sha;
-    const putR = await fetch(url, {
-      method:'PUT', headers:{'Authorization':'token '+token,'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
-    });
-    if(putR.ok) {
-      btn.textContent = `✓ ${nuevos.length} viajes agregados`;
-      document.getElementById('sol-status').textContent = `✓ ${nuevos.length} viajes agregados al programa.`;
-      document.getElementById('sol-tabla-wrap').style.display = 'none';
-      document.getElementById('sol-file').value = '';
-      solicitudesRaw = [];
-      setTimeout(() => { btn.textContent = 'Agregar al programa'; btn.disabled = false; }, 3000);
-    } else throw new Error('HTTP ' + putR.status);
+    btn.textContent = `✓ ${enviados} viajes enviados`;
+    document.getElementById('sol-status').textContent = `✓ ${enviados} viajes enviados a la cola — se consolidarán en menos de 5 minutos.`;
+    document.getElementById('sol-tabla-wrap').style.display = 'none';
+    document.getElementById('sol-file').value = '';
+    solicitudesRaw = [];
+    setTimeout(() => { btn.textContent = 'Agregar al programa'; btn.disabled = false; }, 3000);
   } catch(e) {
     btn.textContent = 'Error'; btn.disabled = false;
     alert('Error: ' + e.message); console.error(e);
@@ -2105,28 +2208,126 @@ async function guardarEdicion() {
 }
 
 async function subirAnotaciones() {
-  const token = localStorage.getItem('gh_token') || '';
-  if(!token) {
-    console.warn('Sin token para guardar anotaciones');
+  const st = document.getElementById('edit-st-num').textContent;
+  if(!st || st === '—') return;
+
+  const anot = anotaciones[st] || {};
+  const payload = {
+    st,
+    motivoRetrasoInicio:  anot.motivoRetrasoInicio  || '',
+    motivoRetrasoEntrega: anot.motivoRetrasoEntrega || '',
+    comentarioCabina:     anot.comentarioCabina     || '',
+    actualizadoPor:       anot.actualizadoPor       || sesion.usuario,
+    fechaActualizacion:   anot.fechaActualizacion   || new Date().toLocaleString('es-SV'),
+  };
+
+  const resp = await fetch(PA_GUARDAR_SEG, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(payload),
+  });
+
+  if(!resp.ok) throw new Error('PA seg error: ' + resp.status);
+}
+
+// ============================================================
+// MODAL — NUEVA SOLICITUD A DEMANDA
+// ============================================================
+function abrirModalSolicitud() {
+  // Prellenar fecha = mañana
+  const manana = new Date();
+  manana.setDate(manana.getDate() + 1);
+  const yyyy = manana.getFullYear();
+  const mm   = String(manana.getMonth()+1).padStart(2,'0');
+  const dd   = String(manana.getDate()).padStart(2,'0');
+  document.getElementById('ns-fecha').value = `${yyyy}-${mm}-${dd}`;
+
+  // Prellenar solicitante con usuario actual si existe
+  if(sesion && sesion.nombre) {
+    document.getElementById('ns-solicitante').value = sesion.nombre.toUpperCase();
+  }
+
+  document.getElementById('ns-status').textContent = '';
+  document.getElementById('ns-btn-enviar').disabled = false;
+  document.getElementById('modal-solicitud').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarModalSolicitud() {
+  document.getElementById('modal-solicitud').style.display = 'none';
+  document.body.style.overflow = '';
+  // Limpiar campos
+  ['ns-destino','ns-lote','ns-actividad','ns-os','ns-tiposervicio',
+   'ns-origen','ns-proveedor','ns-observaciones'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  document.getElementById('ns-hora').value = '06:00';
+  document.getElementById('ns-status').textContent = '';
+}
+
+async function enviarSolicitud() {
+  const fecha      = document.getElementById('ns-fecha').value;
+  const hora       = document.getElementById('ns-hora').value;
+  const solicitante= document.getElementById('ns-solicitante').value.trim();
+  const destino    = document.getElementById('ns-destino').value.trim();
+  const actividad  = document.getElementById('ns-actividad').value.trim();
+  const status     = document.getElementById('ns-status');
+  const btnEnviar  = document.getElementById('ns-btn-enviar');
+
+  // Validación campos requeridos
+  if(!fecha || !solicitante || !destino || !actividad) {
+    status.style.color = 'var(--danger)';
+    status.textContent = '⚠ Completa los campos obligatorios: Fecha, Solicitante, Destino y Actividad.';
     return;
   }
-  const contenido = JSON.stringify(anotaciones, null, 2);
-  const b64       = btoa(unescape(encodeURIComponent(contenido)));
-  const url       = GITHUB_API + 'data/seg_web.json';
 
-  // Obtener SHA actual
-  const getResp = await fetch(url, { headers: { 'Authorization': 'token '+token } });
-  const sha     = getResp.ok ? (await getResp.json()).sha : undefined;
+  const payload = {
+    FechaEjecucion: `${fecha} ${hora}`,
+    Solicitante:    solicitante,
+    Destino:        destino,
+    Lote:           document.getElementById('ns-lote').value.trim(),
+    Actividad:      actividad,
+    OS:             document.getElementById('ns-os').value.trim(),
+    TipoServicio:   document.getElementById('ns-tiposervicio').value.trim(),
+    Origen:         document.getElementById('ns-origen').value.trim(),
+    Proveedor:      document.getElementById('ns-proveedor').value.trim(),
+    Observaciones:  document.getElementById('ns-observaciones').value.trim(),
+  };
 
-  const payload = { message: 'Actualizar seg_web', content: b64 };
-  if(sha) payload.sha = sha;
+  btnEnviar.disabled = true;
+  status.style.color = 'var(--text2)';
+  status.textContent = 'Enviando…';
 
-  await fetch(url, {
-    method: 'PUT',
-    headers: { 'Authorization': 'token '+token, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  // Agregar ID y FechaCreacion al payload
+  payload.ID_Solicitud = 'SOL-' + Date.now().toString(36).toUpperCase();
+  payload.FechaCreacion = new Date().toISOString();
+
+  try {
+    const resp = await fetch(PA_NUEVA_SOL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+
+    status.style.color = 'var(--accent)';
+    status.textContent = '✓ Solicitud enviada — se procesará en menos de 5 minutos.';
+    setTimeout(() => cerrarModalSolicitud(), 1800);
+
+  } catch(err) {
+    status.style.color = 'var(--danger)';
+    status.textContent = '✗ Error al enviar: ' + err.message;
+    btnEnviar.disabled = false;
+  }
 }
+
+// Cerrar modal al click fuera
+document.getElementById('modal-solicitud').addEventListener('click', function(e) {
+  if(e.target === this) cerrarModalSolicitud();
+});
+
 </script>
 </body>
 </html>
