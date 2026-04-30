@@ -1,33 +1,27 @@
-name: Actualizar histórico API
+name: Actualizar Histórico API
 
 on:
   schedule:
-    - cron: '0 23 * * 0'
-  workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    - cron: '0 23 * * 0'   # Cada domingo a las 11pm UTC
+  workflow_dispatch:        # Ejecución manual desde GitHub
 
 jobs:
   actualizar:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repositorio
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Configurar Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
 
       - name: Instalar dependencias
-        run: pip install requests pandas
+        run: pip install pandas requests
 
-      - name: Ejecutar actualización de histórico
+      - name: Actualizar histórico
         env:
-          TOKEN_REPO: ${{ secrets.TOKEN_REPO }}
+          TOKEN_REPO:  ${{ secrets.TOKEN_REPO }}
           API_USUARIO: ${{ secrets.API_USUARIO }}
-        run: python actualizar_historico.py
-
-
+        run: python data/actualizar_historico.py
