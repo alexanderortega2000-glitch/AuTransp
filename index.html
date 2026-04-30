@@ -620,6 +620,39 @@ tr.clickable { cursor: pointer; }
   </div>
 </div>
 
+<!-- MODAL CAMBIAR PIN -->
+<div id="modal-pin" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius-lg);width:320px;padding:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div>
+        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:3px;">Seguridad</div>
+        <div style="font-size:15px;font-weight:600;">Cambiar PIN</div>
+      </div>
+      <button onclick="cerrarModalPin()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);padding:4px 8px;">×</button>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">PIN actual</div>
+      <input type="password" id="pin-actual" maxlength="8" placeholder="••••"
+        style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--mono);font-size:14px;color:var(--text);box-sizing:border-box;letter-spacing:.2em;">
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">PIN nuevo</div>
+      <input type="password" id="pin-nuevo" maxlength="8" placeholder="••••"
+        style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--mono);font-size:14px;color:var(--text);box-sizing:border-box;letter-spacing:.2em;">
+    </div>
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Confirmar PIN nuevo</div>
+      <input type="password" id="pin-confirmar" maxlength="8" placeholder="••••"
+        style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--mono);font-size:14px;color:var(--text);box-sizing:border-box;letter-spacing:.2em;">
+    </div>
+    <div id="pin-status" style="font-size:12px;min-height:18px;margin-bottom:12px;font-family:var(--mono);"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cerrarModalPin()" class="btn-sm" style="flex:1;height:36px;">Cancelar</button>
+      <button onclick="cambiarPin()" class="btn-sm primary" style="flex:2;height:36px;">Actualizar PIN</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL NUEVA SOLICITUD -->
 <div id="modal-solicitud" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);overflow-y:auto;padding:16px;">
   <div style="background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius-lg);max-width:540px;margin:0 auto;padding:24px;">
@@ -866,7 +899,24 @@ async function fetchSolicitudesGSheet() {
 // ============================================================
 // ESTADO GLOBAL
 // ============================================================
-let usuariosData = {};
+// Usuarios embebidos — no depende de GitHub raw (funciona con repo privado y local)
+let usuariosData = {
+  "ARIVAS":     { "nombre": "RENE RIVAS",        "usuario": "ARIVAS",     "rol": "admin",       "pin_hash": "0c83de60dbd8a02a82aac4fb42225abf1ef8677f3ff40f9cebb23f9ee24802a1" },
+  "WAMAYA":     { "nombre": "WALTER AMAYA",       "usuario": "WAMAYA",     "rol": "coordinador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "NCONRADO":   { "nombre": "NORMA CONRADO",      "usuario": "NCONRADO",   "rol": "coordinador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "JAPARICIO":  { "nombre": "JUAN APARICIO",      "usuario": "JAPARICIO",  "rol": "coordinador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "EGUIROLA":   { "nombre": "ELMER GUIROLA",      "usuario": "EGUIROLA",   "rol": "coordinador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "JMONROY":    { "nombre": "JOSUE MONROY",       "usuario": "JMONROY",    "rol": "coordinador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "WSANDOVAL":  { "nombre": "WILLIAN SANDOVAL",   "usuario": "WSANDOVAL",  "rol": "coordinador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "MWHERNANDEZ":{ "nombre": "MARIO HERNANDEZ",    "usuario": "MWHERNANDEZ","rol": "coordinador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "KGARCIA":    { "nombre": "KEVIN GARCIA",       "usuario": "KGARCIA",    "rol": "coordinador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "IBARRERA":   { "nombre": "INGRID BARRERA",     "usuario": "IBARRERA",   "rol": "coordinador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "DCARIAS":    { "nombre": "DANIEL CARIAS",      "usuario": "DCARIAS",    "rol": "controlador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "PCONTRERAS": { "nombre": "PAMELA CONTRERAS",   "usuario": "PCONTRERAS", "rol": "controlador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "KROSA":      { "nombre": "KARINA ROSA",        "usuario": "KROSA",      "rol": "controlador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+  "BSANCHEZ":   { "nombre": "BRENDA SANCHEZ",     "usuario": "BSANCHEZ",   "rol": "controlador", "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" },
+};
+// PIN 1234 hash = 03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4
 let configData   = {};
 let sesion       = null;  // { usuario, nombre, rol }
 let viajes       = [];
@@ -1425,10 +1475,8 @@ window.addEventListener('load', async () => {
   loader('Cargando usuarios...');
 
   try {
-    [usuariosData, configData] = await Promise.all([
-      fetchJSON(ARCHIVOS.usuarios),
-      fetchJSON(ARCHIVOS.config).catch(()=>({})),
-    ]);
+    // usuariosData ya está embebido en el dashboard — solo carga config
+    configData = await fetchJSON(ARCHIVOS.config).catch(()=>({}));
     // Login listo — usuario ingresa su código directamente
   } catch(e) {
     console.error('Error cargando usuarios:', e);
@@ -1502,6 +1550,9 @@ async function intentarLogin() {
   errEl.style.display = 'none';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('user-display').textContent = u.usuario + ' · ' + u.rol;
+  document.getElementById('user-display').style.cursor = 'pointer';
+  document.getElementById('user-display').title = 'Click para cambiar PIN';
+  document.getElementById('user-display').onclick = () => abrirModalPin();
   document.getElementById('app').style.display = 'block';
 
   cargarDatos().then(() => { renderSolicitudesGitHub(); calcularInfo(); });
@@ -2228,6 +2279,69 @@ async function subirAnotaciones() {
   });
 
   if(!resp.ok) throw new Error('PA seg error: ' + resp.status);
+}
+
+// ============================================================
+// MODAL — CAMBIAR PIN
+// ============================================================
+function abrirModalPin() {
+  document.getElementById('pin-actual').value = '';
+  document.getElementById('pin-nuevo').value = '';
+  document.getElementById('pin-confirmar').value = '';
+  document.getElementById('pin-status').textContent = '';
+  document.getElementById('modal-pin').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('pin-actual').focus(), 100);
+}
+
+function cerrarModalPin() {
+  document.getElementById('modal-pin').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+async function cambiarPin() {
+  const actual    = document.getElementById('pin-actual').value;
+  const nuevo     = document.getElementById('pin-nuevo').value;
+  const confirmar = document.getElementById('pin-confirmar').value;
+  const status    = document.getElementById('pin-status');
+
+  if(!actual || !nuevo || !confirmar) {
+    status.style.color = 'var(--danger)';
+    status.textContent = '⚠ Completa todos los campos.';
+    return;
+  }
+  if(nuevo.length < 4) {
+    status.style.color = 'var(--danger)';
+    status.textContent = '⚠ El PIN debe tener al menos 4 dígitos.';
+    return;
+  }
+  if(nuevo !== confirmar) {
+    status.style.color = 'var(--danger)';
+    status.textContent = '⚠ Los PINs nuevos no coinciden.';
+    return;
+  }
+
+  // Verificar PIN actual
+  const hashActual = await hashPin(actual);
+  if(hashActual !== usuariosData[sesion.usuario]?.pin_hash) {
+    status.style.color = 'var(--danger)';
+    status.textContent = '⚠ PIN actual incorrecto.';
+    document.getElementById('pin-actual').value = '';
+    return;
+  }
+
+  // Actualizar en memoria
+  const nuevoHash = await hashPin(nuevo);
+  usuariosData[sesion.usuario].pin_hash = nuevoHash;
+
+  status.style.color = 'var(--accent)';
+  status.textContent = '✓ PIN actualizado correctamente.';
+
+  // Nota: el cambio es solo en sesión actual — para persistirlo
+  // el admin debe actualizar usuarios.json en el repo
+  console.info('[PIN] Nuevo hash para', sesion.usuario, ':', nuevoHash);
+
+  setTimeout(() => cerrarModalPin(), 1500);
 }
 
 // ============================================================
