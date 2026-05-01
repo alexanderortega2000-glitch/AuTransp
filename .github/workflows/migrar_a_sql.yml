@@ -1,0 +1,35 @@
+name: Migrar datos a Azure SQL
+
+on:
+  workflow_dispatch:  # Solo ejecución manual — script de migración única
+
+jobs:
+  migrar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install requests pyodbc
+
+      - name: Instalar ODBC Driver 18
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+
+      - name: Ejecutar migración
+        env:
+          TOKEN_REPO:    ${{ secrets.TOKEN_REPO }}
+          SQL_SERVER:    ${{ secrets.SQL_SERVER }}
+          SQL_DATABASE:  ${{ secrets.SQL_DATABASE }}
+          SQL_USER:      ${{ secrets.SQL_USER }}
+          SQL_PASSWORD:  ${{ secrets.SQL_PASSWORD }}
+        run: python data/migrar_a_sql.py
