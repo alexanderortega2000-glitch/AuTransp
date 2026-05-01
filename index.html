@@ -2249,21 +2249,22 @@ async function guardarEdicion() {
     await subirAnotaciones();
     btn.textContent = '✓ Guardado';
     btn.style.background = 'var(--accent)';
-    document.getElementById('edit-info').textContent = 'Actualizado por ' + sesion.usuario + ' · ' + anot.fechaActualizacion;
+    document.getElementById('edit-info').textContent = sesion.usuario + ' · ' + anot.fechaActualizacion + ' · visible en ~5 min';
     setTimeout(() => {
-      btn.textContent = 'Actualizar';
+      btn.textContent = 'Guardar cambios';
       btn.disabled = false;
       btn.style.background = '';
-    }, 2500);
+    }, 3000);
   } catch(e) {
     btn.textContent = 'Error al guardar';
     btn.style.background = 'var(--danger)';
     btn.disabled = false;
-    document.getElementById('edit-info').textContent = '⚠️ No se pudo sincronizar con GitHub';
+    document.getElementById('edit-info').textContent = '⚠️ No se pudo guardar: ' + e.message;
     console.error(e);
     setTimeout(() => {
       btn.textContent = 'Guardar cambios';
       btn.style.background = '';
+      btn.disabled = false;
     }, 3000);
   }
 }
