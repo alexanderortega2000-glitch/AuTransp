@@ -339,11 +339,11 @@ tr.clickable { cursor: pointer; }
   <div class="filter-bar">
     <div class="filter-group">
       <span class="filter-label">Desde</span>
-      <input type="date" id="f-desde" onchange="aplicarFiltros()">
+      <input type="date" id="f-desde" onchange="desactivarSegmentos();aplicarFiltros()">
     </div>
     <div class="filter-group">
       <span class="filter-label">Hasta</span>
-      <input type="date" id="f-hasta" onchange="aplicarFiltros()">
+      <input type="date" id="f-hasta" onchange="desactivarSegmentos();aplicarFiltros()">
     </div>
     <div class="filter-sep"></div>
     <div class="filter-group">
@@ -823,7 +823,7 @@ const ARCHIVOS = {
   progHist:     'data/prog_historico_consolidado.json.gz',
   costos:       'data/costos_actual.json.gz',
   costosHist:   'data/costos_historico.json.gz',
-  segWeb:       'data/seg_web.json.gz',
+  segWeb:       'data/seg_web.json',
   solicitudes:  'data/solicitudes.json.gz',
   usuarios:     'usuarios.json',
   config:       'config.json',
@@ -1601,7 +1601,7 @@ async function cargarDatos() {
   loader('Cargando datos de API...');
 
   // Carga principal — fuentes que cambian frecuentemente
-  const [apiHist, apiAct, progData, costosAct, costosHist, solGZ, solGSheet] = await Promise.all([
+  const [apiHist, apiAct, progData, costosAct, costosHist, solGZ, solGSheet, segWebRaw] = await Promise.all([
     fetchGZ(ARCHIVOS.apiHist).catch(()=>[]),
     fetchGZ(ARCHIVOS.apiAct).catch(()=>[]),
     fetchGZ(ARCHIVOS.prog).catch(()=>[]),
@@ -1609,7 +1609,12 @@ async function cargarDatos() {
     fetchGZ(ARCHIVOS.costosHist).catch(()=>[]),
     fetchGZ(ARCHIVOS.solicitudes).catch(()=>[]),
     fetchSolicitudesGSheet(),
+    fetchJSON(ARCHIVOS.segWeb).catch(()=>({})),
   ]);
+  // Poblar anotaciones desde seg_web.json
+  if(segWebRaw && typeof segWebRaw === 'object') {
+    Object.assign(anotaciones, segWebRaw);
+  }
   const costosData = [...costosHist, ...costosAct];
   // Combinar solicitudes: GZ (legacy/manual) + Google Sheet (planificación)
   const solData = [...solGZ, ...solGSheet];
@@ -1875,8 +1880,23 @@ document.addEventListener('click', e => {
   }
 });
 
+function fechaLocal(d) {
+  // Retorna YYYY-MM-DD en hora local (evita desfase UTC)
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth()+1).padStart(2,'0');
+  const dd   = String(d.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function desactivarSegmentos() {
+  ['btn-hoy','btn-semana'].forEach(id => {
+    const b = document.getElementById(id);
+    if(b) b.classList.remove('active-filter');
+  });
+}
+
 function setHoy() {
-  const hoy = new Date().toISOString().substring(0,10);
+  const hoy = fechaLocal(new Date());
   document.getElementById('f-desde').value = hoy;
   document.getElementById('f-hasta').value = hoy;
   setActiveFilterBtn('btn-hoy');
@@ -1889,8 +1909,8 @@ function setEstaSemana() {
   lunes.setDate(hoy.getDate() - hoy.getDay() + (hoy.getDay()===0 ? -6 : 1));
   const domingo = new Date(lunes);
   domingo.setDate(lunes.getDate() + 6);
-  document.getElementById('f-desde').value = lunes.toISOString().substring(0,10);
-  document.getElementById('f-hasta').value = domingo.toISOString().substring(0,10);
+  document.getElementById('f-desde').value = fechaLocal(lunes);
+  document.getElementById('f-hasta').value = fechaLocal(domingo);
   setActiveFilterBtn('btn-semana');
   aplicarFiltros();
 }
