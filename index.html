@@ -810,8 +810,25 @@ const BASE_URL     = '/';
 const GITHUB_API   = 'https://api.github.com/repos/alexanderortega2000-glitch/AuTransp/contents/';
 
 // ============================================================
-// POWER AUTOMATE — endpoints de escritura (token protegido en PA)
+// AZURE FUNCTIONS API — backend principal
 // ============================================================
+const API_BASE = 'https://autransp-api-awekazaja2gngee4.centralus-01.azurewebsites.net/api';
+const API_KEY  = 'U_pkHZbPfdzLQetxsL4qEns83G7O7exTDmtf052WPR2tAzFuSVrhzQ==';
+const apiUrl   = (endpoint) => `${API_BASE}/${endpoint}?code=${API_KEY}`;
+
+async function apiCall(endpoint, options = {}) {
+  const resp = await fetch(apiUrl(endpoint), {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error: resp.statusText }));
+    throw new Error(err.error || `HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+// Power Automate — se mantiene como fallback hasta migración completa
 const PA_GUARDAR_SEG  = 'https://default831e062ab3c2418f9e24a1af9152ee.af.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/963e7a9e1cfc49d7a8503892f3aca5cf/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=EvWKrpIqU_M38KUzi1614y8B-ms2hEi9Y0dgctUbh3s';
 const PA_GUARDAR_PROG = 'https://default831e062ab3c2418f9e24a1af9152ee.af.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/0da72ee972954d939b6c28b399ea25ca/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=5wT5FxkGfjSUSkj-nQfL2ZafVY_romB-VG7M8xgyL4g';
 const PA_NUEVA_SOL    = 'https://default831e062ab3c2418f9e24a1af9152ee.af.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ec68ddb2bc8e4a6cb9aa0302ff998549/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=g6RO6tID1VZZI-BNX0SF1EqW6fIN-hHaA-Aso8tRg04';
@@ -1533,17 +1550,30 @@ async function intentarLogin() {
   if (!usuario) { errEl.style.display = 'block'; errEl.textContent = 'Ingresa tu usuario.'; return; }
   if (!pin)     { errEl.style.display = 'block'; errEl.textContent = 'Ingresa tu PIN.'; return; }
 
-  const u = usuariosData[usuario];
-  if (!u) {
-    errEl.style.display = 'block'; errEl.textContent = 'Usuario no encontrado.';
-    return;
-  }
-
   const pinHash = await hashPin(pin);
-  if (pinHash !== u.pin_hash) {
-    errEl.style.display = 'block'; errEl.textContent = 'PIN incorrecto. Intenta de nuevo.';
-    document.getElementById('login-pin').value = '';
-    return;
+
+  // Login via Azure SQL API
+  let u;
+  try {
+    const res = await apiCall('usuarios', {
+      method: 'POST',
+      body: JSON.stringify({ usuario, pinHash }),
+    });
+    u = { usuario: res.usuario, nombre: res.nombre, rol: res.rol, pin_hash: pinHash };
+    usuariosData[usuario] = u; // actualizar caché local
+  } catch(apiErr) {
+    // Fallback a datos embebidos si la API no responde
+    console.warn('[Login] Fallback local:', apiErr.message);
+    u = usuariosData[usuario];
+    if (!u) {
+      errEl.style.display = 'block'; errEl.textContent = 'Usuario no encontrado.';
+      return;
+    }
+    if (pinHash !== u.pin_hash) {
+      errEl.style.display = 'block'; errEl.textContent = 'PIN incorrecto. Intenta de nuevo.';
+      document.getElementById('login-pin').value = '';
+      return;
+    }
   }
 
   sesion = { usuario: u.usuario, nombre: u.nombre, rol: u.rol };
@@ -2303,13 +2333,18 @@ async function subirAnotaciones() {
     fechaActualizacion:   anot.fechaActualizacion   || new Date().toLocaleString('es-SV'),
   };
 
-  const resp = await fetch(PA_GUARDAR_SEG, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(payload),
-  });
-
-  if(!resp.ok) throw new Error('PA seg error: ' + resp.status);
+  // Intentar Azure API primero, fallback a PA
+  try {
+    await apiCall('seguimiento', { method: 'PUT', body: JSON.stringify(payload) });
+  } catch(apiErr) {
+    console.warn('[Seguimiento] Fallback PA:', apiErr.message);
+    const resp = await fetch(PA_GUARDAR_SEG, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if(!resp.ok) throw new Error('Error guardando seguimiento: ' + resp.status);
+  }
 }
 
 // ============================================================
@@ -2361,16 +2396,29 @@ async function cambiarPin() {
     return;
   }
 
-  // Actualizar en memoria
   const nuevoHash = await hashPin(nuevo);
-  usuariosData[sesion.usuario].pin_hash = nuevoHash;
 
-  status.style.color = 'var(--accent)';
-  status.textContent = '✓ PIN actualizado correctamente.';
-
-  // Nota: el cambio es solo en sesión actual — para persistirlo
-  // el admin debe actualizar usuarios.json en el repo
-  console.info('[PIN] Nuevo hash para', sesion.usuario, ':', nuevoHash);
+  // Actualizar via Azure API
+  try {
+    await apiCall('usuarios', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        usuario: sesion.usuario,
+        pinHashActual: hashActual,
+        pinHashNuevo: nuevoHash,
+      }),
+    });
+    // Actualizar caché local
+    usuariosData[sesion.usuario].pin_hash = nuevoHash;
+    status.style.color = 'var(--accent)';
+    status.textContent = '✓ PIN actualizado correctamente.';
+  } catch(apiErr) {
+    // Fallback — solo actualiza en memoria
+    console.warn('[PIN] Solo actualizado en memoria:', apiErr.message);
+    usuariosData[sesion.usuario].pin_hash = nuevoHash;
+    status.style.color = 'var(--accent)';
+    status.textContent = '✓ PIN actualizado (solo sesión actual).';
+  }
 
   setTimeout(() => cerrarModalPin(), 1500);
 }
@@ -2444,21 +2492,27 @@ async function enviarSolicitud() {
   status.style.color = 'var(--text2)';
   status.textContent = 'Enviando…';
 
-  // Agregar ID y FechaCreacion al payload
+  // Agregar ID y metadatos
   payload.ID_Solicitud = 'SOL-' + Date.now().toString(36).toUpperCase();
   payload.FechaCreacion = new Date().toISOString();
+  payload.Tipo = 'demanda';
 
   try {
-    const resp = await fetch(PA_NUEVA_SOL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
-    });
-
-    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    // Intentar Azure API primero, fallback a PA
+    try {
+      await apiCall('solicitudes', { method: 'POST', body: JSON.stringify(payload) });
+    } catch(apiErr) {
+      console.warn('[Solicitudes] Fallback PA:', apiErr.message);
+      const resp = await fetch(PA_NUEVA_SOL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    }
 
     status.style.color = 'var(--accent)';
-    status.textContent = '✓ Solicitud enviada — se procesará en menos de 5 minutos.';
+    status.textContent = '✓ Solicitud enviada correctamente.';
     setTimeout(() => cerrarModalSolicitud(), 1800);
 
   } catch(err) {
