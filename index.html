@@ -968,9 +968,19 @@ function loader(msg) { document.getElementById('loader-text').textContent = msg;
 async function fetchGZ(ruta) {
   const resp = await fetch(BASE_URL + ruta + '?t=' + Date.now());
   if (!resp.ok) return [];
-  const buf  = await resp.arrayBuffer();
-  const dec  = pako.inflate(new Uint8Array(buf));
-  return JSON.parse(new TextDecoder('utf-8').decode(dec));
+  const buf   = await resp.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  // Si el navegador ya descomprimió (Azure/CDN con Content-Encoding:gzip),
+  // el buffer empieza con '{' o '[' (JSON), no con 0x1f 0x8b (gzip magic bytes)
+  let texto;
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    // Aún comprimido — descomprimir con pako
+    texto = new TextDecoder('utf-8').decode(pako.inflate(bytes));
+  } else {
+    // Ya descomprimido por el navegador
+    texto = new TextDecoder('utf-8').decode(bytes);
+  }
+  return JSON.parse(texto);
 }
 
 async function fetchJSON(ruta) {
