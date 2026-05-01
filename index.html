@@ -1465,25 +1465,30 @@ async function confirmarSolicitudes() {
   btn.textContent = 'Guardando...'; btn.disabled = true;
 
   try {
-    // Enviar cada viaje nuevo como cambio individual a la cola via PA
+    // Enviar cada viaje a Azure SQL via API, fallback a PA
     let enviados = 0;
     for(const viaje of nuevos) {
       const payload = {
-        st:               viaje.ST,
-        campos:           viaje,
-        actualizadoPor:   sesion.usuario,
+        st:                 viaje.ST,
+        campos:             viaje,
+        actualizadoPor:     sesion.usuario,
         fechaActualizacion: new Date().toLocaleString('es-SV'),
       };
-      const resp = await fetch(PA_GUARDAR_PROG, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload),
-      });
-      if(!resp.ok) throw new Error('PA prog error ST ' + viaje.ST + ': ' + resp.status);
+      try {
+        await apiCall('programacion', { method: 'PUT', body: JSON.stringify(payload) });
+      } catch(apiErr) {
+        console.warn('[Prog] Fallback PA ST ' + viaje.ST + ':', apiErr.message);
+        const resp = await fetch(PA_GUARDAR_PROG, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if(!resp.ok) throw new Error('Error ST ' + viaje.ST + ': ' + resp.status);
+      }
       enviados++;
     }
-    btn.textContent = `✓ ${enviados} viajes enviados`;
-    document.getElementById('sol-status').textContent = `✓ ${enviados} viajes enviados a la cola — se consolidarán en menos de 5 minutos.`;
+    btn.textContent = `✓ ${enviados} viajes guardados`;
+    document.getElementById('sol-status').textContent = `✓ ${enviados} viajes guardados en Azure SQL.`;
     document.getElementById('sol-tabla-wrap').style.display = 'none';
     document.getElementById('sol-file').value = '';
     solicitudesRaw = [];
