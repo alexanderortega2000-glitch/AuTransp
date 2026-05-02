@@ -102,25 +102,25 @@ def parse_int(v):
 
 UPSERT_SQL = """
 MERGE viajes_api AS target
-USING (SELECT @ST AS ST) AS source ON target.ST = source.ST
+USING (SELECT ? AS ST) AS source ON target.ST = source.ST
 WHEN MATCHED THEN UPDATE SET
-    TipoViaje=@TipoViaje, OS=@OS, PuntoPartida=@PuntoPartida,
-    DsPuntoPartida=@DsPuntoPartida, PuntoEntrega=@PuntoEntrega,
-    DsPuntoEntrega=@DsPuntoEntrega, FechaEntrega=@FechaEntrega,
-    ID_EstatusST=@ID_EstatusST, Estado=@Estado, Asignado=@Asignado,
-    Km=@Km, KmReal=@KmReal, Estimacion=@Estimacion, CostoFinal=@CostoFinal,
-    Diferencia=@Diferencia, Comentario=@Comentario,
-    FechaFinalizacion=@FechaFinalizacion, Integrado=@Integrado,
-    ObsValidaciones=@ObsValidaciones, CodEquipo=@CodEquipo,
-    FueraPlan=@FueraPlan, Nom_Motorista=@Nom_Motorista,
-    FechaInicioViaje=@FechaInicioViaje, ComentInicioViaje=@ComentInicioViaje,
-    FechaFinViaje=@FechaFinViaje, ComentFinViaje=@ComentFinViaje,
-    FechaEntregaST=@FechaEntregaST, ComentEntrega=@ComentEntrega,
-    CantidadCargadores=@CantidadCargadores, Permanencia=@Permanencia,
-    Permanencia_Aplica=@Permanencia_Aplica, InicioPermanencia=@InicioPermanencia,
-    FinPermanencia=@FinPermanencia, HorasPermanencia=@HorasPermanencia,
-    HorasPermanenciaEst=@HorasPermanenciaEst, OficialCosecha=@OficialCosecha,
-    Frente=@Frente, EsHistorico=@EsHistorico,
+    TipoViaje=?, OS=?, PuntoPartida=?,
+    DsPuntoPartida=?, PuntoEntrega=?,
+    DsPuntoEntrega=?, FechaEntrega=?,
+    ID_EstatusST=?, Estado=?, Asignado=?,
+    Km=?, KmReal=?, Estimacion=?, CostoFinal=?,
+    Diferencia=?, Comentario=?,
+    FechaFinalizacion=?, Integrado=?,
+    ObsValidaciones=?, CodEquipo=?,
+    FueraPlan=?, Nom_Motorista=?,
+    FechaInicioViaje=?, ComentInicioViaje=?,
+    FechaFinViaje=?, ComentFinViaje=?,
+    FechaEntregaST=?, ComentEntrega=?,
+    CantidadCargadores=?, Permanencia=?,
+    Permanencia_Aplica=?, InicioPermanencia=?,
+    FinPermanencia=?, HorasPermanencia=?,
+    HorasPermanenciaEst=?, OficialCosecha=?,
+    Frente=?, EsHistorico=?,
     FechaActualizacion=GETUTCDATE()
 WHEN NOT MATCHED THEN INSERT (
     ST, TipoViaje, OS, PuntoPartida, DsPuntoPartida, PuntoEntrega,
@@ -132,14 +132,7 @@ WHEN NOT MATCHED THEN INSERT (
     Permanencia, Permanencia_Aplica, InicioPermanencia, FinPermanencia,
     HorasPermanencia, HorasPermanenciaEst, OficialCosecha, Frente, EsHistorico
 ) VALUES (
-    @ST, @TipoViaje, @OS, @PuntoPartida, @DsPuntoPartida, @PuntoEntrega,
-    @DsPuntoEntrega, @FechaEntrega, @ID_EstatusST, @Estado, @Asignado,
-    @Km, @KmReal, @Estimacion, @CostoFinal, @Diferencia, @Comentario,
-    @FechaFinalizacion, @Integrado, @ObsValidaciones, @CodEquipo, @FueraPlan,
-    @Nom_Motorista, @FechaInicioViaje, @ComentInicioViaje, @FechaFinViaje,
-    @ComentFinViaje, @FechaEntregaST, @ComentEntrega, @CantidadCargadores,
-    @Permanencia, @Permanencia_Aplica, @InicioPermanencia, @FinPermanencia,
-    @HorasPermanencia, @HorasPermanenciaEst, @OficialCosecha, @Frente, @EsHistorico
+    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
 );
 """
 
@@ -149,7 +142,47 @@ def insertar_lote(conn, registros: list, es_historico: bool):
     err = 0
     for r in registros:
         try:
-            cursor.execute(UPSERT_SQL,
+            vals = (
+                str(r.get("ID_ST", "")),           # ST (USING clause)
+                limpiar(r.get("TipoViaje")),
+                limpiar(r.get("OS")),
+                limpiar(r.get("PuntoPartida")),
+                limpiar(r.get("DsPuntoPartida")),
+                limpiar(r.get("PuntoEntrega")),
+                limpiar(r.get("DsPuntoEntrega")),
+                parse_fecha(r.get("FechaEntrega")),
+                parse_int(r.get("ID_EstatusST")),
+                limpiar(r.get("Estado")),
+                limpiar(r.get("Asignado")),
+                parse_num(r.get("Km")),
+                parse_num(r.get("KmReal")),
+                parse_num(r.get("Estimacion")),
+                parse_num(r.get("CostoFinal")),
+                parse_num(r.get("Diferencia")),
+                limpiar(str(r.get("Comentario") or "")[:500]),
+                parse_fecha(r.get("FechaFinalizacion")),
+                limpiar(r.get("Integrado")),
+                limpiar(str(r.get("ObsValidaciones") or "")[:500]),
+                limpiar(r.get("CodEquipo")),
+                limpiar(r.get("FueraPlan")),
+                limpiar(r.get("Nom_Motorista")),
+                parse_fecha(r.get("FechaInicioViaje")),
+                limpiar(str(r.get("ComentInicioViaje") or "")[:500]),
+                parse_fecha(r.get("FechaFinViaje")),
+                limpiar(str(r.get("ComentFinViaje") or "")[:500]),
+                parse_fecha(r.get("FechaEntregaST")),
+                limpiar(str(r.get("ComentEntrega") or "")[:500]),
+                parse_int(r.get("CantidadCargadores")),
+                parse_num(r.get("Permanencia")),
+                limpiar(r.get("Permanencia_Aplica")),
+                parse_fecha(r.get("InicioPermanencia")),
+                parse_fecha(r.get("FinPermanencia")),
+                parse_num(r.get("HorasPermanencia")),
+                parse_num(r.get("HorasPermanenciaEst")),
+                limpiar(r.get("OficialCosecha")),
+                limpiar(r.get("Frente")),
+                1 if es_historico else 0,
+                # Repetir para el INSERT VALUES
                 str(r.get("ID_ST", "")),
                 limpiar(r.get("TipoViaje")),
                 limpiar(r.get("OS")),
@@ -190,7 +223,11 @@ def insertar_lote(conn, registros: list, es_historico: bool):
                 limpiar(r.get("Frente")),
                 1 if es_historico else 0,
             )
+            cursor.execute(UPSERT_SQL, vals)
             ok += 1
+            if ok % 500 == 0:
+                conn.commit()
+                print(f"    → {ok:,} registros procesados...")
         except Exception as e:
             err += 1
             if err <= 3:
