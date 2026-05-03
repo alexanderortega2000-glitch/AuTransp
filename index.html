@@ -814,7 +814,10 @@ const GITHUB_API   = 'https://api.github.com/repos/alexanderortega2000-glitch/Au
 // ============================================================
 const API_BASE = 'https://autransp-api-awekazaja2gngee4.centralus-01.azurewebsites.net/api';
 const API_KEY  = 'U_pkHZbPfdzLQetxsL4qEns83G7O7exTDmtf052WPR2tAzFuSVrhzQ==';
-const apiUrl   = (endpoint) => `${API_BASE}/${endpoint}?code=${API_KEY}`;
+const apiUrl = (endpoint) => {
+  const sep = endpoint.includes('?') ? '&' : '?';
+  return `${API_BASE}/${endpoint}${sep}code=${API_KEY}`;
+};
 
 async function apiCall(endpoint, options = {}) {
   const resp = await fetch(apiUrl(endpoint), {
