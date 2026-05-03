@@ -1640,7 +1640,7 @@ async function cargarDatos() {
     loader('Conectando a Azure SQL...');
 
     const [viajesSQL, solGSheet, segWebRaw, costosAct, costosHist, solGZ] = await Promise.all([
-      apiCall('viajes').catch(e => { console.warn('[API viajes]', e.message); return []; }),
+      apiCall('viajes?historico=true').catch(e => { console.warn('[API viajes]', e.message); return []; }),
       fetchSolicitudesGSheet().catch(() => []),
       apiCall('seguimiento').catch(() => []),
       fetchGZ(ARCHIVOS.costos).catch(()=>[]),
