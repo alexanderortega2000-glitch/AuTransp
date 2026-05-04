@@ -349,27 +349,37 @@ COLS = [
     "IdEnvioVario", "PesoVario", "FechaDigita",
 ]
 
-_set_clause   = ", ".join(f"{c}=?" for c in COLS if c != "ST") + ", FechaActualizacion=GETUTCDATE()"
 _insert_cols  = ", ".join(COLS) + ", FechaActualizacion"
 _insert_vals  = ", ".join("?" for _ in COLS) + ", GETUTCDATE()"
 
-UPSERT_SQL = f"""
-MERGE costos AS target
-USING (SELECT ? AS ST) AS source ON target.ST = source.ST
-WHEN MATCHED THEN UPDATE SET {_set_clause}
-WHEN NOT MATCHED THEN INSERT ({_insert_cols}) VALUES ({_insert_vals});
+# INSERT directo. La tabla se vacía con TRUNCATE al inicio del migrador.
+# Si el Excel trae STs duplicados, el migrador los detecta y warn (Python-side,
+# antes de mandar a SQL) — no llegan al INSERT.
+INSERT_SQL = f"""
+INSERT INTO costos ({_insert_cols}) VALUES ({_insert_vals});
 """
 
 
-def mapear(row: dict, es_historico: bool):
-    """Construye la tupla de valores para el UPSERT."""
+def mapear(row: dict, es_historico: bool, respetar_area: bool = False):
+    """Construye la tupla de valores para el INSERT.
+
+    Args:
+        respetar_area: si True, usa el campo `Area` del Excel tal cual.
+                       Si False (default), recalcula con las reglas.
+    """
     st = resolver_st(row)
     if not st:
         return None
 
     flota, subflota = extraer_flota(limpiar(row.get("Equipo")))
     nombre_cuadrilla = limpiar(row.get("NombreCuadrilla"))
-    area_calc = clasificar_area(row, flota, nombre_cuadrilla)
+
+    if respetar_area:
+        # Histórico: usar lo que viene del Excel (ya clasificado por el equipo)
+        area_final = limpiar(row.get("Area"))
+    else:
+        # Actual / fuente sin clasificar: aplicar las reglas
+        area_final = clasificar_area(row, flota, nombre_cuadrilla)
 
     valores = [
         st,
@@ -380,7 +390,7 @@ def mapear(row: dict, es_historico: bool):
         limpiar(row.get("ID_ST")),
         limpiar(row.get("IdAgrupaST")),
         limpiar(row.get("IdProforma")),
-        area_calc,
+        area_final,
         limpiar(row.get("BkActividad")),
         limpiar(row.get("DsActividad")),
         limpiar(row.get("BkHacienda1")),
@@ -453,34 +463,76 @@ def mapear(row: dict, es_historico: bool):
         parse_fecha(row.get("FechaDigita")),
     ]
 
-    sin_st = valores[1:]
-    return tuple([st] + sin_st + valores)
+    return tuple(valores)
 
 
 # ============================================================
 # MIGRACIÓN
 # ============================================================
 
-def migrar(conn, registros_iter, es_historico: bool, batch_size: int = 500):
+def migrar(conn, registros_iter, es_historico: bool,
+           respetar_area: bool = False,
+           truncate: bool = True,
+           batch_size: int = 500):
+    """
+    Migra registros del Excel a costos.
+
+    - Si truncate=True (default): TRUNCATE TABLE costos antes de insertar.
+    - Si respetar_area=True: usa la columna Area del Excel sin recalcular.
+    - Detecta STs duplicados en el Excel y los warn-y-continúa
+      (inserta el primero, ignora el resto, los reporta al final).
+    """
     cursor = conn.cursor()
     cursor.fast_executemany = True
+
+    if truncate:
+        print("  Ejecutando TRUNCATE TABLE costos...", flush=True)
+        cursor.execute("TRUNCATE TABLE costos")
+        conn.commit()
+        print("  ✓ Tabla vacía, listo para insertar", flush=True)
+    else:
+        print("  Modo append (--no-truncate): no se vacía la tabla", flush=True)
+
+    if respetar_area:
+        print("  Modo --respetar-area: se conserva el campo Area del Excel", flush=True)
+    else:
+        print("  Modo recalcular: Area se calcula con las reglas", flush=True)
 
     ok = 0
     sin_st = 0
     err = 0
+    duplicados = 0          # STs repetidos en el Excel — solo se inserta el primero
+    sts_vistos = set()
     primeros_errores = []
+    primeros_duplicados = []
     distrib_area = Counter()
+
+    # Índice de Area en la tupla de valores:
+    # COLS = [ST, EsHistorico, FechaApunte, OS1, DsEstadoOS, ID_ST,
+    #         IdAgrupaST, IdProforma, Area, ...]
+    #         0   1            2            3    4           5
+    #         6           7           8
+    IDX_AREA = 8
 
     for row in registros_iter:
         try:
-            vals = mapear(row, es_historico)
+            vals = mapear(row, es_historico, respetar_area=respetar_area)
             if vals is None:
                 sin_st += 1
                 continue
-            cursor.execute(UPSERT_SQL, vals)
+
+            st_actual = vals[0]
+            if st_actual in sts_vistos:
+                duplicados += 1
+                if len(primeros_duplicados) < 5:
+                    primeros_duplicados.append(st_actual)
+                continue
+            sts_vistos.add(st_actual)
+
+            cursor.execute(INSERT_SQL, vals)
             ok += 1
-            # capturar Area para reconciliación rápida
-            distrib_area[vals[8]] += 1   # índice 8 = Area en valores
+            distrib_area[vals[IDX_AREA]] += 1
+
             if ok % batch_size == 0:
                 conn.commit()
                 if ok % 5000 == 0:
@@ -491,7 +543,7 @@ def migrar(conn, registros_iter, es_historico: bool, batch_size: int = 500):
                 primeros_errores.append((row.get("ST") or row.get("ID_ST"), str(e)))
 
     conn.commit()
-    return ok, sin_st, err, primeros_errores, distrib_area
+    return ok, sin_st, err, duplicados, primeros_errores, primeros_duplicados, distrib_area
 
 
 # ============================================================
@@ -558,16 +610,22 @@ def reconciliacion(conn, es_historico: bool):
 # ============================================================
 
 def main():
-    parser = argparse.ArgumentParser(description="Migra costos desde Excel a Azure SQL.")
-    parser.add_argument("--archivo", required=True, help="Ruta al Excel (.xlsx)")
+    parser = argparse.ArgumentParser(description="Migra costos desde Excel/CSV a Azure SQL.")
+    parser.add_argument("--archivo", required=True, help="Ruta al archivo (.xlsx, .csv, .csv.gz)")
     parser.add_argument("--es-historico", action="store_true",
                         help="Marcar registros con EsHistorico=1 (default: 0).")
+    parser.add_argument("--respetar-area", action="store_true",
+                        help="Usar el campo Area del Excel sin recalcular.")
+    parser.add_argument("--no-truncate", action="store_true",
+                        help="No vaciar la tabla antes (para concatenar histórico + actual).")
     args = parser.parse_args()
 
     print("\n" + "=" * 60)
     print("  MIGRACIÓN A AZURE SQL — costos")
-    print(f"  Archivo: {args.archivo}")
-    print(f"  EsHistorico: {1 if args.es_historico else 0}")
+    print(f"  Archivo        : {args.archivo}")
+    print(f"  EsHistorico    : {1 if args.es_historico else 0}")
+    print(f"  Respetar Area  : {args.respetar_area}")
+    print(f"  Truncate       : {not args.no_truncate}")
     print("=" * 60)
 
     if not SQL_PASSWORD:
@@ -578,22 +636,31 @@ def main():
         print(f"[ERROR] No se encontró: {args.archivo}")
         sys.exit(1)
 
-    print("\n[1/3] Leyendo Excel y procesando...")
+    print("\n[1/3] Leyendo y procesando...")
     conn = get_conn()
     print("  ✓ Conectado a SQL")
 
-    # Pasamos el iterador del Excel directo al migrador (streaming, sin cargar todo en RAM)
     registros = leer_archivo(args.archivo)
 
     print("\n[2/3] Insertando...")
-    ok, sin, err, errs, distrib = migrar(conn, registros, args.es_historico)
-    print(f"\n  Insertados/actualizados: {ok:,}")
-    print(f"  Sin ST (descartados)   : {sin:,}")
-    print(f"  Errores                : {err:,}")
+    ok, sin, err, dups, errs, primeros_dups, distrib = migrar(
+        conn, registros, args.es_historico,
+        respetar_area=args.respetar_area,
+        truncate=not args.no_truncate,
+    )
+
+    print(f"\n  Insertados            : {ok:,}")
+    print(f"  Sin ST (descartados)  : {sin:,}")
+    print(f"  ST duplicados (warn)  : {dups:,}")
+    print(f"  Errores               : {err:,}")
     if errs:
         print(f"  Primeros errores:")
         for st, e in errs:
             print(f"    ST {st}: {e[:150]}")
+    if primeros_dups:
+        print(f"  Primeros STs duplicados (revisar en Excel):")
+        for st in primeros_dups:
+            print(f"    ST {st}")
 
     print(f"\n  Distribución de Area en este lote:")
     for a, n in distrib.most_common():
