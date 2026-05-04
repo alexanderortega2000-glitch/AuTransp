@@ -56,7 +56,7 @@ jobs:
         continue-on-error: true   # si no existe el archivo, no falla todo el workflow
         run: |
           if [ -f "data/prog_actual.xlsx" ]; then
-            python data/migrar_prog.py --archivo "data/prog_actual.xlsx" --etiqueta actual
+            python data/migrar_prog.py --archivo "data/prog_actual.xlsx" --etiqueta actual --no-truncate
           else
             echo "  data/prog_actual.xlsx no existe, salteando"
           fi
@@ -68,7 +68,10 @@ jobs:
           SQL_DATABASE:  ${{ secrets.SQL_DATABASE }}
           SQL_USER:      ${{ secrets.SQL_USER }}
           SQL_PASSWORD:  ${{ secrets.SQL_PASSWORD }}
-        run: python data/migrar_costos.py --archivo "data/CostosAgricampoHist.csv.gz" --es-historico
+        run: |
+          curl -L -o /tmp/CostosAgricampoHist.csv.gz \
+            "https://github.com/alexanderortega2000-glitch/AuTransp/releases/download/costos-hist-v1/CostosAgricampoHist_consolidado.csv.gz"
+          python data/migrar_costos.py --archivo "/tmp/CostosAgricampoHist.csv.gz" --es-historico --respetar-area
 
       - name: Migrar costos actual
         if: ${{ github.event.inputs.tabla == 'todo' || github.event.inputs.tabla == 'solo_costos_actual' }}
@@ -80,9 +83,9 @@ jobs:
         continue-on-error: true
         run: |
           if [ -f "data/CostosAgricampoActual.csv.gz" ]; then
-            python data/migrar_costos.py --archivo "data/CostosAgricampoActual.csv.gz"
+            python data/migrar_costos.py --archivo "data/CostosAgricampoActual.csv.gz" --no-truncate
           elif [ -f "data/CostosAgricampoActual.xlsx" ]; then
-            python data/migrar_costos.py --archivo "data/CostosAgricampoActual.xlsx"
+            python data/migrar_costos.py --archivo "data/CostosAgricampoActual.xlsx" --no-truncate
           else
             echo "  data/CostosAgricampoActual.* no existe, salteando"
           fi
