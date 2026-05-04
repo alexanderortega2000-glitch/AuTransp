@@ -473,14 +473,15 @@ def mapear(row: dict, es_historico: bool, respetar_area: bool = False):
 def migrar(conn, registros_iter, es_historico: bool,
            respetar_area: bool = False,
            truncate: bool = True,
-           batch_size: int = 500):
+           batch_size: int = 1000):
     """
     Migra registros del Excel a costos.
 
     - Si truncate=True (default): TRUNCATE TABLE costos antes de insertar.
+    - Si truncate=False: modo append — salta STs que ya existen en SQL.
     - Si respetar_area=True: usa la columna Area del Excel sin recalcular.
-    - Detecta STs duplicados en el Excel y los warn-y-continúa
-      (inserta el primero, ignora el resto, los reporta al final).
+    - Detecta STs duplicados en el Excel (warn-y-continúa).
+    - Usa executemany en lotes de batch_size para máxima velocidad.
     """
     cursor = conn.cursor()
     cursor.fast_executemany = True
@@ -490,8 +491,12 @@ def migrar(conn, registros_iter, es_historico: bool,
         cursor.execute("TRUNCATE TABLE costos")
         conn.commit()
         print("  ✓ Tabla vacía, listo para insertar", flush=True)
+        sts_en_sql = set()
     else:
-        print("  Modo append (--no-truncate): no se vacía la tabla", flush=True)
+        print("  Modo append: cargando STs ya existentes en SQL...", flush=True)
+        cursor.execute("SELECT ST FROM costos WHERE EsHistorico = 1")
+        sts_en_sql = {str(r[0]) for r in cursor.fetchall()}
+        print(f"  {len(sts_en_sql):,} STs ya en SQL — se saltearán", flush=True)
 
     if respetar_area:
         print("  Modo --respetar-area: se conserva el campo Area del Excel", flush=True)
@@ -499,20 +504,39 @@ def migrar(conn, registros_iter, es_historico: bool,
         print("  Modo recalcular: Area se calcula con las reglas", flush=True)
 
     ok = 0
+    saltados = 0
     sin_st = 0
     err = 0
-    duplicados = 0          # STs repetidos en el Excel — solo se inserta el primero
+    duplicados = 0
     sts_vistos = set()
     primeros_errores = []
     primeros_duplicados = []
     distrib_area = Counter()
-
-    # Índice de Area en la tupla de valores:
-    # COLS = [ST, EsHistorico, FechaApunte, OS1, DsEstadoOS, ID_ST,
-    #         IdAgrupaST, IdProforma, Area, ...]
-    #         0   1            2            3    4           5
-    #         6           7           8
     IDX_AREA = 8
+
+    lote = []
+
+    def flush_lote():
+        nonlocal ok, err, primeros_errores
+        if not lote:
+            return
+        try:
+            cursor.executemany(INSERT_SQL, lote)
+            conn.commit()
+            ok += len(lote)
+        except Exception as e:
+            # Si falla el lote entero, reintentar fila por fila para aislar el error
+            conn.rollback()
+            for vals in lote:
+                try:
+                    cursor.execute(INSERT_SQL, vals)
+                    conn.commit()
+                    ok += 1
+                except Exception as e2:
+                    err += 1
+                    if len(primeros_errores) < 3:
+                        primeros_errores.append((vals[0], str(e2)[:120]))
+        lote.clear()
 
     for row in registros_iter:
         try:
@@ -521,7 +545,14 @@ def migrar(conn, registros_iter, es_historico: bool,
                 sin_st += 1
                 continue
 
-            st_actual = vals[0]
+            st_actual = str(vals[0])
+
+            # Saltar si ya está en SQL (modo append)
+            if st_actual in sts_en_sql:
+                saltados += 1
+                continue
+
+            # Saltar duplicados dentro del mismo archivo
             if st_actual in sts_vistos:
                 duplicados += 1
                 if len(primeros_duplicados) < 5:
@@ -529,18 +560,22 @@ def migrar(conn, registros_iter, es_historico: bool,
                 continue
             sts_vistos.add(st_actual)
 
-            cursor.execute(INSERT_SQL, vals)
-            ok += 1
+            lote.append(vals)
             distrib_area[vals[IDX_AREA]] += 1
 
-            if ok % batch_size == 0:
-                conn.commit()
-                if ok % 5000 == 0:
+            if len(lote) >= batch_size:
+                flush_lote()
+                if ok % 5000 == 0 and ok > 0:
                     print(f"    → {ok:,} procesados...", flush=True)
+
         except Exception as e:
             err += 1
             if len(primeros_errores) < 3:
                 primeros_errores.append((row.get("ST") or row.get("ID_ST"), str(e)))
+
+    flush_lote()  # último lote parcial
+
+    return ok, saltados, sin_st, err, duplicados, primeros_errores, primeros_duplicados, distrib_area
 
     conn.commit()
     return ok, sin_st, err, duplicados, primeros_errores, primeros_duplicados, distrib_area
@@ -643,13 +678,14 @@ def main():
     registros = leer_archivo(args.archivo)
 
     print("\n[2/3] Insertando...")
-    ok, sin, err, dups, errs, primeros_dups, distrib = migrar(
+    ok, saltados, sin, err, dups, errs, primeros_dups, distrib = migrar(
         conn, registros, args.es_historico,
         respetar_area=args.respetar_area,
         truncate=not args.no_truncate,
     )
 
     print(f"\n  Insertados            : {ok:,}")
+    print(f"  Saltados (ya en SQL)  : {saltados:,}")
     print(f"  Sin ST (descartados)  : {sin:,}")
     print(f"  ST duplicados (warn)  : {dups:,}")
     print(f"  Errores               : {err:,}")
