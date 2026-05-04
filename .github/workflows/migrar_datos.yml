@@ -18,6 +18,7 @@ on:
 jobs:
   migrar:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -71,7 +72,7 @@ jobs:
         run: |
           curl -L -o /tmp/CostosAgricampoHist.csv.gz \
             "https://github.com/alexanderortega2000-glitch/AuTransp/releases/download/costos-hist-v1/CostosAgricampoHist_consolidado.csv.gz"
-          python data/migrar_costos.py --archivo "/tmp/CostosAgricampoHist.csv.gz" --es-historico --respetar-area
+          python data/migrar_costos.py --archivo "/tmp/CostosAgricampoHist.csv.gz" --es-historico --respetar-area --no-truncate
 
       - name: Migrar costos actual
         if: ${{ github.event.inputs.tabla == 'todo' || github.event.inputs.tabla == 'solo_costos_actual' }}
