@@ -241,15 +241,14 @@ COLS = [
     "EstatusViaje",
 ]
 
-_set_clause   = ", ".join(f"{c}=?" for c in COLS if c != "ST") + ", FechaActualizacion=GETUTCDATE()"
 _insert_cols  = ", ".join(COLS) + ", FechaActualizacion"
 _insert_vals  = ", ".join("?" for _ in COLS) + ", GETUTCDATE()"
 
-UPSERT_SQL = f"""
-MERGE programacion AS target
-USING (SELECT ? AS ST) AS source ON target.ST = source.ST
-WHEN MATCHED THEN UPDATE SET {_set_clause}
-WHEN NOT MATCHED THEN INSERT ({_insert_cols}) VALUES ({_insert_vals});
+# INSERT directo (sin MERGE): cada fila del CSV/Excel = una fila en SQL.
+# Razón: un ST puede tener N filas (multi-producto / multi-destino).
+# La tabla debe estar vacía antes (TRUNCATE al inicio del migrador).
+INSERT_SQL = f"""
+INSERT INTO programacion ({_insert_cols}) VALUES ({_insert_vals});
 """
 
 
@@ -349,17 +348,25 @@ def mapear(r: dict, etiqueta: str):
         limpiar(r.get("estatus_viaje")),
     ]
 
-    sin_st = valores[1:]
-    return tuple([st] + sin_st + valores)
+    return tuple(valores)
 
 
 # ============================================================
 # MIGRACIÓN
 # ============================================================
 
-def migrar(conn, registros_iter, etiqueta: str, batch_size: int = 500):
+def migrar(conn, registros_iter, etiqueta: str, truncate: bool = True, batch_size: int = 500):
     cursor = conn.cursor()
     cursor.fast_executemany = True
+
+    if truncate:
+        # Vaciar tabla antes de insertar — modo "migración limpia".
+        print("  Ejecutando TRUNCATE TABLE programacion...", flush=True)
+        cursor.execute("TRUNCATE TABLE programacion")
+        conn.commit()
+        print("  ✓ Tabla vacía, listo para insertar", flush=True)
+    else:
+        print("  Modo append (--no-truncate): no se vacía la tabla", flush=True)
 
     ok = 0
     sin_st = 0
@@ -367,15 +374,20 @@ def migrar(conn, registros_iter, etiqueta: str, batch_size: int = 500):
     primeros_errores = []
     distrib_tipo = Counter()
 
+    # Índice de TipoProg en la tupla de valores:
+    # COLS = [ST, Coordinador, ProveedorTransp, Subflota, FechaEjecucion, TipoProg, ...]
+    #         0   1            2                3         4               5
+    IDX_TIPOPROG = 5
+
     for row in registros_iter:
         try:
             vals = mapear(row, etiqueta)
             if vals is None:
                 sin_st += 1
                 continue
-            cursor.execute(UPSERT_SQL, vals)
+            cursor.execute(INSERT_SQL, vals)
             ok += 1
-            distrib_tipo[vals[5]] += 1     # índice 5 = TipoProg
+            distrib_tipo[vals[IDX_TIPOPROG]] += 1
             if ok % batch_size == 0:
                 conn.commit()
                 if ok % 5000 == 0:
@@ -462,6 +474,8 @@ def main():
     parser.add_argument("--etiqueta", default="historico",
                         choices=["historico", "actual"],
                         help="Etiqueta para ActualizadoPor (default: historico).")
+    parser.add_argument("--no-truncate", action="store_true",
+                        help="No vaciar la tabla antes de insertar (para concatenar múltiples archivos).")
     args = parser.parse_args()
 
     print("\n" + "=" * 60)
@@ -485,7 +499,10 @@ def main():
     registros = leer_archivo(args.archivo)
 
     print("\n[2/3] Insertando...")
-    ok, sin, err, errs, distrib = migrar(conn, registros, args.etiqueta)
+    ok, sin, err, errs, distrib = migrar(
+        conn, registros, args.etiqueta,
+        truncate=not args.no_truncate,
+    )
     print(f"\n  Insertados/actualizados: {ok:,}")
     print(f"  Sin ST (descartados)   : {sin:,}")
     print(f"  Errores                : {err:,}")
