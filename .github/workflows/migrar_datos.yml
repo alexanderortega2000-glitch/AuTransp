@@ -45,7 +45,7 @@ jobs:
           SQL_DATABASE:  ${{ secrets.SQL_DATABASE }}
           SQL_USER:      ${{ secrets.SQL_USER }}
           SQL_PASSWORD:  ${{ secrets.SQL_PASSWORD }}
-        run: python data/migrar_prog.py --archivo "data/prog_historico_consolidado.csv.gz" --etiqueta historico
+        run: python data/migrar_prog.py --archivo "data/prog_historico_consolidado.csv.gz" --etiqueta historico --no-truncate
 
       - name: Migrar prog actual
         if: ${{ github.event.inputs.tabla == 'todo' || github.event.inputs.tabla == 'solo_prog_actual' }}
