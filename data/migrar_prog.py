@@ -355,50 +355,82 @@ def mapear(r: dict, etiqueta: str):
 # MIGRACIÓN
 # ============================================================
 
-def migrar(conn, registros_iter, etiqueta: str, truncate: bool = True, batch_size: int = 500):
+def migrar(conn, registros_iter, etiqueta: str, truncate: bool = True, batch_size: int = 1000):
     cursor = conn.cursor()
     cursor.fast_executemany = True
 
     if truncate:
-        # Vaciar tabla antes de insertar — modo "migración limpia".
         print("  Ejecutando TRUNCATE TABLE programacion...", flush=True)
         cursor.execute("TRUNCATE TABLE programacion")
         conn.commit()
         print("  ✓ Tabla vacía, listo para insertar", flush=True)
+        filas_a_saltear = 0
     else:
-        print("  Modo append (--no-truncate): no se vacía la tabla", flush=True)
+        # Contar filas ya insertadas y saltear ese número al inicio
+        cursor.execute("SELECT COUNT(*) FROM programacion")
+        filas_a_saltear = cursor.fetchone()[0]
+        print(f"  Modo append: saltando las primeras {filas_a_saltear:,} filas ya en SQL", flush=True)
 
     ok = 0
+    saltados = 0
     sin_st = 0
     err = 0
     primeros_errores = []
     distrib_tipo = Counter()
-
-    # Índice de TipoProg en la tupla de valores:
-    # COLS = [ST, Coordinador, ProveedorTransp, Subflota, FechaEjecucion, TipoProg, ...]
-    #         0   1            2                3         4               5
     IDX_TIPOPROG = 5
+    lote = []
 
+    def flush_lote():
+        nonlocal ok, err, primeros_errores
+        if not lote:
+            return
+        try:
+            cursor.executemany(INSERT_SQL, lote)
+            conn.commit()
+            ok += len(lote)
+        except Exception:
+            conn.rollback()
+            for vals in lote:
+                try:
+                    cursor.execute(INSERT_SQL, vals)
+                    conn.commit()
+                    ok += 1
+                except Exception as e2:
+                    err += 1
+                    if len(primeros_errores) < 3:
+                        primeros_errores.append((vals[0], str(e2)[:120]))
+        lote.clear()
+
+    filas_leidas = 0
     for row in registros_iter:
         try:
             vals = mapear(row, etiqueta)
             if vals is None:
                 sin_st += 1
                 continue
-            cursor.execute(INSERT_SQL, vals)
-            ok += 1
+
+            filas_leidas += 1
+
+            # Saltear filas ya insertadas en runs anteriores
+            if filas_leidas <= filas_a_saltear:
+                saltados += 1
+                continue
+
+            lote.append(vals)
             distrib_tipo[vals[IDX_TIPOPROG]] += 1
-            if ok % batch_size == 0:
-                conn.commit()
-                if ok % 5000 == 0:
+
+            if len(lote) >= batch_size:
+                flush_lote()
+                if ok % 5000 == 0 and ok > 0:
                     print(f"    → {ok:,} procesados...", flush=True)
+
         except Exception as e:
             err += 1
             if len(primeros_errores) < 3:
                 primeros_errores.append((row.get("st"), str(e)))
 
-    conn.commit()
-    return ok, sin_st, err, primeros_errores, distrib_tipo
+    flush_lote()
+    return ok, saltados, sin_st, err, primeros_errores, distrib_tipo
 
 
 # ============================================================
@@ -499,12 +531,13 @@ def main():
     registros = leer_archivo(args.archivo)
 
     print("\n[2/3] Insertando...")
-    ok, sin, err, errs, distrib = migrar(
+    ok, saltados, sin, err, errs, distrib = migrar(
         conn, registros, args.etiqueta,
         truncate=not args.no_truncate,
     )
-    print(f"\n  Insertados/actualizados: {ok:,}")
-    print(f"  Sin ST (descartados)   : {sin:,}")
+    print(f"\n  Insertados            : {ok:,}")
+    print(f"  Saltados (ya en SQL)  : {saltados:,}")
+    print(f"  Sin ST (descartados)  : {sin:,}")
     print(f"  Errores                : {err:,}")
     if errs:
         print(f"  Primeros errores:")
