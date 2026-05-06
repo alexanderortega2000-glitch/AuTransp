@@ -1,28 +1,31 @@
 """
 actualizar_api_actual.py
 ========================
-Script para GitHub Actions — actualiza api_actual.json.gz
-con datos de los últimos 7 días + 3 días adelante.
+Consulta la API de transportes y hace UPSERT en la tabla viajes_api de Azure SQL.
 
-Se ejecuta via repository_dispatch 'actualizar_api'
-disparado desde el botón Actualizar del dashboard.
+Ventana de consulta:
+  - Últimos 7 días + 3 días adelante (viajes activos y recientes)
+  - EsHistorico = 0 (viajes actuales)
+
+Se ejecuta:
+  - Via cron cada 15 minutos (workflow actualizar_api.yml)
+  - Via workflow_dispatch (botón manual)
+
+Variables de entorno requeridas:
+  API_USUARIO  — usuario de la API (default: arivas)
+  SQL_SERVER, SQL_DATABASE, SQL_USER, SQL_PASSWORD
 """
 
 import os
-import json
-import gzip
-import base64
+import math
+import pyodbc
 import requests
 import pandas as pd
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 # ============================================================
 # CONFIGURACIÓN
 # ============================================================
-
-GITHUB_TOKEN   = os.environ.get("TOKEN_REPO", "")
-GITHUB_USUARIO = "alexanderortega2000-glitch"
-GITHUB_REPO    = "AuTransp"
 
 API_URL     = "https://logistico.grupocassa.com/api-transportes-varios-web/api/SolicitudesTransporte/GetSolicitudesTransporte"
 API_USUARIO = os.environ.get("API_USUARIO", "arivas")
@@ -35,64 +38,110 @@ API_PARAMS  = {
     "FueraPlan":            "0",
 }
 
-COLS_API = [
-    "ID_ST", "TipoViaje", "OS", "PuntoPartida", "DsPuntoPartida",
+SQL_SERVER   = os.environ.get("SQL_SERVER",   "autransp-server.database.windows.net")
+SQL_DATABASE = os.environ.get("SQL_DATABASE", "autransp-db")
+SQL_USER     = os.environ.get("SQL_USER",     "autransp_admin")
+SQL_PASSWORD = os.environ.get("SQL_PASSWORD", "")
+
+# ============================================================
+# SQL
+# ============================================================
+
+def get_conn():
+    conn_str = (
+        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+        f"SERVER={SQL_SERVER};"
+        f"DATABASE={SQL_DATABASE};"
+        f"UID={SQL_USER};"
+        f"PWD={SQL_PASSWORD};"
+        f"Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
+    )
+    return pyodbc.connect(conn_str)
+
+# Columnas de viajes_api (excluye EsHistorico y FechaActualizacion — se manejan aparte)
+COLS_SQL = [
+    "ST", "TipoViaje", "OS", "PuntoPartida", "DsPuntoPartida",
     "PuntoEntrega", "DsPuntoEntrega", "FechaEntrega", "ID_EstatusST",
     "Estado", "Asignado", "Km", "KmReal", "Estimacion", "CostoFinal",
     "Diferencia", "Comentario", "FechaFinalizacion", "Integrado",
-    "ObsValidaciones", "CodEquipo", "FueraPlan", "Odometro_Inicial",
-    "Odometro_Final", "Odometro_Danado", "Nom_Motorista", "OficialCosecha",
-    "Frente", "IdAgrupaST", "IndAgrupa", "CantidadCargadores", "Complemento",
+    "ObsValidaciones", "CodEquipo", "FueraPlan", "Nom_Motorista",
+    "FechaInicioViaje", "ComentInicioViaje", "FechaFinViaje", "ComentFinViaje",
+    "FechaEntregaST", "ComentEntrega", "CantidadCargadores",
     "Permanencia", "Permanencia_Aplica", "InicioPermanencia", "FinPermanencia",
-    "HorasPermanencia", "HorasPermanenciaEst", "FechaInicioViaje",
-    "ComentInicioViaje", "FechaFinViaje", "ComentFinViaje",
-    "FechaEntregaST", "ComentEntrega",
-    "LatitudInicioViaje", "LongitudInicioViaje",
-    "LatitudFinViaje", "LongitudFinViaje",
-    "LatitudEntregaViaje", "LongitudEntregaViaje",
+    "HorasPermanencia", "HorasPermanenciaEst", "OficialCosecha", "Frente",
 ]
 
+# Mapeo API field → SQL column (cuando difieren)
+API_TO_SQL = {
+    "ID_ST": "ST",
+}
+
+_set_clause  = ", ".join(f"{c}=?" for c in COLS_SQL if c != "ST") + ", FechaActualizacion=GETUTCDATE()"
+_insert_cols = ", ".join(COLS_SQL) + ", EsHistorico, FechaActualizacion"
+_insert_vals = ", ".join("?" for _ in COLS_SQL) + ", 0, GETUTCDATE()"
+
+UPSERT_SQL = f"""
+MERGE viajes_api AS target
+USING (SELECT ? AS ST) AS source ON target.ST = source.ST
+WHEN MATCHED THEN UPDATE SET {_set_clause}
+WHEN NOT MATCHED THEN INSERT ({_insert_cols}) VALUES ({_insert_vals});
+"""
+
 # ============================================================
-# GITHUB API
+# UTILIDADES
 # ============================================================
 
-def get_headers():
-    return {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json",
-    }
+def limpiar(v):
+    if v is None:
+        return None
+    if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+        return None
+    s = str(v).strip()
+    if s in ("", "nan", "NaN", "None", "NaT", "inf", "-inf"):
+        return None
+    return s
 
-def limpiar_nan(registros: list) -> list:
-    import math
-    def limpiar(v):
-        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
-            return None
-        if str(v) in ("nan", "NaN", "None", "NaT", "inf", "-inf"):
-            return None
+
+def parse_fecha(v):
+    if v is None:
+        return None
+    if isinstance(v, datetime):
         return v
-    return [{k: limpiar(v) for k, v in r.items()} for r in registros]
+    s = str(v).strip()
+    if s in ("", "nan", "NaN", "None", "NaT"):
+        return None
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d",
+                "%d/%m/%Y %H:%M:%S", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(s[:19], fmt)
+        except ValueError:
+            continue
+    return None
 
-def subir_json_gz(ruta_repo: str, registros: list, mensaje: str):
-    json_bytes = json.dumps(registros, ensure_ascii=False, default=str).encode("utf-8")
-    json_gz    = gzip.compress(json_bytes, compresslevel=6)
-    url  = f"https://api.github.com/repos/{GITHUB_USUARIO}/{GITHUB_REPO}/contents/{ruta_repo}"
-    resp = requests.get(url, headers=get_headers())
-    sha  = resp.json().get("sha") if resp.status_code == 200 else None
-    payload = {"message": mensaje, "content": base64.b64encode(json_gz).decode("utf-8")}
-    if sha:
-        payload["sha"] = sha
-    resp = requests.put(url, headers=get_headers(), json=payload)
-    mb = len(json_gz) / 1024 / 1024
-    if resp.status_code in (200, 201):
-        print(f"  ✓ {ruta_repo} ({len(registros):,} registros | {mb:.1f}MB)")
-    else:
-        print(f"  ✗ Error {resp.status_code}: {resp.text[:200]}")
+
+def num(v):
+    if v is None:
+        return None
+    if isinstance(v, (int, float)) and not (isinstance(v, float) and math.isnan(v)):
+        return float(v)
+    s = str(v).strip()
+    if s in ("", "nan", "NaN", "None", "NaT"):
+        return None
+    try:
+        return float(s)
+    except (ValueError, TypeError):
+        return None
+
+
+def entero(v):
+    f = num(v)
+    return int(f) if f is not None else None
 
 # ============================================================
 # CONSULTA API
 # ============================================================
 
-def consultar_api_actual() -> list:
+def consultar_api() -> list:
     hoy    = date.today()
     inicio = hoy - timedelta(days=7)
     fin    = hoy + timedelta(days=3)
@@ -100,7 +149,6 @@ def consultar_api_actual() -> list:
 
     todos  = []
     cursor = inicio
-    lote   = 0
     while cursor <= fin:
         fin_lote = min(cursor + timedelta(days=1), fin)
         params   = {
@@ -115,7 +163,6 @@ def consultar_api_actual() -> list:
             if data:
                 todos.extend(data)
                 print(f"    {cursor.strftime('%d/%m')}: {len(data):,} registros")
-            lote += 1
         except Exception as e:
             print(f"    ⚠️  Error {cursor}: {e}")
         cursor = fin_lote + timedelta(days=1)
@@ -128,17 +175,118 @@ def consultar_api_actual() -> list:
 
     # Deduplicar — prioridad a registros con más información
     def prioridad(row):
-        if pd.notna(row.get("FechaFinalizacion")) and row.get("FechaFinalizacion") != "": return 0
-        if pd.notna(row.get("FechaInicioViaje")) and row.get("FechaInicioViaje") != "": return 1
+        if pd.notna(row.get("FechaFinalizacion")) and row.get("FechaFinalizacion") != "":
+            return 0
+        if pd.notna(row.get("FechaInicioViaje")) and row.get("FechaInicioViaje") != "":
+            return 1
         return 2
-    df["_prio"] = df.apply(prioridad, axis=1)
-    df = df.sort_values("_prio").drop_duplicates(subset=["ID_ST"], keep="first")
-    df = df.drop(columns=["_prio"]).reset_index(drop=True)
 
-    cols_pres = [c for c in COLS_API if c in df.columns]
-    registros = limpiar_nan(df[cols_pres].where(df[cols_pres].notna(), other=None).to_dict(orient="records"))
-    print(f"  Total: {len(registros):,} registros únicos")
-    return registros
+    df["_prio"] = df.apply(prioridad, axis=1)
+    df = (df.sort_values("_prio")
+            .drop_duplicates(subset=["ID_ST"], keep="first")
+            .drop(columns=["_prio"])
+            .reset_index(drop=True))
+
+    print(f"  Total únicos: {len(df):,} registros")
+    return df.to_dict(orient="records")
+
+
+# ============================================================
+# UPSERT EN SQL
+# ============================================================
+
+def mapear(r: dict) -> tuple:
+    """Convierte un registro de la API a tupla para el UPSERT."""
+    st = limpiar(str(r.get("ID_ST", "") or ""))
+    if not st:
+        return None
+
+    valores = [
+        st,
+        limpiar(r.get("TipoViaje")),
+        limpiar(r.get("OS")),
+        limpiar(r.get("PuntoPartida")),
+        limpiar(r.get("DsPuntoPartida")),
+        limpiar(r.get("PuntoEntrega")),
+        limpiar(r.get("DsPuntoEntrega")),
+        parse_fecha(r.get("FechaEntrega")),
+        entero(r.get("ID_EstatusST")),
+        limpiar(r.get("Estado")),
+        limpiar(r.get("Asignado")),
+        num(r.get("Km")),
+        num(r.get("KmReal")),
+        num(r.get("Estimacion")),
+        num(r.get("CostoFinal")),
+        num(r.get("Diferencia")),
+        limpiar(r.get("Comentario")),
+        parse_fecha(r.get("FechaFinalizacion")),
+        limpiar(r.get("Integrado")),
+        limpiar(r.get("ObsValidaciones")),
+        limpiar(r.get("CodEquipo")),
+        limpiar(r.get("FueraPlan")),
+        limpiar(r.get("Nom_Motorista")),
+        parse_fecha(r.get("FechaInicioViaje")),
+        limpiar(r.get("ComentInicioViaje")),
+        parse_fecha(r.get("FechaFinViaje")),
+        limpiar(r.get("ComentFinViaje")),
+        parse_fecha(r.get("FechaEntregaST")),
+        limpiar(r.get("ComentEntrega")),
+        entero(r.get("CantidadCargadores")),
+        num(r.get("Permanencia")),
+        limpiar(r.get("Permanencia_Aplica")),
+        parse_fecha(r.get("InicioPermanencia")),
+        parse_fecha(r.get("FinPermanencia")),
+        num(r.get("HorasPermanencia")),
+        num(r.get("HorasPermanenciaEst")),
+        limpiar(r.get("OficialCosecha")),
+        limpiar(r.get("Frente")),
+    ]
+
+    # Para MERGE: ST (USING) + campos SET (sin ST) + campos INSERT (con ST)
+    sin_st = valores[1:]
+    return tuple([st] + sin_st + valores)
+
+
+def upsert_en_sql(conn, registros: list):
+    cursor = conn.cursor()
+    cursor.fast_executemany = True
+
+    ok  = 0
+    err = 0
+    primeros_errores = []
+    lote = []
+
+    def flush():
+        nonlocal ok, err
+        if not lote:
+            return
+        try:
+            cursor.executemany(UPSERT_SQL, lote)
+            conn.commit()
+            ok += len(lote)
+        except Exception:
+            conn.rollback()
+            for vals in lote:
+                try:
+                    cursor.execute(UPSERT_SQL, vals)
+                    conn.commit()
+                    ok += 1
+                except Exception as e2:
+                    err += 1
+                    if len(primeros_errores) < 3:
+                        primeros_errores.append((vals[0], str(e2)[:120]))
+        lote.clear()
+
+    for r in registros:
+        vals = mapear(r)
+        if vals is None:
+            continue
+        lote.append(vals)
+        if len(lote) >= 500:
+            flush()
+
+    flush()
+    return ok, err, primeros_errores
 
 # ============================================================
 # MAIN
@@ -146,28 +294,35 @@ def consultar_api_actual() -> list:
 
 def main():
     print("\n" + "=" * 60)
-    print("  ACTUALIZAR API ACTUAL — Transporte")
+    print("  ACTUALIZAR API ACTUAL → Azure SQL")
     print("=" * 60)
 
-    if not GITHUB_TOKEN:
-        print("[ERROR] TOKEN_REPO no configurado")
+    if not SQL_PASSWORD:
+        print("[ERROR] SQL_PASSWORD no configurado")
         raise SystemExit(1)
 
-    print("\n[1/2] Consultando API...")
-    registros = consultar_api_actual()
+    print("\n[1/2] Consultando API de transportes...")
+    registros = consultar_api()
 
     if not registros:
-        print("⚠️  Sin datos de la API.")
+        print("⚠️  Sin datos de la API. No se actualiza SQL.")
         return
 
-    print("\n[2/2] Publicando api_actual.json.gz...")
-    subir_json_gz(
-        "data/api_actual.json.gz",
-        registros,
-        f"Actualizar API actual — {date.today().strftime('%Y-%m-%d')}"
-    )
+    print(f"\n[2/2] Actualizando viajes_api en Azure SQL...")
+    conn = get_conn()
+    print("  ✓ Conectado")
 
-    print("\n✓ API actual actualizada correctamente.\n")
+    ok, err, errores = upsert_en_sql(conn, registros)
+    conn.close()
+
+    print(f"\n  Insertados/actualizados: {ok:,}")
+    print(f"  Errores               : {err:,}")
+    if errores:
+        for st, e in errores:
+            print(f"    ST {st}: {e}")
+
+    print(f"\n✓ viajes_api actualizada — {date.today().strftime('%Y-%m-%d')}\n")
+
 
 if __name__ == "__main__":
     main()
