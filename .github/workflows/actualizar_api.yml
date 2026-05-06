@@ -1,12 +1,15 @@
-name: Actualizar API Actual
+name: Actualizar API actual → SQL
+
 on:
-  repository_dispatch:
-    types: [actualizar_api]
-  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'   # cada 15 minutos
+  workflow_dispatch:           # también manual desde Actions
 
 jobs:
   actualizar:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -16,23 +19,21 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Instalar dependencias
-        run: pip install pandas requests openpyxl
-
-      - name: Actualizar api_actual
-        env:
-          TOKEN_REPO: ${{ secrets.TOKEN_REPO }}
-          API_USUARIO: ${{ secrets.API_USUARIO }}
-        run: python data/actualizar_api_actual.py
-
-      - name: Convertir solicitudes planificacion (si hay xlsx nuevo)
-        run: python data/convertir_solicitudes.py
-
-      - name: Commit y push cambios
+      - name: Instalar ODBC Driver 18
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/solicitudes_planificacion.json.gz \
-                  data/solicitudes_planificacion.md5 || true
-          git diff --cached --quiet || git commit -m "Auto: actualizar solicitudes_planificacion"
-          git push
+          curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+          curl -sSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update -qq
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+
+      - name: Instalar dependencias Python
+        run: pip install pyodbc requests pandas
+
+      - name: Actualizar viajes_api
+        env:
+          API_USUARIO:   ${{ secrets.API_USUARIO }}
+          SQL_SERVER:    ${{ secrets.SQL_SERVER }}
+          SQL_DATABASE:  ${{ secrets.SQL_DATABASE }}
+          SQL_USER:      ${{ secrets.SQL_USER }}
+          SQL_PASSWORD:  ${{ secrets.SQL_PASSWORD }}
+        run: python data/actualizar_api_actual.py
