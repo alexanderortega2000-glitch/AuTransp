@@ -1057,24 +1057,35 @@ async function actualizarDesdeAPI() {
 }
 
 // ============================================================
+// ============================================================
 // PANEL DE CALIDAD DE DATOS
 // ============================================================
+let _viajesSQL = []; // cache para el panel de calidad
+
 function calcularInfo() {
   if(!viajes.length) return;
-  const total = viajes.length;
 
-  // Conteos por fuente
-  const enAPI    = viajes.filter(v=>v.enAPI).length;
-  const enProg   = viajes.filter(v=>v.enProg).length;
+  // Usar datos de SQL directamente (con OrigenDato calculado en servidor)
+  const sql = _viajesSQL.length ? _viajesSQL : viajes;
+  const total = sql.length;
+  if(!total) return;
+
+  // Conteos por fuente usando OrigenDato de SQL
+  const completo  = sql.filter(r=>r.OrigenDato==='Completo').length;
+  const sinProg   = sql.filter(r=>r.OrigenDato==='Sin programación').length;
+  const sinAPI    = sql.filter(r=>r.OrigenDato==='Sin API').length;
+  const fueraG    = sql.filter(r=>r.OrigenDato==='Fuera de gestión').length;
+
+  const enAPI    = completo + sinProg;
+  const enProg   = completo + sinAPI;
+  const enCostos = sql.filter(r=>r.AreaCosto||r.A_Pagar||r.ValorTotalViaje).length;
   const enSeg    = viajes.filter(v=>v.enSeg).length;
-  const enCostos = viajes.filter(v=>v.enCostos).length;
 
   // Cruces
-  const apiYprog   = viajes.filter(v=>v.enAPI && v.enProg).length;
-  const apiYcostos = viajes.filter(v=>v.enAPI && v.enCostos).length;
-  const soloAPI    = viajes.filter(v=>v.enAPI && !v.enProg && !v.enSeg).length;
-  const sinAPI     = viajes.filter(v=>!v.enAPI && (v.enProg||v.enSeg)).length;
-  const cicloC     = viajes.filter(v=>v.pagado||(v.enCostos&&v.enAPI)).length;
+  const apiYprog   = completo;
+  const apiYcostos = sql.filter(r=>(r.OrigenDato==='Completo'||r.OrigenDato==='Sin programación')&&(r.AreaCosto||r.A_Pagar)).length;
+  const soloAPI    = sinProg;
+  const cicloC     = sql.filter(r=>r.ValorTotalViaje||r.A_Pagar).length;
 
   // Cobertura de campos
   const pct = (arr) => arr.length ? Math.round(arr.filter(Boolean).length / arr.length * 100) : 0;
@@ -1726,6 +1737,7 @@ async function cargarDatos() {
     }));
 
     console.log(`[SQL] ${apiFull.length} viajes cargados desde Azure SQL`);
+    _viajesSQL = viajesSQL; // cache para panel de calidad
     loader('Procesando viajes...');
 
     // progData solo incluye solicitudes del GSheet (los campos de prog de SQL
