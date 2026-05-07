@@ -76,9 +76,9 @@ API_TO_SQL = {
     "ID_ST": "ST",
 }
 
-_set_clause  = ", ".join(f"{c}=?" for c in COLS_SQL if c != "ST") + ", FechaActualizacion=GETUTCDATE()"
+_set_clause  = ", ".join(f"{c}=?" for c in COLS_SQL if c != "ST") + ", EsHistorico=?, FechaActualizacion=GETUTCDATE()"
 _insert_cols = ", ".join(COLS_SQL) + ", EsHistorico, FechaActualizacion"
-_insert_vals = ", ".join("?" for _ in COLS_SQL) + ", 0, GETUTCDATE()"
+_insert_vals = ", ".join("?" for _ in COLS_SQL) + ", ?, GETUTCDATE()"
 
 UPSERT_SQL = f"""
 MERGE viajes_api AS target
@@ -195,7 +195,16 @@ def consultar_api() -> list:
 # UPSERT EN SQL
 # ============================================================
 
-def mapear(r: dict) -> tuple:
+FECHA_CORTE_HISTORICO = datetime(2025, 11, 1)
+
+def es_historico(r: dict) -> int:
+    """1 si el viaje es anterior al corte histórico, 0 si es actual."""
+    fecha_ref = (parse_fecha(r.get("FechaEntrega"))
+                 or parse_fecha(r.get("FechaInicioViaje"))
+                 or parse_fecha(r.get("FechaEntregaST")))
+    if fecha_ref and fecha_ref < FECHA_CORTE_HISTORICO:
+        return 1
+    return 0
     """Convierte un registro de la API a tupla para el UPSERT."""
     st = limpiar(str(r.get("ID_ST", "") or ""))
     if not st:
@@ -242,9 +251,14 @@ def mapear(r: dict) -> tuple:
         limpiar(r.get("Frente")),
     ]
 
-    # Para MERGE: ST (USING) + campos SET (sin ST) + campos INSERT (con ST)
+    historico = es_historico(r)
+
+    # Para MERGE:
+    # - USING: ST
+    # - UPDATE SET: campos sin ST + EsHistorico
+    # - INSERT: todos los campos + EsHistorico
     sin_st = valores[1:]
-    return tuple([st] + sin_st + valores)
+    return tuple([st] + sin_st + [historico] + valores + [historico])
 
 
 def upsert_en_sql(conn, registros: list):
