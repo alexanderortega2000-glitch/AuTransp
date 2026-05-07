@@ -1,0 +1,29 @@
+name: Migrar Costos Actual → SQL
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar ODBC Driver 18
+        run: |
+          curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+          curl -sSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update -qq
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+      - name: Instalar dependencias
+        run: pip install pyodbc pandas
+      - name: Migrar costos actual
+        env:
+          SQL_SERVER:   ${{ secrets.SQL_SERVER }}
+          SQL_DATABASE: ${{ secrets.SQL_DATABASE }}
+          SQL_USER:     ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: python data/migrar_costos.py --archivo data/costos_actual.csv.gz
