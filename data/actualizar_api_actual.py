@@ -49,8 +49,10 @@ def parse_fecha(v):
     if isinstance(v, datetime): return v
     s = str(v).strip()
     if s in ("","nan","NaN","None","NaT"): return None
-    for fmt in ("%Y-%m-%dT%H:%M:%S","%Y-%m-%d %H:%M:%S","%Y-%m-%d","%d/%m/%Y %H:%M:%S","%d/%m/%Y"):
-        try: return datetime.strptime(s[:19], fmt)
+    for fmt in ("%Y-%m-%dT%H:%M:%S","%Y-%m-%d %H:%M:%S","%Y-%m-%d",
+                "%d/%m/%Y %H:%M:%S","%d/%m/%Y",
+                "%d-%m-%Y %H:%M","%d-%m-%Y"):
+        try: return datetime.strptime(s[:16], fmt)
         except ValueError: continue
     return None
 
