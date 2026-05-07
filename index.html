@@ -1642,8 +1642,20 @@ async function cargarDatos() {
     // ── Carga desde Azure SQL (fuente principal) ──────────────
     loader('Conectando a Azure SQL...');
 
+    // Construir parámetros del endpoint según el rango de fechas seleccionado
+    const fDesde = document.getElementById('f-desde').value;
+    const fHasta = document.getElementById('f-hasta').value;
+    const CORTE_HISTORICO = '2025-11-01';
+    const necesitaHistorico = fDesde && fDesde < CORTE_HISTORICO;
+    let viajesEndpoint = 'viajes';
+    const viajesParams = [];
+    if (fDesde) viajesParams.push(`desde=${fDesde}`);
+    if (fHasta) viajesParams.push(`hasta=${fHasta}`);
+    if (necesitaHistorico) viajesParams.push('historico=true');
+    if (viajesParams.length) viajesEndpoint += '?' + viajesParams.join('&');
+
     const [viajesSQL, solGSheet, segWebRaw, costosAct, costosHist, solGZ] = await Promise.all([
-      apiCall('viajes?historico=true').catch(e => { console.warn('[API viajes]', e.message); return []; }),
+      apiCall(viajesEndpoint).catch(e => { console.warn('[API viajes]', e.message); return []; }),
       fetchSolicitudesGSheet().catch(() => []),
       apiCall('seguimiento').catch(() => []),
       fetchGZ(ARCHIVOS.costos).catch(()=>[]),
