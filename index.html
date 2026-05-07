@@ -1087,19 +1087,19 @@ function calcularInfo() {
   const soloAPI    = sinProg;
   const cicloC     = sql.filter(r=>r.ValorTotalViaje||r.A_Pagar).length;
 
-  // Cobertura de campos
+  // Cobertura de campos — usar SQL como fuente de verdad
   const pct = (arr) => arr.length ? Math.round(arr.filter(Boolean).length / arr.length * 100) : 0;
   const campos = [
-    { campo:'Estado viaje',    fuente:'Calculado', vals: viajes.map(v=>v.estadoViaje||v.estadoAPI) },
-    { campo:'Origen / Destino',fuente:'API → Prog', vals: viajes.map(v=>v.origen||v.destino) },
-    { campo:'Coordinador',     fuente:'Prog',      vals: viajes.map(v=>v.coordinador) },
-    { campo:'Zona',            fuente:'Prog',      vals: viajes.map(v=>v.zona) },
-    { campo:'ETA (plan)',      fuente:'API',       vals: viajes.map(v=>v.horaPlanEntrega) },
-    { campo:'ATD (real inicio)',fuente:'API',      vals: viajes.map(v=>v.horaRealInicio) },
-    { campo:'ATA (real entrega)',fuente:'API',     vals: viajes.map(v=>v.horaRealEntrega) },
-    { campo:'Motorista',       fuente:'API',       vals: viajes.map(v=>v.motorista) },
-    { campo:'Área (Costos)',   fuente:'Costos',    vals: viajes.map(v=>v.area) },
-    { campo:'Ciclo cerrado',   fuente:'Costos',    vals: viajes.map(v=>v.pagado||v.enCostos?true:null) },
+    { campo:'Estado viaje',    fuente:'Calculado', vals: sql.map(r=>r.Estado||r.EstatusSTprog) },
+    { campo:'Origen / Destino',fuente:'API → Prog', vals: sql.map(r=>r.DsPuntoPartida||r.NombreOrigen) },
+    { campo:'Coordinador',     fuente:'Prog',      vals: sql.map(r=>r.Coordinador) },
+    { campo:'Zona',            fuente:'Prog',      vals: sql.map(r=>r.Zona) },
+    { campo:'ETA (plan)',      fuente:'API',       vals: sql.map(r=>r.FechaHoraPlanLlegada||r.FechaEntrega) },
+    { campo:'ATD (real inicio)',fuente:'API',      vals: sql.map(r=>r.FechaInicioViaje) },
+    { campo:'ATA (real entrega)',fuente:'API',     vals: sql.map(r=>r.FechaEntregaST) },
+    { campo:'Motorista',       fuente:'API',       vals: sql.map(r=>r.Nom_Motorista) },
+    { campo:'Área (Costos)',   fuente:'Costos',    vals: sql.map(r=>r.AreaCosto) },
+    { campo:'Ciclo cerrado',   fuente:'Costos',    vals: sql.map(r=>r.ValorTotalViaje||r.A_Pagar?true:null) },
   ];
 
   // Render fuentes
