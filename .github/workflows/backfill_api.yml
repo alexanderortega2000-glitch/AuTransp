@@ -1,0 +1,48 @@
+name: Backfill API histórico
+
+on:
+  workflow_dispatch:
+    inputs:
+      meses:
+        description: 'Meses hacia atrás a recuperar'
+        required: true
+        default: '3'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
+          - '6'
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar ODBC Driver 18
+        run: |
+          curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+          curl -sSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update -qq
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+
+      - name: Instalar dependencias
+        run: pip install pyodbc requests pandas python-dateutil
+
+      - name: Ejecutar backfill
+        env:
+          API_USUARIO:   ${{ secrets.API_USUARIO }}
+          SQL_SERVER:    ${{ secrets.SQL_SERVER }}
+          SQL_DATABASE:  ${{ secrets.SQL_DATABASE }}
+          SQL_USER:      ${{ secrets.SQL_USER }}
+          SQL_PASSWORD:  ${{ secrets.SQL_PASSWORD }}
+        run: python data/backfill_api.py --meses ${{ github.event.inputs.meses }}
