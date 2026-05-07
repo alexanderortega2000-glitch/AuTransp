@@ -205,6 +205,9 @@ def es_historico(r: dict) -> int:
     if fecha_ref and fecha_ref < FECHA_CORTE_HISTORICO:
         return 1
     return 0
+
+
+def mapear(r: dict) -> tuple:
     """Convierte un registro de la API a tupla para el UPSERT."""
     st = limpiar(str(r.get("ID_ST", "") or ""))
     if not st:
@@ -252,11 +255,6 @@ def es_historico(r: dict) -> int:
     ]
 
     historico = es_historico(r)
-
-    # Para MERGE:
-    # - USING: ST
-    # - UPDATE SET: campos sin ST + EsHistorico
-    # - INSERT: todos los campos + EsHistorico
     sin_st = valores[1:]
     return tuple([st] + sin_st + [historico] + valores + [historico])
 
