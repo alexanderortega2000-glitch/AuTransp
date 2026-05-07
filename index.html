@@ -281,6 +281,7 @@ tr.clickable { cursor: pointer; }
   animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+#btn-refresh-icon.spinning { display:inline-block !important; animation: spin 1s linear infinite; }
 .loader-text { font-size: 12px; color: var(--text2); font-family: var(--mono); }
 </style>
 </head>
@@ -523,6 +524,7 @@ tr.clickable { cursor: pointer; }
               <div style="font-size:11px;color:var(--text3);margin-top:2px;" id="sol-github-count"></div>
             </div>
             <button class="btn-sm" onclick="recargarDatos()">↻ Actualizar</button>
+            <span id="btn-refresh-icon" title="Sincronizando datos..." style="display:none;font-size:16px;animation:none">🔄</span>
           </div>
           <div style="overflow-x:auto;">
             <table>
@@ -1614,7 +1616,17 @@ async function intentarLogin() {
   document.getElementById('user-display').onclick = () => abrirModalPin();
   document.getElementById('app').style.display = 'block';
 
-  cargarDatos().then(() => { renderSolicitudesGitHub(); calcularInfo(); });
+  cargarDatos().then(() => {
+    calcularInfo();
+    // Filtros por defecto: desde 01/11/2025
+    document.getElementById('f-desde').value = '2025-11-01';
+    // Orden por defecto: ETA descendente
+    sortCol = 'horaPlanEntrega';
+    sortDir = -1;
+    const btn = document.getElementById('srt-horaPlanEntrega');
+    if(btn) { btn.classList.add('active'); btn.textContent = '↓'; }
+    aplicarFiltros();
+  });
 
   // Auto-refresh cada 2 minutos — recarga todas las fuentes silenciosamente
   if(window._autoRefreshInterval) clearInterval(window._autoRefreshInterval);
@@ -1645,9 +1657,11 @@ function cerrarSesion() {
 // ============================================================
 // CARGA DE DATOS — fuente única: Azure SQL
 // ============================================================
-async function cargarDatos() {
-  document.getElementById('loader').style.display = 'flex';
-  loader('Conectando a Azure SQL...');
+async function cargarDatos(silencioso = false) {
+  if(!silencioso) {
+    document.getElementById('loader').style.display = 'flex';
+    loader('Conectando a Azure SQL...');
+  }
 
   try {
     const [viajesSQL, segWebRaw] = await Promise.all([
@@ -1741,13 +1755,46 @@ async function cargarDatos() {
 
   } catch(e) {
     console.error('[cargarDatos] Error:', e.message);
-    loader('Error al cargar datos. Intenta de nuevo.');
+    if(!silencioso) loader('Error al cargar datos. Intenta de nuevo.');
   }
 
-  document.getElementById('loader').style.display = 'none';
+  if(!silencioso) document.getElementById('loader').style.display = 'none';
 }
 
-async function recargarDatos() { await cargarDatos(); }
+async function recargarDatos() {
+  // Refresh silencioso — no muestra pantalla negra, solo ícono en topbar
+  const btn = document.getElementById('btn-refresh-icon');
+  if(btn) btn.classList.add('spinning');
+
+  // Guardar estado actual de filtros y orden
+  const prevSortCol = sortCol;
+  const prevSortDir = sortDir;
+  const prevDesde   = document.getElementById('f-desde').value;
+  const prevHasta   = document.getElementById('f-hasta').value;
+  const prevOrigen  = document.getElementById('f-origen').value;
+  const prevEstado  = document.getElementById('f-estado').value;
+  const prevCoord   = document.getElementById('f-coord').value;
+  const prevZona    = document.getElementById('f-zona').value;
+  const prevArea    = document.getElementById('f-area').value;
+  const prevTurno   = document.getElementById('f-turno').value;
+
+  await cargarDatos(true); // true = modo silencioso
+  calcularInfo();
+
+  // Restaurar filtros y orden
+  document.getElementById('f-desde').value  = prevDesde;
+  document.getElementById('f-hasta').value  = prevHasta;
+  document.getElementById('f-origen').value = prevOrigen;
+  document.getElementById('f-estado').value = prevEstado;
+  document.getElementById('f-coord').value  = prevCoord;
+  document.getElementById('f-zona').value   = prevZona;
+  document.getElementById('f-area').value   = prevArea;
+  document.getElementById('f-turno').value  = prevTurno;
+  if(prevSortCol) { sortCol = prevSortCol; sortDir = prevSortDir; }
+  aplicarFiltros();
+
+  if(btn) btn.classList.remove('spinning');
+}
 
 // ============================================================
 // PROCESAMIENTO DE VIAJES
