@@ -111,11 +111,11 @@ def consultar_api(inicio, fin):
     print(f"  Período: {inicio.strftime('%d/%m/%Y')} → {fin.strftime('%d/%m/%Y')}", flush=True)
     todos, cursor = [], inicio
     while cursor <= fin:
-        fin_lote = min(cursor + timedelta(days=1), fin)
+        params = {**API_PARAMS,
+            "FechaInicio": cursor.strftime("%d-%m-%Y"),
+            "FechaFin":    cursor.strftime("%d-%m-%Y")}
         try:
-            resp = requests.get(API_URL, params={**API_PARAMS,
-                "FechaInicio": cursor.strftime("%d-%m-%Y"),
-                "FechaFin":    fin_lote.strftime("%d-%m-%Y")}, timeout=120)
+            resp = requests.get(API_URL, params=params, timeout=120)
             resp.raise_for_status()
             data = resp.json()
             if data:
@@ -123,7 +123,7 @@ def consultar_api(inicio, fin):
                 print(f"    {cursor.strftime('%d/%m')}: {len(data):,}", flush=True)
         except Exception as e:
             print(f"    ⚠️  {cursor}: {e}", flush=True)
-        cursor = fin_lote + timedelta(days=1)
+        cursor += timedelta(days=1)
     if not todos: return []
     df = pd.DataFrame(todos)
     df["ID_ST"] = df["ID_ST"].astype(str)
