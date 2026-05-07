@@ -1767,7 +1767,7 @@ function procesarViajes(apiData, progData, costosData) {
     v.fechaEntrega     = n(r.FechaEntrega);
     v.fechaInicio      = n(r.FechaInicioViaje);
     v.fechaFin         = n(r.FechaFinalizacion);
-    v.horaPlanEntrega  = n(r.FechaEntrega);      // ETA
+    v.horaPlanEntrega  = n(r.FechaEntrega) || n(r.FechaHoraPlanLlegada); // ETA: API plan entrega > Prog plan llegada
     v.horaRealInicio   = n(r.FechaInicioViaje);  // ATD
     v.horaRealEntrega  = n(r.FechaEntregaST);    // ATA
     v.horaFinViaje     = n(r.FechaFinViaje);
