@@ -1,10 +1,9 @@
 """
 migrar_costos.py
 ================
-Hace UPSERT de costos desde CSV.GZ a la tabla costos de Azure SQL.
-Usado por dos workflows:
-  - Costos actual    → data/costos_actual.csv.gz
-  - Costos histórico → data/CostosAgricampoHist.csv.gz
+Hace UPSERT desde CSV.GZ a la tabla costos de Azure SQL.
+Mapea dinámicamente todas las columnas presentes en el CSV
+que existan en la tabla SQL.
 
 Uso:
     python data/migrar_costos.py --archivo data/costos_actual.csv.gz
@@ -30,6 +29,12 @@ def get_conn():
         f"DATABASE={SQL_DATABASE};UID={SQL_USER};PWD={SQL_PASSWORD};"
         f"Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
+def get_columnas_sql(conn) -> set:
+    """Obtiene las columnas de la tabla costos en SQL."""
+    cur = conn.cursor()
+    cur.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'costos'")
+    return {row[0] for row in cur.fetchall()}
+
 def limpiar(v):
     if v is None: return None
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)): return None
@@ -54,65 +59,74 @@ def num(v):
 def entero(v):
     f = num(v); return int(f) if f is not None else None
 
-COLS = [
-    "ST","BkRecurso","Recurso","BkProveedor","Proveedor","Equipo","Flota","Subflota",
-    "NombreCuadrilla","BkHacienda1","OS","Area","CostoReal","CostoEstimado",
-    "Integrado","Pagado","FechaApunte","FechaIntegracion","A_Pagar","A_Cobrar",
-    "ValorTotalViaje","IntegracionPago","IntegracionCobro","EsHistorico",
-]
+# Columnas que son fechas
+COLS_FECHA = {
+    "FechaApunte","FechaIntegracion","FechaPago","FechaHoraInicio","FechaHoraFin",
+    "FechaIntegracionSAPPago","FechaIntegracionSAPCobro","FechaActualizacion","FechaDigita",
+}
+# Columnas que son enteros
+COLS_ENTERO = {
+    "CantidadCargadores","Pasos","BkZafra","Agrupador","CantidadBloqueos","IdAgrupaST",
+    "EsHistorico",
+}
+# Columnas que son decimales
+COLS_DECIMAL = {
+    "CostoReal","CostoEstimado","OdometroInicio","OdometroFin","Distancia","DuracionHoras",
+    "HorasPermanencia","Paquetes","CantidadPago1","A_Cobrar","A_Pagar","ValorPagoComplemento",
+    "ValorPagoPermanencia","A_COB_UNI","A_PAG_UNI","ValorTotalViaje","AreaAct","PesoVario",
+}
+# Columnas que son bigint
+COLS_BIGINT = {"IdApMaquinaria","IdEnvioVario"}
 
-_set   = ", ".join(f"{c}=?" for c in COLS if c!="ST") + ", FechaActualizacion=GETUTCDATE()"
-_icols = ", ".join(COLS) + ", FechaActualizacion"
-_ivals = ", ".join("?" for _ in COLS) + ", GETUTCDATE()"
+def convertir(col, v):
+    if col in COLS_FECHA:   return parse_fecha(v)
+    if col in COLS_ENTERO:  return entero(v)
+    if col in COLS_DECIMAL: return num(v)
+    if col in COLS_BIGINT:  return entero(v)
+    return limpiar(v)
 
-UPSERT_SQL = (
-    f"MERGE costos AS t USING (SELECT ? AS ST) AS s ON t.ST=s.ST "
-    f"WHEN MATCHED THEN UPDATE SET {_set} "
-    f"WHEN NOT MATCHED THEN INSERT ({_icols}) VALUES ({_ivals});"
-)
+def upsert_en_sql(conn, df: pd.DataFrame, cols_comunes: list):
+    """UPSERT dinámico usando solo las columnas presentes en CSV y SQL."""
+    cols_sin_st = [c for c in cols_comunes if c != "ST"]
 
-def mapear(row) -> tuple:
-    st = limpiar(str(row.get("ST","") or ""))
-    if not st: return None
-    v = [
-        st, entero(row.get("BkRecurso")), limpiar(row.get("Recurso")),
-        entero(row.get("BkProveedor")), limpiar(row.get("Proveedor")),
-        limpiar(row.get("Equipo")), limpiar(row.get("Flota")),
-        limpiar(row.get("Subflota")), limpiar(row.get("NombreCuadrilla")),
-        entero(row.get("BkHacienda1")), limpiar(row.get("OS")),
-        limpiar(row.get("Area")), num(row.get("CostoReal")),
-        num(row.get("CostoEstimado")), limpiar(row.get("Integrado")),
-        limpiar(row.get("Pagado")), parse_fecha(row.get("FechaApunte")),
-        parse_fecha(row.get("FechaIntegracion")), num(row.get("A_Pagar")),
-        num(row.get("A_Cobrar")), num(row.get("ValorTotalViaje")),
-        parse_fecha(row.get("IntegracionPago")),
-        parse_fecha(row.get("IntegracionCobro")),
-        entero(row.get("EsHistorico", 0)),
-    ]
-    sin_st = v[1:]
-    return tuple([st] + sin_st + v)
+    set_clause   = ", ".join(f"{c}=?" for c in cols_sin_st) + ", FechaActualizacion=GETUTCDATE()"
+    insert_cols  = ", ".join(cols_comunes) + ", FechaActualizacion"
+    insert_vals  = ", ".join("?" for _ in cols_comunes) + ", GETUTCDATE()"
 
-def upsert_en_sql(conn, registros):
+    upsert_sql = (
+        f"MERGE costos AS t USING (SELECT ? AS ST) AS s ON t.ST=s.ST "
+        f"WHEN MATCHED THEN UPDATE SET {set_clause} "
+        f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) VALUES ({insert_vals});"
+    )
+
     cur = conn.cursor(); cur.fast_executemany = True
     ok = err = 0; errores = []; lote = []
+
     def flush():
         nonlocal ok, err
         if not lote: return
         try:
-            cur.executemany(UPSERT_SQL, lote); conn.commit(); ok += len(lote)
+            cur.executemany(upsert_sql, lote); conn.commit(); ok += len(lote)
         except:
             conn.rollback()
             for vals in lote:
-                try: cur.execute(UPSERT_SQL, vals); conn.commit(); ok += 1
+                try: cur.execute(upsert_sql, vals); conn.commit(); ok += 1
                 except Exception as e:
                     err += 1
                     if len(errores)<3: errores.append((vals[0], str(e)[:120]))
         lote.clear()
-    for r in registros:
-        vals = mapear(r)
-        if vals is None: continue
-        lote.append(vals)
+
+    for _, row in df.iterrows():
+        st = limpiar(str(row.get("ST","") or ""))
+        if not st: continue
+
+        # MERGE: ST (USING) + valores SET (sin ST) + valores INSERT (con ST)
+        vals_set    = [convertir(c, row.get(c)) for c in cols_sin_st]
+        vals_insert = [convertir(c, row.get(c)) for c in cols_comunes]
+        lote.append(tuple([st] + vals_set + vals_insert))
+
         if len(lote) >= 500: flush()
+
     flush()
     return ok, err, errores
 
@@ -127,13 +141,23 @@ def main():
     print("[1/3] Leyendo CSV.GZ...")
     df = pd.read_csv(args.archivo, dtype=str, encoding="utf-8-sig", compression="gzip")
     print(f"  Filas   : {len(df):,}")
-    print(f"  ST únicos: {df['ST'].nunique():,}")
+    print(f"  Columnas: {len(df.columns):,}")
 
     print("\n[2/3] Conectando a Azure SQL...")
-    conn = get_conn(); print("  ✓ Conectado")
+    conn = get_conn()
+    print("  ✓ Conectado")
+
+    # Columnas comunes entre CSV y SQL
+    cols_sql = get_columnas_sql(conn)
+    cols_csv = set(df.columns)
+    cols_comunes = ["ST"] + sorted([c for c in cols_csv & cols_sql if c != "ST"])
+    print(f"  Columnas mapeadas: {len(cols_comunes)}")
+    cols_ignoradas = cols_csv - cols_sql - {"ST"}
+    if cols_ignoradas:
+        print(f"  Columnas ignoradas (no en SQL): {sorted(cols_ignoradas)}")
 
     print("\n[3/3] UPSERT costos...")
-    ok, err, errores = upsert_en_sql(conn, df.to_dict(orient="records"))
+    ok, err, errores = upsert_en_sql(conn, df, cols_comunes)
     conn.close()
 
     print(f"\n  Insertados/actualizados: {ok:,}")
