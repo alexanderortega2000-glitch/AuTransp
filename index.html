@@ -1618,9 +1618,17 @@ async function intentarLogin() {
 
   cargarDatos().then(() => {
     calcularInfo();
-    // Filtros por defecto: desde 01/11/2025
+    // Filtros por defecto: desde 01/11/2025, hasta fecha máxima de ETA
     document.getElementById('f-desde').value = '2025-11-01';
-    // Orden por defecto: ETA descendente
+    // Calcular fecha máxima de ETA entre los viajes cargados
+    const maxETA = viajes.reduce((max, v) => {
+      const f = v.horaPlanEntrega || v.fechaEntrega;
+      if(!f) return max;
+      const d = f.substring(0, 10);
+      return d > max ? d : max;
+    }, '');
+    if(maxETA) document.getElementById('f-hasta').value = maxETA;
+    // Orden por defecto: ETA descendente — aplicar ANTES de renderizar
     sortCol = 'horaPlanEntrega';
     sortDir = -1;
     const btn = document.getElementById('srt-horaPlanEntrega');
@@ -2153,6 +2161,14 @@ function aplicarFiltros() {
   });
 
   pg = 0;
+  // Aplicar orden activo si existe
+  if(sortCol) {
+    const getVal = v => {
+      const x = v[sortCol];
+      return x == null ? '' : String(x);
+    };
+    vFilt.sort((a,b) => getVal(a) < getVal(b) ? -sortDir : getVal(a) > getVal(b) ? sortDir : 0);
+  }
   actualizarResumen();
   renderTabla();
 }
