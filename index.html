@@ -2084,13 +2084,8 @@ function determinarEstado(v) {
 // FILTROS
 // ============================================================
 function poblarFiltrosDinamicos() {
-  const mk = (vals, id) => {
-    const sel  = document.getElementById(id);
-    const first= sel.options[0].outerHTML;
-    sel.innerHTML = first + [...new Set(vals.filter(Boolean))].sort().map(v=>`<option>${v}</option>`).join('');
-  };
-  mk(viajes.map(v=>v.coordinador), 'f-coord');
-  mk(viajes.map(v=>v.zona),        'f-zona');
+  // Delegado a poblarMsDinamicos — los selects fueron reemplazados por multiselect
+  if(typeof poblarMsDinamicos === 'function') poblarMsDinamicos();
 }
 
 function sortByCol(col) {
