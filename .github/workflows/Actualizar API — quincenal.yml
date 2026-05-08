@@ -2,8 +2,13 @@ name: Actualizar API — quincenal (últimos 3 meses)
 
 on:
   schedule:
-    - cron: '0 3 1,15 * *'   # Día 1 y 15 de cada mes a las 3 AM UTC
+    - cron: '0 3 1,15 * *'
   workflow_dispatch:
+    inputs:
+      dias_atras:
+        description: 'Días hacia atrás a cubrir'
+        required: false
+        default: '90'
 
 jobs:
   actualizar:
@@ -29,4 +34,4 @@ jobs:
           SQL_DATABASE: ${{ secrets.SQL_DATABASE }}
           SQL_USER:     ${{ secrets.SQL_USER }}
           SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
-        run: python data/actualizar_api_actual.py --dias-atras 90 --dias-adelante 1
+        run: python data/actualizar_api_actual.py --dias-atras ${{ github.event.inputs.dias_atras || '90' }} --dias-adelante 1
