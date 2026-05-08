@@ -178,7 +178,54 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 .prog-bar { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
 .prog-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
 
-/* ── TABLA DETALLE ──────────────────────────────────── */
+/* ── FILTRO MULTISELECT ─────────────────────────────── */
+.ms-wrap { position: relative; }
+.ms-trigger {
+  height: 28px; padding: 0 26px 0 8px; background: var(--bg);
+  border: 0.5px solid var(--border2); border-radius: var(--radius);
+  font-family: var(--sans); font-size: 12px; color: var(--text);
+  cursor: pointer; display: flex; align-items: center; gap: 5px;
+  min-width: 120px; white-space: nowrap; overflow: hidden;
+  position: relative; user-select: none;
+}
+.ms-trigger::after {
+  content: '▾'; position: absolute; right: 7px; top: 50%;
+  transform: translateY(-50%); font-size: 10px; color: var(--text3);
+  pointer-events: none;
+}
+.ms-trigger.has-value {
+  border-color: var(--accent); background: var(--accent2); color: var(--accent);
+}
+.ms-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: var(--accent); color: var(--bg);
+  border-radius: 3px; padding: 1px 5px; font-size: 10px;
+  font-weight: 500; white-space: nowrap;
+}
+.ms-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
+  background: var(--surface); border: 0.5px solid var(--border2);
+  border-radius: var(--radius-lg); padding: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  min-width: 180px; max-height: 280px; overflow-y: auto;
+  display: none;
+}
+.ms-dropdown.open { display: block; }
+.ms-option {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: var(--radius);
+  font-size: 12px; cursor: pointer; color: var(--text);
+  transition: background .1s;
+}
+.ms-option:hover { background: var(--bg2); }
+.ms-option input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; }
+.ms-option.selected { color: var(--accent); font-weight: 500; }
+.ms-divider { height: 0.5px; background: var(--border); margin: 4px 0; }
+.ms-clear {
+  display: block; width: 100%; text-align: center; padding: 5px;
+  font-size: 11px; color: var(--text3); cursor: pointer; border-radius: var(--radius);
+}
+.ms-clear:hover { background: var(--bg2); color: var(--text); }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 thead { position: sticky; top: 0; z-index: 2; }
@@ -349,64 +396,90 @@ tr.clickable { cursor: pointer; }
     <div class="filter-sep"></div>
     <div class="filter-group">
       <span class="filter-label">Origen solicitud</span>
-      <select id="f-origen" onchange="aplicarFiltros()">
-        <option value="">Todos</option>
-        <option>Programado</option>
-        <option>A demanda</option>
-        <option>Fuera de gestión</option>
-      </select>
+      <div class="ms-wrap" id="ms-origen">
+        <div class="ms-trigger" onclick="toggleMs('ms-origen')"><span class="ms-placeholder">Todos</span></div>
+        <div class="ms-dropdown">
+          <label class="ms-option"><input type="checkbox" value="Programado"> Programado</label>
+          <label class="ms-option"><input type="checkbox" value="A demanda"> A demanda</label>
+          <label class="ms-option"><input type="checkbox" value="Fuera de gestión"> Fuera de gestión</label>
+          <div class="ms-divider"></div>
+          <span class="ms-clear" onclick="clearMs('ms-origen')">Limpiar</span>
+        </div>
+      </div>
     </div>
     <div class="filter-group">
       <span class="filter-label">Estado viaje</span>
-      <select id="f-estado" onchange="aplicarFiltros()">
-        <option value="">Todos</option>
-        <option>Pendiente</option>
-        <option>Asignado</option>
-        <option>Prov. sin confirmar</option>
-        <option>En carga</option>
-        <option>En proceso</option>
-        <option>Cancelado</option>
-        <option>Rechazado</option>
-        <option>Abortado</option>
-        <option>Inconsistente</option>
-        <option>Fin. c/obs</option>
-        <option>Finalizado</option>
-        <option>Integrado</option>
-        <option>Contabilizado</option>
-      </select>
+      <div class="ms-wrap" id="ms-estado">
+        <div class="ms-trigger" onclick="toggleMs('ms-estado')"><span class="ms-placeholder">Todos</span></div>
+        <div class="ms-dropdown">
+          <label class="ms-option"><input type="checkbox" value="Pendiente"> Pendiente</label>
+          <label class="ms-option"><input type="checkbox" value="Asignado"> Asignado</label>
+          <label class="ms-option"><input type="checkbox" value="Prov. sin confirmar"> Prov. sin confirmar</label>
+          <label class="ms-option"><input type="checkbox" value="En carga"> En carga</label>
+          <label class="ms-option"><input type="checkbox" value="En proceso"> En proceso</label>
+          <label class="ms-option"><input type="checkbox" value="Cancelado"> Cancelado</label>
+          <label class="ms-option"><input type="checkbox" value="Rechazado"> Rechazado</label>
+          <label class="ms-option"><input type="checkbox" value="Fin. c/obs"> Fin. c/obs</label>
+          <label class="ms-option"><input type="checkbox" value="Finalizado"> Finalizado</label>
+          <label class="ms-option"><input type="checkbox" value="Integrado"> Integrado</label>
+          <label class="ms-option"><input type="checkbox" value="Contabilizado"> Contabilizado</label>
+          <div class="ms-divider"></div>
+          <span class="ms-clear" onclick="clearMs('ms-estado')">Limpiar</span>
+        </div>
+      </div>
     </div>
     <div class="filter-group">
       <span class="filter-label">Coordinador</span>
-      <select id="f-coord" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+      <div class="ms-wrap" id="ms-coord">
+        <div class="ms-trigger" onclick="toggleMs('ms-coord')"><span class="ms-placeholder">Todos</span></div>
+        <div class="ms-dropdown" id="ms-coord-opts">
+          <div class="ms-divider"></div>
+          <span class="ms-clear" onclick="clearMs('ms-coord')">Limpiar</span>
+        </div>
+      </div>
     </div>
     <div class="filter-group">
       <span class="filter-label">Zona</span>
-      <select id="f-zona" onchange="aplicarFiltros()"><option value="">Todas</option></select>
+      <div class="ms-wrap" id="ms-zona">
+        <div class="ms-trigger" onclick="toggleMs('ms-zona')"><span class="ms-placeholder">Todas</span></div>
+        <div class="ms-dropdown" id="ms-zona-opts">
+          <div class="ms-divider"></div>
+          <span class="ms-clear" onclick="clearMs('ms-zona')">Limpiar</span>
+        </div>
+      </div>
     </div>
     <div class="filter-group">
       <span class="filter-label">Área</span>
-      <select id="f-area" onchange="aplicarFiltros()">
-        <option value="">Todas</option>
-        <option>Cosecha</option>
-        <option>Varios</option>
-        <option>Red Vial</option>
-      </select>
+      <div class="ms-wrap" id="ms-area">
+        <div class="ms-trigger" onclick="toggleMs('ms-area')"><span class="ms-placeholder">Todas</span></div>
+        <div class="ms-dropdown">
+          <label class="ms-option"><input type="checkbox" value="Cosecha"> Cosecha</label>
+          <label class="ms-option"><input type="checkbox" value="Varios"> Varios</label>
+          <label class="ms-option"><input type="checkbox" value="Red Vial"> Red Vial</label>
+          <div class="ms-divider"></div>
+          <span class="ms-clear" onclick="clearMs('ms-area')">Limpiar</span>
+        </div>
+      </div>
     </div>
     <div class="filter-group">
       <span class="filter-label">Turno</span>
-      <select id="f-turno" onchange="aplicarFiltros()">
-        <option value="">Todos</option>
-        <option value="madrugada">Madrugada (03-06)</option>
-        <option value="dia">Día (06-14)</option>
-        <option value="tarde">Tarde (14-18)</option>
-        <option value="nocturno">Nocturno (18-03)</option>
-      </select>
+      <div class="ms-wrap" id="ms-turno">
+        <div class="ms-trigger" onclick="toggleMs('ms-turno')"><span class="ms-placeholder">Todos</span></div>
+        <div class="ms-dropdown">
+          <label class="ms-option"><input type="checkbox" value="matutino"> Matutino (03:00–06:00)</label>
+          <label class="ms-option"><input type="checkbox" value="diurno"> Diurno (06:01–17:59)</label>
+          <label class="ms-option"><input type="checkbox" value="nocturno"> Nocturno (18:00–02:59)</label>
+          <div class="ms-divider"></div>
+          <span class="ms-clear" onclick="clearMs('ms-turno')">Limpiar</span>
+        </div>
+      </div>
     </div>
     <div class="filter-sep"></div>
     <button class="btn-sm" id="btn-hoy" onclick="setHoy()">Hoy</button>
     <button class="btn-sm" id="btn-semana" onclick="setEstaSemana()">Esta semana</button>
     <button class="btn-sm" onclick="limpiarFiltros()">Limpiar</button>
     <button class="btn-sm primary" id="btn-actualizar" onclick="actualizarDesdeAPI()">↻ Actualizar</button>
+    <span id="btn-refresh-icon" title="Sincronizando..." style="display:none;font-size:16px">🔄</span>
   </div>
 
   <!-- PÁGINAS -->
@@ -1760,6 +1833,7 @@ async function cargarDatos(silencioso = false) {
     loader('Procesando viajes...');
 
     procesarViajes(apiFull, [], []);
+    if(typeof poblarMsDinamicos === 'function') poblarMsDinamicos();
 
   } catch(e) {
     console.error('[cargarDatos] Error:', e.message);
@@ -1770,34 +1844,35 @@ async function cargarDatos(silencioso = false) {
 }
 
 async function recargarDatos() {
-  // Refresh silencioso — no muestra pantalla negra, solo ícono en topbar
   const btn = document.getElementById('btn-refresh-icon');
   if(btn) btn.classList.add('spinning');
 
-  // Guardar estado actual de filtros y orden
+  // Guardar estado actual
   const prevSortCol = sortCol;
   const prevSortDir = sortDir;
   const prevDesde   = document.getElementById('f-desde').value;
   const prevHasta   = document.getElementById('f-hasta').value;
-  const prevOrigen  = document.getElementById('f-origen').value;
-  const prevEstado  = document.getElementById('f-estado').value;
-  const prevCoord   = document.getElementById('f-coord').value;
-  const prevZona    = document.getElementById('f-zona').value;
-  const prevArea    = document.getElementById('f-area').value;
-  const prevTurno   = document.getElementById('f-turno').value;
+  // Guardar selecciones multiselect
+  const prevMs = {};
+  ['ms-origen','ms-estado','ms-coord','ms-zona','ms-area','ms-turno'].forEach(id => {
+    prevMs[id] = getMsValues(id);
+  });
 
-  await cargarDatos(true); // true = modo silencioso
+  await cargarDatos(true);
   calcularInfo();
 
-  // Restaurar filtros y orden
-  document.getElementById('f-desde').value  = prevDesde;
-  document.getElementById('f-hasta').value  = prevHasta;
-  document.getElementById('f-origen').value = prevOrigen;
-  document.getElementById('f-estado').value = prevEstado;
-  document.getElementById('f-coord').value  = prevCoord;
-  document.getElementById('f-zona').value   = prevZona;
-  document.getElementById('f-area').value   = prevArea;
-  document.getElementById('f-turno').value  = prevTurno;
+  // Restaurar filtros de fecha
+  document.getElementById('f-desde').value = prevDesde;
+  document.getElementById('f-hasta').value = prevHasta;
+  // Restaurar multiselects
+  ['ms-origen','ms-estado','ms-coord','ms-zona','ms-area','ms-turno'].forEach(id => {
+    const wrap = document.getElementById(id);
+    if(!wrap) return;
+    wrap.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.checked = prevMs[id].includes(cb.value);
+    });
+    updateMsTrigger(id);
+  });
   if(prevSortCol) { sortCol = prevSortCol; sortDir = prevSortDir; }
   aplicarFiltros();
 
@@ -2082,15 +2157,130 @@ function setEstaSemana() {
   aplicarFiltros();
 }
 
+// ============================================================
+// MULTISELECT
+// ============================================================
+
+function getMsValues(id) {
+  const wrap = document.getElementById(id);
+  if(!wrap) return [];
+  return Array.from(wrap.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
+}
+
+function updateMsTrigger(id) {
+  const wrap = document.getElementById(id);
+  if(!wrap) return;
+  const vals = getMsValues(id);
+  const trigger = wrap.querySelector('.ms-trigger');
+  const placeholder = wrap.querySelector('.ms-placeholder');
+  if(!vals.length) {
+    trigger.classList.remove('has-value');
+    placeholder.textContent = wrap.dataset.placeholder || 'Todos';
+    placeholder.style.display = '';
+    // remove tags
+    trigger.querySelectorAll('.ms-tag').forEach(t => t.remove());
+  } else {
+    trigger.classList.add('has-value');
+    placeholder.style.display = 'none';
+    trigger.querySelectorAll('.ms-tag').forEach(t => t.remove());
+    vals.slice(0, 2).forEach(v => {
+      const tag = document.createElement('span');
+      tag.className = 'ms-tag';
+      tag.textContent = v.length > 10 ? v.slice(0,10)+'…' : v;
+      trigger.insertBefore(tag, placeholder);
+    });
+    if(vals.length > 2) {
+      const tag = document.createElement('span');
+      tag.className = 'ms-tag';
+      tag.textContent = `+${vals.length - 2}`;
+      trigger.insertBefore(tag, placeholder);
+    }
+  }
+}
+
+function toggleMs(id) {
+  // Cerrar otros dropdowns abiertos
+  document.querySelectorAll('.ms-dropdown.open').forEach(d => {
+    if(d.closest('.ms-wrap').id !== id) d.classList.remove('open');
+  });
+  const wrap = document.getElementById(id);
+  const dropdown = wrap.querySelector('.ms-dropdown');
+  dropdown.classList.toggle('open');
+}
+
+function clearMs(id) {
+  const wrap = document.getElementById(id);
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  updateMsTrigger(id);
+  aplicarFiltros();
+}
+
+// Cerrar dropdowns al hacer click fuera
+document.addEventListener('click', e => {
+  if(!e.target.closest('.ms-wrap')) {
+    document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
+  }
+});
+
+// Poblar coordinadores y zonas desde datos
+function poblarMsDinamicos() {
+  const coords = [...new Set(viajes.map(v => v.coordinador).filter(Boolean))].sort();
+  const zonas  = [...new Set(viajes.map(v => v.zona).filter(Boolean))].sort();
+
+  function poblar(containerId, vals) {
+    const container = document.getElementById(containerId);
+    if(!container) return;
+    // Mantener divider y clear al final
+    const divider = container.querySelector('.ms-divider');
+    const clear   = container.querySelector('.ms-clear');
+    // Limpiar opciones anteriores
+    container.querySelectorAll('.ms-option').forEach(o => o.remove());
+    vals.forEach(v => {
+      const lbl = document.createElement('label');
+      lbl.className = 'ms-option';
+      lbl.innerHTML = `<input type="checkbox" value="${v}"> ${v}`;
+      lbl.querySelector('input').addEventListener('change', () => {
+        updateMsTrigger(lbl.closest('.ms-wrap').id);
+        aplicarFiltros();
+      });
+      container.insertBefore(lbl, divider);
+    });
+  }
+
+  poblar('ms-coord-opts', coords);
+  poblar('ms-zona-opts',  zonas);
+}
+
+// Registrar cambios en checkboxes estáticos
+document.querySelectorAll('.ms-wrap').forEach(wrap => {
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      updateMsTrigger(wrap.id);
+      aplicarFiltros();
+    });
+  });
+});
+
+function limpiarTodosMs() {
+  ['ms-origen','ms-estado','ms-coord','ms-zona','ms-area','ms-turno'].forEach(id => {
+    const wrap = document.getElementById(id);
+    if(!wrap) return;
+    wrap.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+    updateMsTrigger(id);
+  });
+}
+
 function aplicarFiltros() {
   const desde  = document.getElementById('f-desde').value;
   const hasta  = document.getElementById('f-hasta').value;
-  const origen = document.getElementById('f-origen').value;
-  const estado = document.getElementById('f-estado').value;
-  const coord  = document.getElementById('f-coord').value;
-  const zona   = document.getElementById('f-zona').value;
-  const area   = document.getElementById('f-area').value;
-  const turno  = document.getElementById('f-turno').value;
+
+  // Leer valores multiselect
+  const origens = getMsValues('ms-origen');
+  const estados = getMsValues('ms-estado');
+  const coords  = getMsValues('ms-coord');
+  const zonas   = getMsValues('ms-zona');
+  const areas   = getMsValues('ms-area');
+  const turnos  = getMsValues('ms-turno');
 
   // Filtros de columna en tabla
   const tfSt     = document.getElementById('tf-st').value.toLowerCase();
@@ -2102,25 +2292,28 @@ function aplicarFiltros() {
   const tfCoord  = document.getElementById('tf-coord').value.toLowerCase();
 
   vFilt = viajes.filter(v => {
-    // Filtros globales
-    if(origen && v.origenSolicitud !== origen) return false;
-    if(estado && v.estadoViaje !== estado)     return false;
-    if(coord  && v.coordinador !== coord)      return false;
-    if(zona   && v.zona !== zona)              return false;
-    if(area   && v.area !== area)              return false;
+    // Filtros multiselect (OR dentro de cada filtro, AND entre filtros)
+    if(origens.length && !origens.includes(v.origenSolicitud)) return false;
+    if(estados.length && !estados.includes(v.estadoViaje))     return false;
+    if(coords.length  && !coords.includes(v.coordinador))      return false;
+    if(zonas.length   && !zonas.includes(v.zona))              return false;
+    if(areas.length   && !areas.includes(v.area))              return false;
 
-    // Filtro de turno — basado en ETA (FechaEntrega planificada)
-    if(turno) {
+    // Filtro de turno — basado en ETA
+    if(turnos.length) {
       const eta = v.horaPlanEntrega;
-      if(!eta) return false;
-      const s = String(eta);
-      const m = s.match(/(\d{2}):(\d{2})/);
-      if(!m) return false;
-      const hh = parseInt(m[1]);
-      if(turno==='madrugada' && !(hh >= 3  && hh <= 6)) return false;
-      if(turno==='dia'       && !(hh >= 6  && hh < 14)) return false;
-      if(turno==='tarde'     && !(hh >= 14 && hh < 18)) return false;
-      if(turno==='nocturno'  && !((hh >= 18) || hh < 3)) return false;
+      // Sin ETA → entra en Diurno
+      const hh = eta ? (() => {
+        const m = String(eta).match(/(\d{2}):(\d{2})/);
+        return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null;
+      })() : null; // minutos desde medianoche
+
+      const enMatutino = hh !== null && hh >= 180 && hh <= 360;   // 03:00-06:00
+      const enNocturno = hh !== null && (hh >= 1080 || hh < 180); // 18:00-02:59
+      const enDiurno   = hh === null || (hh > 360 && hh < 1080);  // 06:01-17:59 + sin ETA
+
+      const turnoViaje = enMatutino ? 'matutino' : enNocturno ? 'nocturno' : 'diurno';
+      if(!turnos.includes(turnoViaje)) return false;
     }
 
     // Rango de fechas
@@ -2186,9 +2379,9 @@ function setActiveFilterBtn(id) {
 
 function limpiarFiltros() {
   setActiveFilterBtn(null);
-  ['f-desde','f-hasta','f-origen','f-estado','f-coord','f-zona','f-area','f-turno'].forEach(id => {
-    const el = document.getElementById(id); el.value = '';
-  });
+  document.getElementById('f-desde').value = '';
+  document.getElementById('f-hasta').value = '';
+  limpiarTodosMs();
   document.querySelectorAll('.th-search-input').forEach(el => { el.value=''; el.classList.remove('open'); });
   ['tf-st','tf-origen','tf-estado','tf-tipo','tf-origen2','tf-destino','tf-coord'].forEach(id => {
     document.getElementById(id).value = '';
