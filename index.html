@@ -888,11 +888,7 @@ const GITHUB_API   = 'https://api.github.com/repos/alexanderortega2000-glitch/Au
 // AZURE FUNCTIONS API — backend principal
 // ============================================================
 const API_BASE = 'https://autransp-api-awekazaja2gngee4.centralus-01.azurewebsites.net/api';
-const API_KEY  = 'U_pkHZbPfdzLQetxsL4qEns83G7O7exTDmtf052WPR2tAzFuSVrhzQ==';
-const apiUrl = (endpoint) => {
-  const sep = endpoint.includes('?') ? '&' : '?';
-  return `${API_BASE}/${endpoint}${sep}code=${API_KEY}`;
-};
+const apiUrl = (endpoint) => `${API_BASE}/${endpoint}`;
 
 async function apiCall(endpoint, options = {}) {
   const resp = await fetch(apiUrl(endpoint), {
@@ -2234,8 +2230,14 @@ function poblarMsDinamicos() {
       const lbl = document.createElement('label');
       lbl.className = 'ms-option';
       lbl.innerHTML = `<input type="checkbox" value="${v}"> ${v}`;
-      lbl.querySelector('input').addEventListener('change', () => {
-        updateMsTrigger(lbl.closest('.ms-wrap').id);
+      lbl.querySelector('input').addEventListener('click', (e) => {
+        const wrapEl = lbl.closest('.ms-wrap');
+        if(!e.ctrlKey && !e.metaKey) {
+          wrapEl.querySelectorAll('input[type=checkbox]').forEach(other => {
+            if(other !== e.target) other.checked = false;
+          });
+        }
+        updateMsTrigger(wrapEl.id);
         aplicarFiltros();
       });
       container.insertBefore(lbl, divider);
@@ -2249,7 +2251,13 @@ function poblarMsDinamicos() {
 // Registrar cambios en checkboxes estáticos
 document.querySelectorAll('.ms-wrap').forEach(wrap => {
   wrap.querySelectorAll('input[type=checkbox]').forEach(cb => {
-    cb.addEventListener('change', () => {
+    cb.addEventListener('click', (e) => {
+      if(!e.ctrlKey && !e.metaKey) {
+        // Clic simple — deseleccionar todas las demás
+        wrap.querySelectorAll('input[type=checkbox]').forEach(other => {
+          if(other !== cb) other.checked = false;
+        });
+      }
       updateMsTrigger(wrap.id);
       aplicarFiltros();
     });
