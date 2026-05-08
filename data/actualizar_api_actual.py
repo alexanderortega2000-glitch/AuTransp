@@ -180,12 +180,14 @@ def main():
     print(f"\n{'='*60}\n  ACTUALIZAR API → SQL | -{args.dias_atras}d / +{args.dias_adelante}d\n{'='*60}")
     if not SQL_PASSWORD: print("[ERROR] SQL_PASSWORD no configurado"); sys.exit(1)
 
-    print("\n[1/2] Consultando API...")
-    registros = consultar_api(inicio, fin)
-    if not registros: print("⚠️  Sin datos."); return
-
-    print("\n[2/2] Actualizando SQL...")
+    print("\n[1/3] Conectando a SQL (mantiene BD activa)...")
     conn = get_conn(); print("  ✓ Conectado")
+
+    print("\n[2/3] Consultando API...")
+    registros = consultar_api(inicio, fin)
+    if not registros: print("⚠️  Sin datos."); conn.close(); return
+
+    print("\n[3/3] Actualizando SQL...")
     ok, err, errores = upsert_en_sql(conn, registros)
     conn.close()
 
