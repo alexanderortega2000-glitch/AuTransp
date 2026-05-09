@@ -117,23 +117,24 @@ def mapear(r):
     h = es_historico(r)
     return tuple([st] + v[1:] + [h] + v + [h])
 
-def consultar_api(inicio, fin):
+def consultar_api(inicio, fin, batch_days=1):
     print(f"  Período: {inicio.strftime('%d/%m/%Y')} → {fin.strftime('%d/%m/%Y')}", flush=True)
     todos, cursor = [], inicio
     while cursor <= fin:
+        fin_lote = min(cursor + timedelta(days=batch_days - 1), fin)
         params = {**API_PARAMS,
             "FechaInicio": cursor.strftime("%d-%m-%Y"),
-            "FechaFin":    cursor.strftime("%d-%m-%Y")}
+            "FechaFin":    fin_lote.strftime("%d-%m-%Y")}
         try:
             resp = requests.get(API_URL, params=params, timeout=120)
             resp.raise_for_status()
             data = resp.json()
             if data:
                 todos.extend(data)
-                print(f"    {cursor.strftime('%d/%m')}: {len(data):,}", flush=True)
+                print(f"    {cursor.strftime('%d/%m')}→{fin_lote.strftime('%d/%m')}: {len(data):,}", flush=True)
         except Exception as e:
             print(f"    ⚠️  {cursor}: {e}", flush=True)
-        cursor += timedelta(days=1)
+        cursor = fin_lote + timedelta(days=1)
     if not todos: return []
     df = pd.DataFrame(todos)
     df["ID_ST"] = df["ID_ST"].astype(str)
@@ -184,7 +185,10 @@ def main():
     conn = get_conn(); print("  ✓ Conectado")
 
     print("\n[2/3] Consultando API...")
-    registros = consultar_api(inicio, fin)
+    batch = 3 if args.dias_atras > 30 else 1
+    if batch > 1:
+        print(f"  Modo batch: {batch} días por request")
+    registros = consultar_api(inicio, fin, batch_days=batch)
     if not registros: print("⚠️  Sin datos."); conn.close(); return
 
     print("\n[3/3] Actualizando SQL...")
