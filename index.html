@@ -541,11 +541,25 @@ tr.clickable { cursor: pointer; }
         </div>
       </div>
     </div>
+    <div class="filter-group">
+      <span class="filter-label">Tipo viaje</span>
+      <div class="ms-wrap" id="ms-tipo">
+        <div class="ms-trigger" onclick="toggleMs('ms-tipo')"><span class="ms-placeholder">Todos</span></div>
+        <div class="ms-dropdown" id="ms-tipo-opts">
+          <div class="ms-divider"></div>
+          <span class="ms-clear" onclick="clearMs('ms-tipo')">Limpiar</span>
+        </div>
+      </div>
+    </div>
     <div class="filter-sep"></div>
-    <button class="btn-sm" id="btn-hoy" onclick="setHoy()">Hoy</button>
     <button class="btn-sm" id="btn-semana" onclick="setEstaSemana()">Esta semana</button>
     <button class="btn-sm" onclick="limpiarFiltros()">Limpiar</button>
     <button class="btn-sm primary" id="btn-actualizar" onclick="actualizarDesdeAPI()">↻ Actualizar</button>
+    <button class="btn-sm" id="btn-cargar-rango" onclick="cargarRangoCompleto()"
+      style="display:none;background:var(--warn2);color:var(--warn);border-color:var(--warn);"
+      title="Los datos en memoria son solo del último mes. Clic para cargar el rango completo.">
+      ⚠ Cargar rango completo
+    </button>
     <span id="btn-refresh-icon" title="Sincronizando..." style="display:none;font-size:16px">🔄</span>
   </div>
 
@@ -615,7 +629,7 @@ tr.clickable { cursor: pointer; }
               <th class="th-main"><div class="th-wrap"><span class="th-label">Tipo viaje</span><button class="th-btn" onclick="sortByCol('tipoViaje')" id="srt-tipoViaje" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-tipo')" title="Buscar">⌕</button><input class="th-search-input" id="tf-tipo" placeholder="Buscar..." oninput="aplicarFiltros()"></div></div></th>
               <th class="th-main"><div class="th-wrap"><span class="th-label">Origen</span><button class="th-btn" onclick="sortByCol('origen')" id="srt-origen" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-origen2')" title="Buscar">⌕</button><input class="th-search-input" id="tf-origen2" placeholder="Buscar..." oninput="aplicarFiltros()"></div></div></th>
               <th class="th-main"><div class="th-wrap"><span class="th-label">Destino</span><button class="th-btn" onclick="sortByCol('destino')" id="srt-destino" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="tf-destino" placeholder="Buscar..." oninput="aplicarFiltros()"></div></div></th>
-              <th class="th-main"><div class="th-wrap"><span class="th-label">Coordinador</span><button class="th-btn" onclick="sortByCol('coordinador')" id="srt-coordinador" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-coord')" title="Buscar">⌕</button><input class="th-search-input" id="tf-coord" placeholder="Buscar..." oninput="aplicarFiltros()"></div></div></th>
+              <th class="th-main"><div class="th-wrap"><span class="th-label">Proveedor</span><button class="th-btn" onclick="sortByCol('proveedor')" id="srt-proveedor" title="Ordenar">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleSearch('tf-prov')" title="Buscar">⌕</button><input class="th-search-input" id="tf-prov" placeholder="Buscar..." oninput="aplicarFiltros()"></div></div></th>
               <th class="th-main"><div class="th-wrap"><span class="th-label">ETD</span><button class="th-btn" onclick="sortByCol('horaPlanInicio')" id="srt-horaPlanInicio" title="Ordenar">↕</button></div></th>
               <th class="th-main"><div class="th-wrap"><span class="th-label">ATD</span><button class="th-btn" onclick="sortByCol('horaRealInicio')" id="srt-horaRealInicio" title="Ordenar">↕</button></div></th>
               <th class="th-main"><div class="th-wrap"><span class="th-label">ETA</span><button class="th-btn" onclick="sortByCol('horaPlanEntrega')" id="srt-horaPlanEntrega" title="Ordenar">↕</button></div></th>
@@ -1885,6 +1899,8 @@ async function cargarDatos(silencioso = false) {
       _aPagar:         r.A_Pagar,
       _valorTotal:     r.ValorTotalViaje,
       _area:           r.AreaCosto,
+      _provCosto:      r.ProveedorCosto,  // jerarquía: Costos > API > Prog
+      _provAPI:        r.Asignado,        // campo Asignado en API = nombre proveedor
       // OrigenDato calculado en servidor
       OrigenDato:      r.OrigenDato,
       FechaPrincipal:  r.FechaPrincipal,
@@ -1903,6 +1919,85 @@ async function cargarDatos(silencioso = false) {
   }
 
   if(!silencioso) document.getElementById('loader').style.display = 'none';
+}
+
+async function cargarRangoCompleto() {
+  const desde = document.getElementById('f-desde').value;
+  const hasta = document.getElementById('f-hasta').value;
+  if(!desde) return;
+
+  const btn = document.getElementById('btn-cargar-rango');
+  btn.textContent = '⏳ Cargando...';
+  btn.disabled = true;
+
+  try {
+    let endpoint = `viajes?desde=${desde}`;
+    if(hasta) endpoint += `&hasta=${hasta}`;
+
+    const [viajesSQL, segWebRaw] = await Promise.all([
+      apiCall(endpoint).catch(e => { console.warn('[API viajes rango]', e.message); return []; }),
+      apiCall('seguimiento').catch(() => []),
+    ]);
+
+    if(Array.isArray(segWebRaw)) {
+      segWebRaw.forEach(s => {
+        if(s.ST) anotaciones[s.ST] = {
+          motivoRetrasoInicio:  s.MotivoRetrasoInicio  || '',
+          motivoRetrasoEntrega: s.MotivoRetrasoEntrega || '',
+          comentarioCabina:     s.ComentarioCabina     || '',
+          actualizadoPor:       s.ActualizadoPor       || '',
+          fechaActualizacion:   s.FechaActualizacion   || '',
+        };
+      });
+    }
+
+    const apiFull = viajesSQL.map(r => ({
+      ID_ST: r.ST || r.ID_ST, TipoViaje: r.TipoViaje, OS: r.OS,
+      PuntoPartida: r.PuntoPartida, DsPuntoPartida: r.DsPuntoPartida,
+      PuntoEntrega: r.PuntoEntrega, DsPuntoEntrega: r.DsPuntoEntrega,
+      FechaEntrega: r.FechaEntrega, ID_EstatusST: r.ID_EstatusST,
+      Estado: r.Estado, Asignado: r.Asignado, Km: r.Km, KmReal: r.KmReal,
+      Estimacion: r.Estimacion, CostoFinal: r.CostoFinal, Diferencia: r.Diferencia,
+      Comentario: r.Comentario, FechaFinalizacion: r.FechaFinalizacion,
+      Integrado: r.Integrado_API, ObsValidaciones: r.ObsValidaciones,
+      CodEquipo: r.CodEquipo, FueraPlan: r.FueraPlan, Nom_Motorista: r.Nom_Motorista,
+      FechaInicioViaje: r.FechaInicioViaje, ComentInicioViaje: r.ComentInicioViaje,
+      FechaFinViaje: r.FechaFinViaje, ComentFinViaje: r.ComentFinViaje,
+      FechaEntregaST: r.FechaEntregaST, ComentEntrega: r.ComentEntrega,
+      CantidadCargadores: r.CantidadCargadores, Permanencia: r.Permanencia,
+      Permanencia_Aplica: r.Permanencia_Aplica, InicioPermanencia: r.InicioPermanencia,
+      FinPermanencia: r.FinPermanencia, HorasPermanencia: r.HorasPermanencia,
+      HorasPermanenciaEst: r.HorasPermanenciaEst, OficialCosecha: r.OficialCosecha,
+      Frente: r.Frente,
+      _coord: r.Coordinador, _prov: r.ProveedorTransp, _subflota: r.Subflota,
+      _fechaEjec: r.FechaEjecucion, _tipoProg: r.TipoProg,
+      _origen: r.NombreOrigen, _destino: r.NombreDestino, _lote: r.LoteDestino,
+      _zona: r.Zona, FechaHoraPlanLlegada: r.FechaHoraPlanLlegada,
+      FechaHoraPlanInicio: r.FechaHoraPlanInicio,
+      _costoReal: r.CostoReal, _integrado: r.Integrado_costos,
+      _pagado: r.Pagado, _aPagar: r.A_Pagar, _valorTotal: r.ValorTotalViaje,
+      _area: r.AreaCosto, _provCosto: r.ProveedorCosto, _provAPI: r.Asignado,
+      OrigenDato: r.OrigenDato, FechaPrincipal: r.FechaPrincipal,
+    }));
+
+    _viajesSQL = viajesSQL;
+    procesarViajes(apiFull, [], []);
+    if(typeof poblarMsDinamicos === 'function') poblarMsDinamicos();
+    calcularInfo();
+
+    // Restaurar filtros de fecha
+    dpSetValue('dp-desde', desde);
+    if(hasta) dpSetValue('dp-hasta', hasta);
+    aplicarFiltros();
+
+    btn.style.display = 'none';
+    console.log(`[SQL] Rango cargado: ${desde} → ${hasta||'hoy'} · ${viajesSQL.length} registros`);
+
+  } catch(e) {
+    console.error('[cargarRangoCompleto]', e.message);
+    btn.textContent = '⚠ Cargar rango completo';
+    btn.disabled = false;
+  }
 }
 
 async function recargarDatos() {
@@ -1955,21 +2050,22 @@ function procesarViajes(apiData, progData, costosData) {
     v.enAPI      = true;
     v.estadoAPI  = n(r.Estado);
     v.tipoViaje  = n(r.TipoViaje);
-    // Prioridad de fuentes — origen y destino
     v.origen_api  = n(r.DsPuntoPartida);
     v.destino_api = n(r.DsPuntoEntrega);
     v.fechaEntrega     = n(r.FechaEntrega);
     v.fechaInicio      = n(r.FechaInicioViaje);
     v.fechaFin         = n(r.FechaFinalizacion);
-    v.horaPlanEntrega  = n(r.FechaEntrega) || n(r.FechaHoraPlanLlegada); // ETA: API plan entrega > Prog plan llegada
+    v.horaPlanEntrega  = n(r.FechaEntrega) || n(r.FechaHoraPlanLlegada);
     v.horaRealInicio   = n(r.FechaInicioViaje);  // ATD
-    v.horaRealEntrega  = n(r.FechaEntregaST);    // ATA
+    v.horaRealEntrega  = n(r.FechaEntregaST);    // ATA desde API
     v.horaFinViaje     = n(r.FechaFinViaje);
     v.motorista        = n(r.Nom_Motorista);
     v.km               = r.Km;
     v.osApi            = n(r.OS);
     v.comentInicioViaje = n(r.ComentInicioViaje);
     v.comentEntrega    = n(r.ComentEntrega);
+    v.proveedor_api    = n(r._provAPI);   // Asignado en API
+    v.proveedor_costo  = n(r._provCosto); // Proveedor en costos
     // Campos de prog que vienen en el JOIN (cuando la fuente es SQL unificado)
     if (r._coord || r.Coordinador) {
       v.enProg         = true;
@@ -2059,9 +2155,14 @@ function procesarViajes(apiData, progData, costosData) {
     v.origen   = v.origen_api   || v.origen_prog   || v.origen_seg   || null;
     v.destino  = v.destino_api  || v.destino_prog  || v.destino_seg  || null;
     v.tipoViaje= v.tipoViaje    || v.tipoViaje_prog || v.tipoViaje_seg|| null;
-    v.proveedor= v.proveedor_prog || null;
 
-    // Hora plan inicio — solo Prog/Seg (API no lo tiene)
+    // Proveedor — jerarquía: Costos > API > Prog
+    v.proveedor = v.proveedor_costo || v.proveedor_api || v.proveedor_prog || null;
+
+    // ATA — API primero, fallback a prog (FechaHoraPlanLlegada como referencia)
+    if(!v.horaRealEntrega) v.horaRealEntrega = v.horaRealSeg || null;
+
+    // Hora plan inicio — Prog/Seg
     v.horaPlanInicio = v.horaPlan || null;
     // Hora real inicio — API → Seg
     if(!v.horaRealInicio) v.horaRealInicio = v.horaRealSeg || null;
@@ -2069,11 +2170,22 @@ function procesarViajes(apiData, progData, costosData) {
     v.fechaRef = v.fechaEjec || v.fechaEntrega || null;
 
     // Origen solicitud
-    if(v.enProg)                        v.origenSolicitud = 'Programado';
-    else if(!v.enProg && v.enSeg)       v.origenSolicitud = 'A demanda';
-    else                                v.origenSolicitud = 'Fuera de gestión';
-    // Preservar _origen de solicitudes planificadas
+    if(v.enProg)                  v.origenSolicitud = 'Programado';
+    else if(!v.enProg && v.enSeg) v.origenSolicitud = 'A demanda';
+    else                          v.origenSolicitud = 'Fuera de gestión';
     if(v._origenRaw === 'solicitud_planificada') v._origen = 'solicitud_planificada';
+
+    // Validación ST — detectar STs que no existen en API ni Costos
+    // Una ST válida debe existir en API o en Costos
+    // Si solo viene de Prog con un valor que no matchea, marcar alerta
+    if(v.enProg && !v.enAPI && !v.enCostos) {
+      // ST solo en programación — puede ser legítima (pendiente de programar)
+      // pero si el ST parece inválido (no numérico o fuera de rango) alertar
+      const stNum = parseInt(v.st);
+      if(isNaN(stNum) || stNum < 100000 || stNum > 999999) {
+        v._stInvalida = true;
+      }
+    }
 
     // Estado viaje
     v.estadoViaje = determinarEstado(v);
@@ -2226,9 +2338,26 @@ const DP_DIAS  = ['Do','Lu','Ma','Mi','Ju','Vi','Sá'];
 let _fechasConDatos = new Set();
 
 function recalcularFechasConDatos() {
+  // Calcular fechas considerando filtros activos (excepto fechas)
+  const origens = getMsValues('ms-origen');
+  const estados = getMsValues('ms-estado');
+  const coords  = getMsValues('ms-coord');
+  const zonas   = getMsValues('ms-zona');
+  const areas   = getMsValues('ms-area');
+  const tipos   = getMsValues('ms-tipo');
+
+  const vFiltSinFecha = viajes.filter(v => {
+    if(origens.length && !origens.includes(v.origenSolicitud)) return false;
+    if(estados.length && !estados.includes(v.estadoViaje))     return false;
+    if(coords.length  && !coords.includes(v.coordinador))      return false;
+    if(zonas.length   && !zonas.includes(v.zona))              return false;
+    if(areas.length   && !areas.includes(v.area))              return false;
+    if(tipos.length   && !tipos.some(t => String(v.tipoViaje||'').toLowerCase().includes(t.toLowerCase()))) return false;
+    return true;
+  });
+
   _fechasConDatos = new Set();
-  viajes.forEach(v => {
-    // Usar FechaPrincipal en jerarquía: FechaEntrega > FechaHoraPlanLlegada > FechaEjecucion > FechaApunte
+  vFiltSinFecha.forEach(v => {
     const f = v.fechaEntrega || v.horaPlanEntrega || v.fechaEjec || v.fechaRef;
     if(!f) return;
     const s = String(f).trim();
@@ -2236,6 +2365,12 @@ function recalcularFechasConDatos() {
     if(m1) { _fechasConDatos.add(`${m1[1]}-${m1[2]}-${m1[3]}`); return; }
     const m2 = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
     if(m2) _fechasConDatos.add(`${m2[3]}-${m2[2]}-${m2[1]}`);
+  });
+
+  // Re-renderizar grids abiertos
+  ['dp-desde','dp-hasta'].forEach(id => {
+    const panel = document.querySelector(`#${id} .dp-panel`);
+    if(panel?.classList.contains('open')) renderDpGrid(id);
   });
 }
 
@@ -2468,14 +2603,12 @@ document.addEventListener('click', e => {
 function poblarMsDinamicos() {
   const coords = [...new Set(viajes.map(v => v.coordinador).filter(Boolean))].sort();
   const zonas  = [...new Set(viajes.map(v => v.zona).filter(Boolean))].sort();
+  const tipos  = [...new Set(viajes.map(v => v.tipoViaje).filter(Boolean))].sort();
 
   function poblar(containerId, vals) {
     const container = document.getElementById(containerId);
     if(!container) return;
-    // Mantener divider y clear al final
     const divider = container.querySelector('.ms-divider');
-    const clear   = container.querySelector('.ms-clear');
-    // Limpiar opciones anteriores
     container.querySelectorAll('.ms-option').forEach(o => o.remove());
     vals.forEach(v => {
       const lbl = document.createElement('label');
@@ -2489,6 +2622,7 @@ function poblarMsDinamicos() {
           });
         }
         updateMsTrigger(wrapEl.id);
+        recalcularFechasConDatos();
         aplicarFiltros();
       });
       container.insertBefore(lbl, divider);
@@ -2497,6 +2631,7 @@ function poblarMsDinamicos() {
 
   poblar('ms-coord-opts', coords);
   poblar('ms-zona-opts',  zonas);
+  poblar('ms-tipo-opts',  tipos);
 }
 
 // Registrar cambios en checkboxes estáticos
@@ -2504,29 +2639,40 @@ document.querySelectorAll('.ms-wrap').forEach(wrap => {
   wrap.querySelectorAll('input[type=checkbox]').forEach(cb => {
     cb.addEventListener('click', (e) => {
       if(!e.ctrlKey && !e.metaKey) {
-        // Clic simple — deseleccionar todas las demás
         wrap.querySelectorAll('input[type=checkbox]').forEach(other => {
           if(other !== cb) other.checked = false;
         });
       }
       updateMsTrigger(wrap.id);
+      recalcularFechasConDatos();
       aplicarFiltros();
     });
   });
 });
 
 function limpiarTodosMs() {
-  ['ms-origen','ms-estado','ms-coord','ms-zona','ms-area','ms-turno'].forEach(id => {
+  ['ms-origen','ms-estado','ms-coord','ms-zona','ms-area','ms-turno','ms-tipo'].forEach(id => {
     const wrap = document.getElementById(id);
     if(!wrap) return;
     wrap.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
     updateMsTrigger(id);
   });
+  recalcularFechasConDatos();
 }
 
 function aplicarFiltros() {
   const desde  = document.getElementById('f-desde').value;
   const hasta  = document.getElementById('f-hasta').value;
+
+  // Detectar si el rango solicitado supera los datos en memoria
+  const btnRango = document.getElementById('btn-cargar-rango');
+  if(btnRango && desde) {
+    const diasDesde = (Date.now() - new Date(desde)) / (1000*60*60*24);
+    const diasDefault = configData.diasDefaultDesde ?? 30;
+    btnRango.style.display = diasDesde > diasDefault + 1 ? '' : 'none';
+  } else if(btnRango) {
+    btnRango.style.display = 'none';
+  }
 
   // Leer valores multiselect
   const origens = getMsValues('ms-origen');
@@ -2535,6 +2681,7 @@ function aplicarFiltros() {
   const zonas   = getMsValues('ms-zona');
   const areas   = getMsValues('ms-area');
   const turnos  = getMsValues('ms-turno');
+  const tipos   = getMsValues('ms-tipo');
 
   // Filtros de columna en tabla
   const tfSt     = document.getElementById('tf-st').value.toLowerCase();
@@ -2543,15 +2690,15 @@ function aplicarFiltros() {
   const tfTipo   = document.getElementById('tf-tipo').value.toLowerCase();
   const tfOrigen2= document.getElementById('tf-origen2').value.toLowerCase();
   const tfDest   = document.getElementById('tf-destino').value.toLowerCase();
-  const tfCoord  = document.getElementById('tf-coord').value.toLowerCase();
+  const tfProv   = document.getElementById('tf-prov')?.value.toLowerCase() || '';
 
   vFilt = viajes.filter(v => {
-    // Filtros multiselect (OR dentro de cada filtro, AND entre filtros)
     if(origens.length && !origens.includes(v.origenSolicitud)) return false;
     if(estados.length && !estados.includes(v.estadoViaje))     return false;
     if(coords.length  && !coords.includes(v.coordinador))      return false;
     if(zonas.length   && !zonas.includes(v.zona))              return false;
     if(areas.length   && !areas.includes(v.area))              return false;
+    if(tipos.length   && !tipos.some(t => String(v.tipoViaje||'').toLowerCase().includes(t.toLowerCase()))) return false;
 
     // Filtro de turno — basado en ETA
     if(turnos.length) {
@@ -2602,7 +2749,7 @@ function aplicarFiltros() {
     if(tfTipo   && !String(v.tipoViaje||'').toLowerCase().includes(tfTipo))     return false;
     if(tfOrigen2&& !String(v.origen||'').toLowerCase().includes(tfOrigen2))     return false;
     if(tfDest   && !String(v.destino||'').toLowerCase().includes(tfDest))       return false;
-    if(tfCoord  && !String(v.coordinador||'').toLowerCase().includes(tfCoord))  return false;
+    if(tfProv   && !String(v.proveedor||'').toLowerCase().includes(tfProv))     return false;
 
     return true;
   });
@@ -2733,14 +2880,18 @@ function renderTabla() {
     const trClass  = editable ? 'clickable' : '';
     const trClick  = editable ? `onclick="abrirPanel('${v.st}')"` : '';
 
+    const stDisplay = v._stInvalida
+      ? `<span style="color:var(--danger);font-family:var(--mono);font-weight:500" title="ST no encontrada en API ni Costos">⚠ ${v.st}</span>`
+      : `${v.st}`;
+
     return `<tr class="${trClass}" ${trClick}>
-      <td style="font-family:var(--mono);font-weight:500">${v.st}</td>
+      <td style="font-family:var(--mono);font-weight:500">${stDisplay}</td>
       <td><span class="badge ${ORIGEN_BADGE[v.origenSolicitud]||'b-fgestion'}">${v.origenSolicitud||'—'}</span></td>
       <td><span class="badge ${ESTADO_BADGE[v.estadoViaje]||'b-pendiente'}">${v.estadoViaje||'—'}</span></td>
       <td style="color:var(--text2);font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.tipoViaje||'—'}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.origen||'—'}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.destino||'—'}</td>
-      <td>${v.coordinador||'—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.proveedor||'—'}</td>
       <td style="color:var(--text2);font-family:var(--mono)">${formatHora(v.horaPlanInicio)||'—'}</td>
       <td style="color:var(--text2);font-family:var(--mono)">${formatHora(v.horaRealInicio)||'—'}</td>
       <td style="color:var(--text2);font-family:var(--mono)">${formatHora(v.horaPlanEntrega)||'—'}</td>
