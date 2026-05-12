@@ -178,6 +178,61 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 .prog-bar { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
 .prog-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
 
+/* ── DATE PICKER PERSONALIZADO ──────────────────────── */
+.dp-wrap { position: relative; }
+.dp-trigger {
+  height: 28px; padding: 0 8px; background: var(--bg);
+  border: 0.5px solid var(--border2); border-radius: var(--radius);
+  font-family: var(--mono); font-size: 12px; color: var(--text);
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+  min-width: 130px; user-select: none;
+}
+.dp-trigger.has-value { border-color: var(--accent); background: var(--accent2); color: var(--accent); }
+.dp-val { flex: 1; }
+.dp-icon { font-size: 11px; opacity: .6; }
+.dp-panel {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 300;
+  background: var(--surface); border: 0.5px solid var(--border2);
+  border-radius: var(--radius-lg); padding: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  width: 260px; display: none;
+}
+.dp-panel.open { display: block; }
+.dp-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.dp-nav-btn {
+  background: none; border: none; cursor: pointer; color: var(--text2);
+  font-size: 16px; padding: 2px 6px; border-radius: var(--radius); line-height: 1;
+}
+.dp-nav-btn:hover { background: var(--bg2); color: var(--text); }
+.dp-month-label { font-size: 12px; font-weight: 600; color: var(--text); cursor: pointer; padding: 2px 8px; border-radius: var(--radius); }
+.dp-month-label:hover { background: var(--bg2); }
+.dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dp-dow { font-size: 9px; font-weight: 600; color: var(--text3); text-align: center; padding: 3px 0; letter-spacing: .05em; text-transform: uppercase; }
+.dp-day {
+  font-size: 11px; font-family: var(--mono); text-align: center;
+  padding: 5px 2px; border-radius: var(--radius); cursor: pointer;
+  color: var(--text2); position: relative; transition: background .1s;
+}
+.dp-day:hover { background: var(--bg2); color: var(--text); }
+.dp-day.other-month { color: var(--text3); opacity: .4; }
+.dp-day.today { font-weight: 700; color: var(--accent); }
+.dp-day.selected { background: var(--accent); color: var(--bg); font-weight: 600; }
+.dp-day.has-data::after {
+  content: ''; position: absolute; bottom: 2px; left: 50%;
+  transform: translateX(-50%); width: 4px; height: 4px;
+  border-radius: 50%; background: var(--accent);
+}
+.dp-day.selected.has-data::after { background: var(--bg); }
+.dp-day.other-month.has-data::after { opacity: .3; }
+.dp-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 10px; padding-top: 8px; border-top: 0.5px solid var(--border);
+}
+.dp-clear { font-size: 11px; color: var(--text3); cursor: pointer; background: none; border: none; font-family: var(--sans); padding: 2px 6px; border-radius: var(--radius); }
+.dp-clear:hover { background: var(--bg2); color: var(--danger); }
+.dp-today-btn { font-size: 11px; color: var(--accent); cursor: pointer; background: none; border: none; font-family: var(--sans); font-weight: 500; padding: 2px 6px; border-radius: var(--radius); }
+.dp-today-btn:hover { background: var(--accent2); }
+
 /* ── FILTRO MULTISELECT ─────────────────────────────── */
 .ms-wrap { position: relative; }
 .ms-trigger {
@@ -387,11 +442,23 @@ tr.clickable { cursor: pointer; }
   <div class="filter-bar">
     <div class="filter-group">
       <span class="filter-label">Desde</span>
-      <input type="date" id="f-desde" onchange="desactivarSegmentos();aplicarFiltros()">
+      <div class="dp-wrap" id="dp-desde">
+        <div class="dp-trigger" onclick="toggleDp('dp-desde')">
+          <span class="dp-val" id="dp-desde-val">dd/mm/aaaa</span>
+          <span class="dp-icon">📅</span>
+        </div>
+        <input type="hidden" id="f-desde">
+      </div>
     </div>
     <div class="filter-group">
       <span class="filter-label">Hasta</span>
-      <input type="date" id="f-hasta" onchange="desactivarSegmentos();aplicarFiltros()">
+      <div class="dp-wrap" id="dp-hasta">
+        <div class="dp-trigger" onclick="toggleDp('dp-hasta')">
+          <span class="dp-val" id="dp-hasta-val">dd/mm/aaaa</span>
+          <span class="dp-icon">📅</span>
+        </div>
+        <input type="hidden" id="f-hasta">
+      </div>
     </div>
     <div class="filter-sep"></div>
     <div class="filter-group">
@@ -1687,17 +1754,16 @@ async function intentarLogin() {
 
   cargarDatos().then(() => {
     calcularInfo();
-    // Filtros por defecto: desde 01/11/2025, hasta fecha máxima de ETA
-    document.getElementById('f-desde').value = '2025-11-01';
-    // Calcular fecha máxima de ETA entre los viajes cargados
-    const maxETA = viajes.reduce((max, v) => {
-      const f = v.horaPlanEntrega || v.fechaEntrega;
-      if(!f) return max;
-      const d = f.substring(0, 10);
-      return d > max ? d : max;
-    }, '');
-    if(maxETA) document.getElementById('f-hasta').value = maxETA;
-    // Orden por defecto: ETA descendente — aplicar ANTES de renderizar
+    // Filtros por defecto — días hacia atrás configurable desde config.json
+    const diasAtras = configData.diasDefaultDesde ?? 30;
+    const desde = new Date();
+    desde.setDate(desde.getDate() - diasAtras);
+    const diasAdelante = configData.diasDefaultHasta ?? 1;
+    const hasta = new Date();
+    hasta.setDate(hasta.getDate() + diasAdelante);
+    dpSetValue('dp-desde', fechaLocal(desde));
+    dpSetValue('dp-hasta', fechaLocal(hasta));
+    // Orden por defecto: ETA descendente
     sortCol = 'horaPlanEntrega';
     sortDir = -1;
     const btn = document.getElementById('srt-horaPlanEntrega');
@@ -2014,6 +2080,7 @@ function procesarViajes(apiData, progData, costosData) {
   });
 
   viajes = Object.values(m);
+  recalcularFechasConDatos();
   poblarFiltrosDinamicos();
   aplicarFiltros();
 }
@@ -2130,8 +2197,8 @@ function desactivarSegmentos() {
 
 function setHoy() {
   const hoy = fechaLocal(new Date());
-  document.getElementById('f-desde').value = hoy;
-  document.getElementById('f-hasta').value = hoy;
+  dpSetValue('dp-desde', hoy);
+  dpSetValue('dp-hasta', hoy);
   setActiveFilterBtn('btn-hoy');
   aplicarFiltros();
 }
@@ -2142,11 +2209,195 @@ function setEstaSemana() {
   lunes.setDate(hoy.getDate() - hoy.getDay() + (hoy.getDay()===0 ? -6 : 1));
   const domingo = new Date(lunes);
   domingo.setDate(lunes.getDate() + 6);
-  document.getElementById('f-desde').value = fechaLocal(lunes);
-  document.getElementById('f-hasta').value = fechaLocal(domingo);
+  dpSetValue('dp-desde', fechaLocal(lunes));
+  dpSetValue('dp-hasta', fechaLocal(domingo));
   setActiveFilterBtn('btn-semana');
   aplicarFiltros();
 }
+
+// ============================================================
+// DATE PICKER PERSONALIZADO
+// ============================================================
+
+const DP_MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DP_DIAS  = ['Do','Lu','Ma','Mi','Ju','Vi','Sá'];
+
+// Cache de fechas con datos — se recalcula al cargar viajes
+let _fechasConDatos = new Set();
+
+function recalcularFechasConDatos() {
+  _fechasConDatos = new Set();
+  viajes.forEach(v => {
+    // Usar FechaPrincipal en jerarquía: FechaEntrega > FechaHoraPlanLlegada > FechaEjecucion > FechaApunte
+    const f = v.fechaEntrega || v.horaPlanEntrega || v.fechaEjec || v.fechaRef;
+    if(!f) return;
+    const s = String(f).trim();
+    const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m1) { _fechasConDatos.add(`${m1[1]}-${m1[2]}-${m1[3]}`); return; }
+    const m2 = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if(m2) _fechasConDatos.add(`${m2[3]}-${m2[2]}-${m2[1]}`);
+  });
+}
+
+// Estado de cada picker
+const _dpState = {
+  'dp-desde': { year: new Date().getFullYear(), month: new Date().getMonth() },
+  'dp-hasta': { year: new Date().getFullYear(), month: new Date().getMonth() },
+};
+
+function toggleDp(id) {
+  // Cerrar otros
+  document.querySelectorAll('.dp-panel.open').forEach(p => {
+    if(p.closest('.dp-wrap').id !== id) p.classList.remove('open');
+  });
+  const wrap = document.getElementById(id);
+  let panel = wrap.querySelector('.dp-panel');
+  if(!panel) { renderDpPanel(id); panel = wrap.querySelector('.dp-panel'); }
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')) renderDpGrid(id);
+}
+
+function renderDpPanel(id) {
+  const wrap = document.getElementById(id);
+  const panel = document.createElement('div');
+  panel.className = 'dp-panel';
+  panel.innerHTML = `
+    <div class="dp-nav">
+      <button class="dp-nav-btn" onclick="dpNavMes('${id}',-1)">‹</button>
+      <span class="dp-month-label" id="${id}-label"></span>
+      <button class="dp-nav-btn" onclick="dpNavMes('${id}',1)">›</button>
+    </div>
+    <div class="dp-grid" id="${id}-grid"></div>
+    <div class="dp-footer">
+      <button class="dp-clear" onclick="dpClear('${id}')">Limpiar</button>
+      <button class="dp-today-btn" onclick="dpSetToday('${id}')">Hoy</button>
+    </div>`;
+  wrap.appendChild(panel);
+}
+
+function renderDpGrid(id) {
+  const state = _dpState[id];
+  const hidden = document.getElementById(id === 'dp-desde' ? 'f-desde' : 'f-hasta');
+  const selected = hidden?.value || '';
+  const hoy = fechaLocal(new Date());
+
+  document.getElementById(`${id}-label`).textContent =
+    `${DP_MESES[state.month]} ${state.year}`;
+
+  const grid = document.getElementById(`${id}-grid`);
+  let html = DP_DIAS.map(d => `<div class="dp-dow">${d}</div>`).join('');
+
+  const primerDia = new Date(state.year, state.month, 1).getDay();
+  const diasMes   = new Date(state.year, state.month + 1, 0).getDate();
+  const diasMesAnt = new Date(state.year, state.month, 0).getDate();
+
+  // Días del mes anterior
+  for(let i = primerDia - 1; i >= 0; i--) {
+    const d = diasMesAnt - i;
+    const m = state.month === 0 ? 12 : state.month;
+    const y = state.month === 0 ? state.year - 1 : state.year;
+    const iso = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const hasDatos = _fechasConDatos.has(iso);
+    html += `<div class="dp-day other-month${hasDatos?' has-data':''}" onclick="dpSelect('${id}','${iso}')">${d}</div>`;
+  }
+
+  // Días del mes actual
+  for(let d = 1; d <= diasMes; d++) {
+    const iso = `${state.year}-${String(state.month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isSelected = iso === selected;
+    const isToday    = iso === hoy;
+    const hasDatos   = _fechasConDatos.has(iso);
+    const cls = [
+      'dp-day',
+      isSelected ? 'selected' : '',
+      isToday    ? 'today'    : '',
+      hasDatos   ? 'has-data' : '',
+    ].filter(Boolean).join(' ');
+    html += `<div class="${cls}" onclick="dpSelect('${id}','${iso}')">${d}</div>`;
+  }
+
+  // Días del mes siguiente para completar la grilla
+  const totalCeldas = primerDia + diasMes;
+  const restantes   = totalCeldas % 7 === 0 ? 0 : 7 - (totalCeldas % 7);
+  for(let d = 1; d <= restantes; d++) {
+    const m = state.month === 11 ? 1 : state.month + 2;
+    const y = state.month === 11 ? state.year + 1 : state.year;
+    const iso = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const hasDatos = _fechasConDatos.has(iso);
+    html += `<div class="dp-day other-month${hasDatos?' has-data':''}" onclick="dpSelect('${id}','${iso}')">${d}</div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function dpNavMes(id, delta) {
+  const s = _dpState[id];
+  s.month += delta;
+  if(s.month > 11) { s.month = 0;  s.year++; }
+  if(s.month < 0)  { s.month = 11; s.year--; }
+  renderDpGrid(id);
+}
+
+function dpSelect(id, iso) {
+  const hiddenId = id === 'dp-desde' ? 'f-desde' : 'f-hasta';
+  const valId    = id === 'dp-desde' ? 'dp-desde-val' : 'dp-hasta-val';
+  const trigger  = document.querySelector(`#${id} .dp-trigger`);
+
+  document.getElementById(hiddenId).value = iso;
+  // Mostrar en formato DD/MM/AAAA
+  const [y,m,d] = iso.split('-');
+  document.getElementById(valId).textContent = `${d}/${m}/${y}`;
+  trigger.classList.add('has-value');
+
+  // Cerrar panel
+  document.querySelector(`#${id} .dp-panel`)?.classList.remove('open');
+  desactivarSegmentos();
+  aplicarFiltros();
+}
+
+function dpClear(id) {
+  const hiddenId = id === 'dp-desde' ? 'f-desde' : 'f-hasta';
+  const valId    = id === 'dp-desde' ? 'dp-desde-val' : 'dp-hasta-val';
+  const trigger  = document.querySelector(`#${id} .dp-trigger`);
+  document.getElementById(hiddenId).value = '';
+  document.getElementById(valId).textContent = 'dd/mm/aaaa';
+  trigger.classList.remove('has-value');
+  document.querySelector(`#${id} .dp-panel`)?.classList.remove('open');
+  desactivarSegmentos();
+  aplicarFiltros();
+}
+
+function dpSetToday(id) {
+  dpSelect(id, fechaLocal(new Date()));
+}
+
+function dpSetValue(id, iso) {
+  // Llamado programáticamente (ej. desde setHoy, setEstaSemana, login)
+  if(!iso) { dpClear(id); return; }
+  const hiddenId = id === 'dp-desde' ? 'f-desde' : 'f-hasta';
+  const valId    = id === 'dp-desde' ? 'dp-desde-val' : 'dp-hasta-val';
+  const trigger  = document.querySelector(`#${id} .dp-trigger`);
+  if(!trigger) {
+    // Panel aún no creado — solo setear el hidden
+    const h = document.getElementById(hiddenId);
+    if(h) h.value = iso;
+    return;
+  }
+  document.getElementById(hiddenId).value = iso;
+  const [y,m,d] = iso.split('-');
+  document.getElementById(valId).textContent = `${d}/${m}/${y}`;
+  trigger.classList.add('has-value');
+  // Navegar al mes correcto
+  _dpState[id].year  = parseInt(y);
+  _dpState[id].month = parseInt(m) - 1;
+}
+
+// Cerrar al hacer clic fuera
+document.addEventListener('click', e => {
+  if(!e.target.closest('.dp-wrap')) {
+    document.querySelectorAll('.dp-panel.open').forEach(p => p.classList.remove('open'));
+  }
+});
 
 // ============================================================
 // MULTISELECT
@@ -2382,8 +2633,8 @@ function setActiveFilterBtn(id) {
 
 function limpiarFiltros() {
   setActiveFilterBtn(null);
-  document.getElementById('f-desde').value = '';
-  document.getElementById('f-hasta').value = '';
+  dpClear('dp-desde');
+  dpClear('dp-hasta');
   limpiarTodosMs();
   document.querySelectorAll('.th-search-input').forEach(el => { el.value=''; el.classList.remove('open'); });
   ['tf-st','tf-origen','tf-estado','tf-tipo','tf-origen2','tf-destino','tf-coord'].forEach(id => {
