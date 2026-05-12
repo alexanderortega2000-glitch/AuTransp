@@ -62,5 +62,7 @@
     "Terreno en mal estado",
     "Maquinaria no disponible",
     "Producto en mal estado"
-  ]
+  ],
+  "diasDefaultDesde": 30,
+  "diasDefaultHasta": 1
 }
