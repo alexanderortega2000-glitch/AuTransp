@@ -2154,7 +2154,8 @@ function procesarViajes(apiData, progData, costosData) {
     // Prioridad de fuentes: API → Prog → Seg
     v.origen   = v.origen_api   || v.origen_prog   || v.origen_seg   || null;
     v.destino  = v.destino_api  || v.destino_prog  || v.destino_seg  || null;
-    v.tipoViaje= v.tipoViaje    || v.tipoViaje_prog || v.tipoViaje_seg|| null;
+    // TipoViaje: API → TipoProg (Cosecha/Varios/Red Vial) → tipoViaje_prog → seg
+    v.tipoViaje= v.tipoViaje    || v.tipoProg       || v.tipoViaje_prog || v.tipoViaje_seg || null;
 
     // Proveedor — jerarquía: Costos > API > Prog
     v.proveedor = v.proveedor_costo || v.proveedor_api || v.proveedor_prog || null;
@@ -2175,15 +2176,14 @@ function procesarViajes(apiData, progData, costosData) {
     else                          v.origenSolicitud = 'Fuera de gestión';
     if(v._origenRaw === 'solicitud_planificada') v._origen = 'solicitud_planificada';
 
-    // Validación ST — detectar STs que no existen en API ni Costos
-    // Una ST válida debe existir en API o en Costos
-    // Si solo viene de Prog con un valor que no matchea, marcar alerta
-    if(v.enProg && !v.enAPI && !v.enCostos) {
-      // ST solo en programación — puede ser legítima (pendiente de programar)
-      // pero si el ST parece inválido (no numérico o fuera de rango) alertar
-      const stNum = parseInt(v.st);
-      if(isNaN(stNum) || stNum < 100000 || stNum > 999999) {
+    // Validación ST — detectar STs placeholder que no existen en API ni Costos
+    if(!v.enAPI && !v.enCostos) {
+      // ST solo en programación — verificar si parece un ST real (numérico)
+      const stStr = String(v.st || '').trim();
+      const esNumerico = /^\d+$/.test(stStr);
+      if(!esNumerico) {
         v._stInvalida = true;
+        v._stMotivo = 'ST placeholder — no existe en sistema';
       }
     }
 
@@ -2247,6 +2247,7 @@ function determinarEstado(v) {
 
   // Sin API — solo en Prog/Seg
   if(v.estadoViaje === 'Cancelado') return 'Cancelado';
+  if(v._stInvalida) return 'Pendiente'; // ST placeholder — sin ST real aún
   if(v.enProg || v.enSeg) return 'Pendiente';
 
   // Solo en Costos — sin API ni Prog
@@ -2881,7 +2882,7 @@ function renderTabla() {
     const trClick  = editable ? `onclick="abrirPanel('${v.st}')"` : '';
 
     const stDisplay = v._stInvalida
-      ? `<span style="color:var(--danger);font-family:var(--mono);font-weight:500" title="ST no encontrada en API ni Costos">⚠ ${v.st}</span>`
+      ? `<span style="color:var(--warn);font-family:var(--mono);font-weight:500;font-size:10px;background:var(--warn2);padding:2px 6px;border-radius:4px;border:0.5px solid var(--warn)" title="${v._stMotivo||'ST no válida'}">⚠ ${v.st}</span>`
       : `${v.st}`;
 
     return `<tr class="${trClass}" ${trClick}>
