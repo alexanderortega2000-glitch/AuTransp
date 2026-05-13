@@ -552,6 +552,7 @@ tr.clickable { cursor: pointer; }
       </div>
     </div>
     <div class="filter-sep"></div>
+    <button class="btn-sm" id="btn-hoy" onclick="setHoy()">Hoy</button>
     <button class="btn-sm" id="btn-semana" onclick="setEstaSemana()">Esta semana</button>
     <button class="btn-sm" onclick="limpiarFiltros()">Limpiar</button>
     <button class="btn-sm primary" id="btn-actualizar" onclick="actualizarDesdeAPI()">↻ Actualizar</button>
@@ -2049,7 +2050,8 @@ function procesarViajes(apiData, progData, costosData) {
     const v  = mk(st);
     v.enAPI      = true;
     v.estadoAPI  = n(r.Estado);
-    v.tipoViaje  = n(r.TipoViaje);
+    v.tipoViaje         = n(r.TipoViaje);
+      v.tipoViajeEfectivo = n(r.TipoViajeNomEfectivo);
     v.origen_api  = n(r.DsPuntoPartida);
     v.destino_api = n(r.DsPuntoEntrega);
     v.fechaEntrega     = n(r.FechaEntrega);
@@ -2155,7 +2157,9 @@ function procesarViajes(apiData, progData, costosData) {
     v.origen   = v.origen_api   || v.origen_prog   || v.origen_seg   || null;
     v.destino  = v.destino_api  || v.destino_prog  || v.destino_seg  || null;
     // TipoViaje: API → TipoProg (Cosecha/Varios/Red Vial) → tipoViaje_prog → seg
-    v.tipoViaje= v.tipoViaje    || v.tipoProg       || v.tipoViaje_prog || v.tipoViaje_seg || null;
+    // TipoViajeNomEfectivo viene del servidor con jerarquía Costos>API>Prog (nombre limpio)
+    // TipoProg ('Cosecha'/'Varios') es área, no tipo de viaje — no contaminar tipoViaje
+    v.tipoViaje = v.tipoViajeEfectivo || v.tipoViaje_prog || v.tipoViaje_seg || null;
 
     // Proveedor — jerarquía: Costos > API > Prog
     v.proveedor = v.proveedor_costo || v.proveedor_api || v.proveedor_prog || null;
