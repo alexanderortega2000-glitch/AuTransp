@@ -1814,6 +1814,79 @@ function cerrarSesion() {
 }
 
 // ============================================================
+// NORMALIZAR VIAJE — convierte fila SQL al formato del dashboard
+// Usado por cargarDatos y cargarRangoCompleto (fuente única)
+// ============================================================
+function normalizarViaje(r) {
+  return {
+    ID_ST:               r.ST || r.ID_ST,
+    TipoViaje:           r.TipoViaje,
+    OS:                  r.OS,
+    PuntoPartida:        r.PuntoPartida,
+    DsPuntoPartida:      r.DsPuntoPartida,
+    PuntoEntrega:        r.PuntoEntrega,
+    DsPuntoEntrega:      r.DsPuntoEntrega,
+    FechaEntrega:        r.FechaEntrega,
+    ID_EstatusST:        r.ID_EstatusST,
+    Estado:              r.Estado,
+    Asignado:            r.Asignado,
+    Km:                  r.Km,
+    KmReal:              r.KmReal,
+    Estimacion:          r.Estimacion,
+    CostoFinal:          r.CostoFinal,
+    Diferencia:          r.Diferencia,
+    Comentario:          r.Comentario,
+    FechaFinalizacion:   r.FechaFinalizacion,
+    Integrado:           r.Integrado_API,
+    ObsValidaciones:     r.ObsValidaciones,
+    CodEquipo:           r.CodEquipo,
+    FueraPlan:           r.FueraPlan,
+    Nom_Motorista:       r.Nom_Motorista,
+    FechaInicioViaje:    r.FechaInicioViaje,
+    ComentInicioViaje:   r.ComentInicioViaje,
+    FechaFinViaje:       r.FechaFinViaje,
+    ComentFinViaje:      r.ComentFinViaje,
+    FechaEntregaST:      r.FechaEntregaST,
+    ComentEntrega:       r.ComentEntrega,
+    CantidadCargadores:  r.CantidadCargadores,
+    Permanencia:         r.Permanencia,
+    Permanencia_Aplica:  r.Permanencia_Aplica,
+    InicioPermanencia:   r.InicioPermanencia,
+    FinPermanencia:      r.FinPermanencia,
+    HorasPermanencia:    r.HorasPermanencia,
+    HorasPermanenciaEst: r.HorasPermanenciaEst,
+    OficialCosecha:      r.OficialCosecha,
+    Frente:              r.Frente,
+    // Campos de prog (JOIN)
+    _coord:    r.Coordinador,
+    _prov:     r.ProveedorTransp,
+    _subflota: r.Subflota,
+    _fechaEjec:r.FechaEjecucion,
+    _tipoProg: r.TipoProg,
+    _origen:   r.NombreOrigen,
+    _destino:  r.NombreDestino,
+    _lote:     r.LoteDestino,
+    _zona:     r.Zona,
+    FechaHoraPlanLlegada: r.FechaHoraPlanLlegada,
+    FechaHoraPlanInicio:  r.FechaHoraPlanInicio,
+    // Costos (JOIN) — jerarquía calculada en servidor
+    _costoReal:      r.CostoReal,
+    _integrado:      r.Integrado_costos,
+    _pagado:         r.Pagado,
+    _aPagar:         r.A_Pagar,
+    _valorTotal:     r.ValorTotalViaje,
+    _area:           r.AreaEfectiva,
+    _provCosto:      r.ProveedorEfectivo,
+    _provAPI:        r.Asignado,
+    DestinoCosto:    r.DestinoCosto,
+    TipoViajeNomEfectivo: r.TipoViajeNomEfectivo,
+    // OrigenDato calculado en servidor
+    OrigenDato:      r.OrigenDato,
+    FechaPrincipal:  r.FechaPrincipal,
+  };
+}
+
+// ============================================================
 // CARGA DE DATOS — fuente única: Azure SQL
 // ============================================================
 async function cargarDatos(silencioso = false) {
@@ -1843,72 +1916,7 @@ async function cargarDatos(silencioso = false) {
     }
 
     // Normalizar campos SQL al formato del dashboard
-    const apiFull = viajesSQL.map(r => ({
-      ID_ST:               r.ST || r.ID_ST,
-      TipoViaje:           r.TipoViaje,
-      OS:                  r.OS,
-      PuntoPartida:        r.PuntoPartida,
-      DsPuntoPartida:      r.DsPuntoPartida,
-      PuntoEntrega:        r.PuntoEntrega,
-      DsPuntoEntrega:      r.DsPuntoEntrega,
-      FechaEntrega:        r.FechaEntrega,
-      ID_EstatusST:        r.ID_EstatusST,
-      Estado:              r.Estado,
-      Asignado:            r.Asignado,
-      Km:                  r.Km,
-      KmReal:              r.KmReal,
-      Estimacion:          r.Estimacion,
-      CostoFinal:          r.CostoFinal,
-      Diferencia:          r.Diferencia,
-      Comentario:          r.Comentario,
-      FechaFinalizacion:   r.FechaFinalizacion,
-      Integrado:           r.Integrado_API,
-      ObsValidaciones:     r.ObsValidaciones,
-      CodEquipo:           r.CodEquipo,
-      FueraPlan:           r.FueraPlan,
-      Nom_Motorista:       r.Nom_Motorista,
-      FechaInicioViaje:    r.FechaInicioViaje,
-      ComentInicioViaje:   r.ComentInicioViaje,
-      FechaFinViaje:       r.FechaFinViaje,
-      ComentFinViaje:      r.ComentFinViaje,
-      FechaEntregaST:      r.FechaEntregaST,
-      ComentEntrega:       r.ComentEntrega,
-      CantidadCargadores:  r.CantidadCargadores,
-      Permanencia:         r.Permanencia,
-      Permanencia_Aplica:  r.Permanencia_Aplica,
-      InicioPermanencia:   r.InicioPermanencia,
-      FinPermanencia:      r.FinPermanencia,
-      HorasPermanencia:    r.HorasPermanencia,
-      HorasPermanenciaEst: r.HorasPermanenciaEst,
-      OficialCosecha:      r.OficialCosecha,
-      Frente:              r.Frente,
-      // Campos de prog (JOIN)
-      _coord:    r.Coordinador,
-      _prov:     r.ProveedorTransp,
-      _subflota: r.Subflota,
-      _fechaEjec:r.FechaEjecucion,
-      _tipoProg: r.TipoProg,
-      _origen:   r.NombreOrigen,
-      _destino:  r.NombreDestino,
-      _lote:     r.LoteDestino,
-      _zona:     r.Zona,
-      FechaHoraPlanLlegada: r.FechaHoraPlanLlegada,
-      FechaHoraPlanInicio:  r.FechaHoraPlanInicio,
-      // Costos (JOIN)
-      _costoReal:      r.CostoReal,
-      _integrado:      r.Integrado_costos,
-      _pagado:         r.Pagado,
-      _aPagar:         r.A_Pagar,
-      _valorTotal:     r.ValorTotalViaje,
-      _area:           r.AreaEfectiva,    // jerarquía: Costos > API > Prog
-      _provCosto:      r.ProveedorEfectivo,
-      _provAPI:        r.Asignado,
-      DestinoCosto:    r.DestinoCosto,
-      TipoViajeNomEfectivo: r.TipoViajeNomEfectivo,
-      // OrigenDato calculado en servidor
-      OrigenDato:      r.OrigenDato,
-      FechaPrincipal:  r.FechaPrincipal,
-    }));
+    const apiFull = viajesSQL.map(normalizarViaje);
 
     console.log(`[SQL] ${apiFull.length} viajes cargados desde Azure SQL`);
     _viajesSQL = viajesSQL;
@@ -1955,36 +1963,7 @@ async function cargarRangoCompleto() {
       });
     }
 
-    const apiFull = viajesSQL.map(r => ({
-      ID_ST: r.ST || r.ID_ST, TipoViaje: r.TipoViaje, OS: r.OS,
-      PuntoPartida: r.PuntoPartida, DsPuntoPartida: r.DsPuntoPartida,
-      PuntoEntrega: r.PuntoEntrega, DsPuntoEntrega: r.DsPuntoEntrega,
-      FechaEntrega: r.FechaEntrega, ID_EstatusST: r.ID_EstatusST,
-      Estado: r.Estado, Asignado: r.Asignado, Km: r.Km, KmReal: r.KmReal,
-      Estimacion: r.Estimacion, CostoFinal: r.CostoFinal, Diferencia: r.Diferencia,
-      Comentario: r.Comentario, FechaFinalizacion: r.FechaFinalizacion,
-      Integrado: r.Integrado_API, ObsValidaciones: r.ObsValidaciones,
-      CodEquipo: r.CodEquipo, FueraPlan: r.FueraPlan, Nom_Motorista: r.Nom_Motorista,
-      FechaInicioViaje: r.FechaInicioViaje, ComentInicioViaje: r.ComentInicioViaje,
-      FechaFinViaje: r.FechaFinViaje, ComentFinViaje: r.ComentFinViaje,
-      FechaEntregaST: r.FechaEntregaST, ComentEntrega: r.ComentEntrega,
-      CantidadCargadores: r.CantidadCargadores, Permanencia: r.Permanencia,
-      Permanencia_Aplica: r.Permanencia_Aplica, InicioPermanencia: r.InicioPermanencia,
-      FinPermanencia: r.FinPermanencia, HorasPermanencia: r.HorasPermanencia,
-      HorasPermanenciaEst: r.HorasPermanenciaEst, OficialCosecha: r.OficialCosecha,
-      Frente: r.Frente,
-      _coord: r.Coordinador, _prov: r.ProveedorTransp, _subflota: r.Subflota,
-      _fechaEjec: r.FechaEjecucion, _tipoProg: r.TipoProg,
-      _origen: r.NombreOrigen, _destino: r.NombreDestino, _lote: r.LoteDestino,
-      _zona: r.Zona, FechaHoraPlanLlegada: r.FechaHoraPlanLlegada,
-      FechaHoraPlanInicio: r.FechaHoraPlanInicio,
-      _costoReal: r.CostoReal, _integrado: r.Integrado_costos,
-      _pagado: r.Pagado, _aPagar: r.A_Pagar, _valorTotal: r.ValorTotalViaje,
-      _area: r.AreaEfectiva, _provCosto: r.ProveedorEfectivo, _provAPI: r.Asignado,
-      DestinoCosto: r.DestinoCosto,
-      TipoViajeNomEfectivo: r.TipoViajeNomEfectivo,
-      OrigenDato: r.OrigenDato, FechaPrincipal: r.FechaPrincipal,
-    }));
+    const apiFull = viajesSQL.map(normalizarViaje);
 
     _viajesSQL = viajesSQL;
     procesarViajes(apiFull, [], []);
