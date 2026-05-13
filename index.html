@@ -925,6 +925,7 @@ tr.clickable { cursor: pointer; }
       <div class="edit-field"><label>Estado</label><div class="readonly-field" id="ep-estado">—</div></div>
       <div class="edit-field"><label>Tipo viaje</label><div class="readonly-field" id="ep-tipo">—</div></div>
       <div class="edit-field"><label>Origen → Destino</label><div class="readonly-field" id="ep-ruta">—</div></div>
+      <div class="edit-field"><label>Destino costo</label><div class="readonly-field" id="ep-destino-costo">—</div></div>
       <div class="edit-field"><label>Motorista</label><div class="readonly-field" id="ep-motorista">—</div></div>
       <div class="edit-field" id="ep-destinos-wrap" style="display:none;">
         <label>Destinos de la solicitud</label>
@@ -1900,8 +1901,9 @@ async function cargarDatos(silencioso = false) {
       _aPagar:         r.A_Pagar,
       _valorTotal:     r.ValorTotalViaje,
       _area:           r.AreaEfectiva,    // jerarquía: Costos > API > Prog
-      _provCosto:      r.ProveedorCosto,
-      _provAPI:        r.Asignado,        // campo Asignado en API = nombre proveedor
+      _provCosto:      r.ProveedorEfectivo,
+      _provAPI:        r.Asignado,
+      DestinoCosto:    r.DestinoCosto,
       TipoViajeNomEfectivo: r.TipoViajeNomEfectivo,
       // OrigenDato calculado en servidor
       OrigenDato:      r.OrigenDato,
@@ -1978,7 +1980,8 @@ async function cargarRangoCompleto() {
       FechaHoraPlanInicio: r.FechaHoraPlanInicio,
       _costoReal: r.CostoReal, _integrado: r.Integrado_costos,
       _pagado: r.Pagado, _aPagar: r.A_Pagar, _valorTotal: r.ValorTotalViaje,
-      _area: r.AreaEfectiva, _provCosto: r.ProveedorCosto, _provAPI: r.Asignado,
+      _area: r.AreaEfectiva, _provCosto: r.ProveedorEfectivo, _provAPI: r.Asignado,
+      DestinoCosto: r.DestinoCosto,
       TipoViajeNomEfectivo: r.TipoViajeNomEfectivo,
       OrigenDato: r.OrigenDato, FechaPrincipal: r.FechaPrincipal,
     }));
@@ -2070,6 +2073,7 @@ function procesarViajes(apiData, progData, costosData) {
     v.comentEntrega    = n(r.ComentEntrega);
     v.proveedor_api    = n(r._provAPI);   // Asignado en API
     v.proveedor_costo  = n(r._provCosto); // Proveedor en costos
+    v.destinoCosto     = n(r.DestinoCosto);
     // Campos de prog que vienen en el JOIN (cuando la fuente es SQL unificado)
     if (r._coord || r.Coordinador) {
       v.enProg         = true;
@@ -2966,6 +2970,7 @@ function abrirPanel(st) {
   document.getElementById('ep-estado').textContent    = v.estadoViaje||'—';
   document.getElementById('ep-tipo').textContent      = v.tipoViaje||'—';
   document.getElementById('ep-ruta').textContent      = (v.origen||'—')+' → '+(v.destino||'—');
+  document.getElementById('ep-destino-costo').textContent = v.destinoCosto||'—';
   // Mostrar destinos múltiples si existen
   const destinosWrap = document.getElementById('ep-destinos-wrap');
   const destinosEl   = document.getElementById('ep-destinos');
