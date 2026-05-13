@@ -1902,6 +1902,7 @@ async function cargarDatos(silencioso = false) {
       _area:           r.AreaCosto,
       _provCosto:      r.ProveedorCosto,  // jerarquía: Costos > API > Prog
       _provAPI:        r.Asignado,        // campo Asignado en API = nombre proveedor
+      TipoViajeNomEfectivo: r.TipoViajeNomEfectivo,
       // OrigenDato calculado en servidor
       OrigenDato:      r.OrigenDato,
       FechaPrincipal:  r.FechaPrincipal,
@@ -1978,7 +1979,6 @@ async function cargarRangoCompleto() {
       _costoReal: r.CostoReal, _integrado: r.Integrado_costos,
       _pagado: r.Pagado, _aPagar: r.A_Pagar, _valorTotal: r.ValorTotalViaje,
       _area: r.AreaCosto, _provCosto: r.ProveedorCosto, _provAPI: r.Asignado,
-      TipoViajeNomEfectivo: r.TipoViajeNomEfectivo,
       OrigenDato: r.OrigenDato, FechaPrincipal: r.FechaPrincipal,
     }));
 
