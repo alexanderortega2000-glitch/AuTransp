@@ -646,30 +646,83 @@ tr.clickable { cursor: pointer; }
 
     <!-- SOLICITUDES -->
     <div id="page-solicitudes" class="page">
-      <div style="max-width:1100px;">
-        <!-- Botón nueva solicitud a demanda -->
-        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-          <button class="btn-sm primary" onclick="abrirModalSolicitud()" style="height:32px;font-size:12px;padding:0 14px;">+ Nueva solicitud</button>
-        </div>
+      <div style="max-width:1200px;">
+
+        <!-- ── SECCIÓN: PROGRAMA DE ACTIVIDADES ── -->
         <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px;">
-          <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin-bottom:12px;">Cargar solicitud de transporte</div>
-          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-            <div style="flex:1;min-width:220px;">
-              <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Archivo Excel (.xlsx)</div>
-              <input type="file" id="sol-file" accept=".xlsx" onchange="cargarSolicitud(this)" style="font-size:12px;width:100%">
-            </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
             <div>
-              <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Fecha ejecución</div>
-              <input type="date" id="sol-fecha" style="height:28px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+              <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);">Programa de actividades</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px;">Carga el Excel, asigna ST a cada requerimiento. Misma ST en filas del mismo N° = mismo viaje.</div>
             </div>
-            <div>
-              <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Coordinador</div>
-              <input type="text" id="sol-coord" placeholder="Nombre completo" style="height:28px;padding:0 8px;width:200px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);" oninput="this.value=this.value.toUpperCase()">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="file" id="sol-file" accept=".xlsx" onchange="cargarSolicitud(this)" style="font-size:11px;">
+              <span id="sol-status" style="font-size:11px;color:var(--text2);font-family:var(--mono);"></span>
             </div>
           </div>
-          <div id="sol-status" style="font-size:12px;color:var(--text2);margin-top:10px;font-family:var(--font-mono);min-height:18px;"></div>
-          <div id="sol-github-status" style="font-size:11px;color:var(--text3);margin-top:6px;"></div>
+          <div id="sol-prog-wrap" style="display:none;">
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr>
+                  <th class="th-main" style="width:40px">N°</th>
+                  <th class="th-main">OS</th>
+                  <th class="th-main">Zona</th>
+                  <th class="th-main">Origen</th>
+                  <th class="th-main">Destino / Lote</th>
+                  <th class="th-main">Producto(s)</th>
+                  <th class="th-main">Cant.</th>
+                  <th class="th-main" style="color:var(--accent)">ST *</th>
+                  <th class="th-main" style="width:80px">Estado</th>
+                </tr></thead>
+                <tbody id="sol-prog-tbody"></tbody>
+              </table>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px;">
+              <button class="btn-sm" onclick="document.getElementById('sol-file').value='';document.getElementById('sol-prog-wrap').style.display='none';">Cancelar</button>
+              <button class="btn-sm primary" id="btn-guardar-prog" onclick="guardarRequerimientosProg()">Guardar en BD</button>
+            </div>
+          </div>
         </div>
+
+        <!-- ── SECCIÓN: REQUERIMIENTOS PENDIENTES ── -->
+        <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div>
+              <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);">Pendientes de programar</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px;" id="sol-pendientes-count">Cargando...</div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-sm" onclick="cargarRequerimientosBD()">↻ Actualizar</button>
+              <button class="btn-sm primary" onclick="abrirModalSolicitud()" style="height:28px;">+ Nueva solicitud</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead><tr>
+                <th class="th-main">ID</th>
+                <th class="th-main">Tipo</th>
+                <th class="th-main">OS / N°</th>
+                <th class="th-main">Zona</th>
+                <th class="th-main">Origen</th>
+                <th class="th-main">Destino</th>
+                <th class="th-main">Actividad</th>
+                <th class="th-main">Producto(s)</th>
+                <th class="th-main" style="color:var(--accent)">ST *</th>
+                <th class="th-main">Estado</th>
+              </tr></thead>
+              <tbody id="sol-pendientes-tbody">
+                <tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- legacy wraps — ocultos, se mantienen por compatibilidad -->
+        <div id="sol-github-wrap" style="display:none;"></div>
+        <div id="sol-tabla-wrap" style="display:none;"></div>
+        <div id="sol-github-status" style="display:none;"></div>
+        <div id="sol-coord" style="display:none;"></div>
+        <div id="sol-fecha" style="display:none;"></div>
 
         <!-- Solicitudes desde GitHub (Power Automate) -->
         <div id="sol-github-wrap" style="margin-bottom:20px;display:none;">
@@ -1415,28 +1468,124 @@ function renderSolicitudesGitHub() {
 }
 
 // ============================================================
-// MÓDULO DE SOLICITUDES — CARGA MANUAL DESDE EXCEL
+// MÓDULO DE SOLICITUDES — PROGRAMA + DEMANDA
 // ============================================================
-let solicitudesRaw = [];
+let solicitudesRaw   = [];   // filas parseadas del Excel (pre-guardado)
+let reqPendientes    = [];   // requerimientos pendientes desde BD
 
+// ── Cargar requerimientos pendientes desde BD ──────────────
+async function cargarRequerimientosBD() {
+  const tbody  = document.getElementById('sol-pendientes-tbody');
+  const countEl= document.getElementById('sol-pendientes-count');
+  tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
+  try {
+    reqPendientes = await apiCall('requerimientos?estado=pendiente');
+    renderPendientes();
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--danger);padding:1rem">${e.message}</td></tr>`;
+    if(countEl) countEl.textContent = 'Error al cargar';
+  }
+}
+
+function renderPendientes() {
+  const tbody  = document.getElementById('sol-pendientes-tbody');
+  const countEl= document.getElementById('sol-pendientes-count');
+  if(!reqPendientes.length) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Sin requerimientos pendientes</td></tr>`;
+    if(countEl) countEl.textContent = '0 pendientes';
+    return;
+  }
+  const prog = reqPendientes.filter(r => r.Tipo === 'programa');
+  const dem  = reqPendientes.filter(r => r.Tipo === 'demanda');
+  if(countEl) countEl.textContent = `${reqPendientes.length} pendientes · ${prog.length} programa · ${dem.length} demanda`;
+
+  tbody.innerHTML = reqPendientes.map((r, i) => {
+    const tipoBadge = r.Tipo === 'programa'
+      ? `<span class="badge b-prog">Programa</span>`
+      : `<span class="badge b-demanda">Demanda</span>`;
+    const osNum = [r.OS, r.NumReqExcel ? `#${r.NumReqExcel}` : ''].filter(Boolean).join(' · ');
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:11px;font-weight:500">${r.ID_Req}</td>
+      <td>${tipoBadge}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${osNum||'—'}</td>
+      <td style="font-size:11px;color:var(--text2)">${r.Zona||'—'}</td>
+      <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.NombreOrigen||''}">${r.NombreOrigen||'—'}</td>
+      <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.NombreDestino||''}">${r.NombreDestino||'—'} ${r.Lote?`<span style="color:var(--text3)">L${r.Lote}</span>`:''}</td>
+      <td style="font-size:11px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Actividad||'—'}</td>
+      <td style="font-size:11px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Producto||'—'}</td>
+      <td>
+        <input type="text" id="req-st-${i}" value="${r.ST||''}"
+          placeholder="Ej: 153xxx"
+          style="width:90px;height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:var(--mono);"
+          onblur="asignarST('${r.ID_Req}', this)"
+          onkeydown="if(event.key==='Enter')this.blur()">
+      </td>
+      <td>
+        <span id="req-estado-${i}" class="badge ${r.Estado==='programado'?'b-finalizado':'b-pendiente'}">${r.Estado}</span>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Asignar ST desde tabla de pendientes (onblur) ──────────
+async function asignarST(idReq, inputEl) {
+  const st = inputEl.value.trim();
+  if(!st) return;
+
+  // Índice para actualizar badge
+  const i = inputEl.id.replace('req-st-','');
+  const badgeEl = document.getElementById(`req-estado-${i}`);
+
+  inputEl.style.borderColor = 'var(--warn)';
+  if(badgeEl) badgeEl.textContent = '...';
+
+  try {
+    const res = await apiCall(`requerimientos/${idReq}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ ST: st, actualizadoPor: sesion.usuario }),
+    });
+    inputEl.style.borderColor = 'var(--accent)';
+    if(badgeEl) {
+      badgeEl.textContent = 'programado';
+      badgeEl.className = 'badge b-finalizado';
+    }
+    // Actualizar en memoria
+    const idx = reqPendientes.findIndex(r => r.ID_Req === idReq);
+    if(idx !== -1) { reqPendientes[idx].ST = st; reqPendientes[idx].Estado = 'programado'; }
+    // Refrescar vista principal silenciosamente
+    recargarDatos();
+  } catch(e) {
+    inputEl.style.borderColor = 'var(--danger)';
+    if(badgeEl) { badgeEl.textContent = 'error'; badgeEl.className = 'badge b-cancelado'; }
+    // Mostrar error inline
+    const msg = e.message.includes('ST_NO_EXISTE') || e.message.includes('no encontrada')
+      ? `ST ${st} no existe en la plataforma`
+      : e.message;
+    inputEl.title = msg;
+    inputEl.value = '';
+    console.warn('[asignarST]', e.message);
+  }
+}
+
+// ── Cargar y parsear Excel del programa de actividades ──────
 async function cargarSolicitud(input) {
   const file = input.files[0];
   if(!file) return;
-  const status = document.getElementById('sol-status');
-  status.textContent = 'Leyendo archivo...';
+  const statusEl = document.getElementById('sol-status');
+  statusEl.textContent = 'Leyendo archivo...';
 
   try {
     const buf  = await file.arrayBuffer();
-    const wb   = XLSX.read(buf, {type:'array', cellDates:true});
+    const wb   = XLSX.read(buf, { type: 'array', cellDates: true });
     const sheetName = wb.SheetNames.includes('BD_Solicitud') ? 'BD_Solicitud' : wb.SheetNames[0];
-    // Detectar si la primera fila está vacía (encabezados en fila 2)
-    const ws = wb.Sheets[sheetName];
-    const allRows = XLSX.utils.sheet_to_json(ws, {defval:'', header:1});
+    const ws   = wb.Sheets[sheetName];
+
+    // Detectar si encabezados están en fila 2
+    const allRows = XLSX.utils.sheet_to_json(ws, { defval: '', header: 1 });
     const firstRow = allRows[0] || [];
     const hasEmptyHeader = firstRow.every(v => v === '' || v == null);
     let rows;
     if(hasEmptyHeader && allRows.length > 1) {
-      // Encabezados en fila 2 — usar fila 2 como header
       const headers = allRows[1];
       rows = allRows.slice(2).map(r => {
         const obj = {};
@@ -1444,229 +1593,157 @@ async function cargarSolicitud(input) {
         return obj;
       });
     } else {
-      rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
     }
 
-    // Excluir filas de transporte (CodRecurso = 9013)
-    const sinTransp = rows.filter(r => String(r['Codigo Recurso']||r['CodRecurso']||'').trim() !== '9013');
+    if(!rows.length) { statusEl.textContent = '⚠ Archivo vacío'; return; }
 
-    if(!sinTransp.length) {
-      status.textContent = '⚠️ No se encontraron filas de producto en el archivo.';
-      return;
-    }
-
-    // Agrupar por ID
+    // Agrupar por N° + OS (mismo viaje)
     const grupos = {};
-    sinTransp.forEach(r => {
-      const id = String(r['ID']||'').trim();
-      if(!id) return;
-      if(!grupos[id]) {
-        grupos[id] = {
-          id, zona: n(r['Zona'])||'', os: String(r['OS']||''),
-          destCod: String(r['Cod.']||r['Cod_x002e_']||''),
-          destNom: n(r['NomHacienda'])||'',
-          lote: String(r['Lote']||''),
-          actividad: n(r['Actividad'])||'',
-          jefe: (n(r['Jefe'])||'').trim(),
-          respProd: (n(r['Resp Prod'])||'').trim(),
-          codAct: String(r['Cod Act']||''),
-          sociedad: n(r['Sociedad'])||'',
-          origen: n(r['Almacen Sugerido'])||'',
-          tipoApl: n(r['Tipo Aplicación'])||'',
-          productos: [],
-          fechaSol: r['Fecha Solicitud']||'',
+    rows.forEach(r => {
+      const num = String(r['N°'] || r['N'] || '').trim();
+      const os  = String(r['OS'] || '').trim();
+      if(!num) return;
+      const key = `${os}||${num}`;
+      if(!grupos[key]) {
+        // Regla origen: Cod. Origen presente → explícito; ausente → Almacen
+        const codOrigen  = String(r['Cod. Origen'] || r['Cod_x002e__Origen'] || '').trim();
+        const nomOrigen  = String(r['Origen'] || '').trim();
+        const almacen    = String(r['Almacen'] || r['Almacén'] || '').trim();
+        const origenFinal = codOrigen
+          ? (codOrigen + (nomOrigen ? ' - ' + nomOrigen : ''))
+          : almacen;
+
+        grupos[key] = {
+          NumReqExcel:  parseInt(num) || null,
+          OS:           os,
+          Zona:         String(r['Zona'] || '').trim(),
+          Jefe:         String(r['Jefe'] || '').trim(),
+          RespProd:     String(r['Resp Prod'] || '').trim(),
+          CodActividad: String(r['Cod Act'] || '').trim(),
+          Actividad:    String(r['Actividad'] || '').trim(),
+          Sociedad:     String(r['Sociedad'] || '').trim(),
+          CodOrigen:    codOrigen || null,
+          NombreOrigen: origenFinal || null,
+          CodDestino:   String(r['Cod.'] || r['Cod_x002e_'] || '').trim() || null,
+          NombreDestino:String(r['NomHacienda'] || '').trim(),
+          Lote:         String(r['Lote'] || '').trim(),
+          CodRecurso:   String(r['Codigo Recurso'] || '').trim(),
+          RecursoNombre:String(r['Recurso de Transporte'] || '').trim(),
+          Implemento:   String(r['Implemento'] || '').trim() || null,
+          Comentario:   String(r['Comentario'] || '').trim() || null,
+          Tipo:         'programa',
+          Estado:       'pendiente',
+          productos:    [],
         };
       }
-      grupos[id].productos.push({
-        producto: n(r['Producto'])||'', cantidad: r['Cantidad Programada']||0,
-        um: n(r['UM'])||'', dosis: r['Dosis Programada']||0,
-        area: r['HA Programada']||0, sacos: r['Sacos']||0,
-      });
+      // Acumular productos del grupo
+      const prod = String(r['Producto'] || '').trim();
+      const cant = parseFloat(r['Cantidad Programada']) || 0;
+      const um   = String(r['UM'] || '').trim();
+      const area = parseFloat(r['HA Programada']) || 0;
+      if(prod) grupos[key].productos.push({ prod, cant, um, area });
     });
 
-    solicitudesRaw = Object.values(grupos);
-    status.textContent = `✓ ${solicitudesRaw.length} solicitudes cargadas (${sinTransp.length} filas, ${rows.length - sinTransp.length} de transporte excluidas)`;
-    renderSolicitudes();
-    document.getElementById('sol-tabla-wrap').style.display = 'block';
+    solicitudesRaw = Object.values(grupos).map(g => {
+      // Consolidar productos
+      const prods  = g.productos.map(p => p.prod).filter((v,i,a) => a.indexOf(v)===i).join(' / ');
+      const cantTotal = g.productos.reduce((s,p) => s+p.cant, 0);
+      const areaTotal = g.productos.reduce((s,p) => s+p.area, 0);
+      const um = g.productos[0]?.um || '';
+      return { ...g, Producto: prods, CantidadTotal: cantTotal || null, AreaTotal: areaTotal || null, UM: um };
+    });
+
+    statusEl.textContent = `✓ ${solicitudesRaw.length} requerimientos leídos (${rows.length} líneas)`;
+    renderSolicitudesProg();
+    document.getElementById('sol-prog-wrap').style.display = 'block';
+
   } catch(e) {
-    status.textContent = '✗ Error: ' + e.message;
-    console.error(e);
+    statusEl.textContent = '✗ Error: ' + e.message;
+    console.error('[cargarSolicitud]', e);
   }
 }
 
-function renderSolicitudes() {
-  const subflotas = ['','PICK UP','BUS','CAMION','RASTRA','LOWBOY'];
-  const tbody = document.getElementById('sol-tbody');
-
-  // Mostrar una fila por línea de producto (no agrupar por ID)
-  // solicitudesRaw tiene grupos por ID, cada grupo puede tener múltiples productos/destinos
-  const filas = [];
-  solicitudesRaw.forEach((g, gi) => {
-    // Si hay múltiples destinos únicos en el grupo, mostrar una fila por destino
-    const destUnicos = [...new Set(g.productos.map(p => p.destNom || g.destNom).filter(Boolean))];
-    const usarFilasPorDest = destUnicos.length > 1;
-
-    if(usarFilasPorDest) {
-      // Agrupar productos por destino
-      const porDest = {};
-      g.productos.forEach(p => {
-        const d = p.destNom || g.destNom;
-        if(!porDest[d]) porDest[d] = {destNom: d, destCod: p.destCod||g.destCod, lote: p.lote||g.lote, productos: []};
-        porDest[d].productos.push(p);
-      });
-      Object.values(porDest).forEach(d => {
-        filas.push({...g, destNom: d.destNom, destCod: d.destCod, lote: d.lote, productos: d.productos, _subIdx: d.destNom});
-      });
-    } else {
-      filas.push(g);
-    }
-  });
-
-  // Store filas globally for confirmarSolicitudes
-  window._solFilas = filas;
-
-  tbody.innerHTML = filas.map((g, i) => {
-    const prods = g.productos.map(p => p.producto + (p.cantidad ? ` (${p.cantidad} ${p.um})` : '')).join(' / ');
-    const totalKg = g.productos.reduce((s,p) => s+(Number(p.cantidad)||0), 0);
-    const gi = solicitudesRaw.findIndex(r => r.id === g.id);
-    return `<tr>
-      <td style="font-family:var(--font-mono);font-weight:500">${g.id}</td>
-      <td style="color:var(--text2)">${g.zona}</td>
-      <td style="font-family:var(--font-mono);color:var(--text2);font-size:11px">${g.os}</td>
-      <td title="${g.destNom}">${g.destNom.length>25?g.destNom.substring(0,25)+'…':g.destNom}<br><span style="font-size:10px;color:var(--text3)">Lote ${g.lote||'—'}</span></td>
-      <td style="font-size:11px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${prods}">${prods}</td>
-      <td style="font-size:11px;color:var(--text2)">${g.actividad}</td>
-      <td><input type="text" id="sol-st-${i}" placeholder="Nº ST"
-          style="width:80px;height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:var(--font-mono);"
-          onchange="heredarST(${i})"></td>
-      <td><input type="text" id="sol-origen-${i}" value="${g.origen}" placeholder="Origen"
-          style="width:130px;height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);"
-          oninput="this.value=this.value.toUpperCase()"></td>
-      <td><select id="sol-sub-${i}"
-          style="height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);">
-          ${subflotas.map(s=>`<option value="${s}">${s||'Seleccionar...'}</option>`).join('')}
-      </select></td>
-      <td><input type="text" id="sol-prov-${i}" placeholder="Proveedor"
-          style="width:160px;height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);"
-          oninput="this.value=this.value.toUpperCase()"></td>
+// ── Render tabla previa del programa ───────────────────────
+function renderSolicitudesProg() {
+  const tbody = document.getElementById('sol-prog-tbody');
+  tbody.innerHTML = solicitudesRaw.map((g, i) => {
+    const prodLabel = g.Producto.length > 40 ? g.Producto.slice(0,40)+'…' : g.Producto;
+    const cant = g.CantidadTotal ? `${g.CantidadTotal.toLocaleString()} ${g.UM}` : '—';
+    return `<tr id="sol-prog-row-${i}">
+      <td style="font-family:var(--mono);font-weight:600;color:var(--accent)">${g.NumReqExcel}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${g.OS}</td>
+      <td style="font-size:11px;color:var(--text2)">${g.Zona}</td>
+      <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.NombreOrigen||''}">${g.NombreOrigen||'—'}</td>
+      <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.NombreDestino}">${g.NombreDestino} <span style="color:var(--text3)">L${g.Lote||'—'}</span></td>
+      <td style="font-size:11px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.Producto}">${prodLabel}</td>
+      <td style="font-family:var(--mono);font-size:11px;text-align:right">${cant}</td>
+      <td><input type="text" id="sol-st-prev-${i}" placeholder="153xxx"
+          style="width:90px;height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:var(--text);"
+          onchange="propagarSTPrev(${i}, this.value)"></td>
+      <td><span id="sol-st-badge-${i}" style="font-size:10px;color:var(--text3)">—</span></td>
     </tr>`;
   }).join('');
 }
 
-function heredarST(idx) {
-  const stVal = document.getElementById('sol-st-'+idx)?.value.trim();
-  if(!stVal) return;
-  solicitudesRaw.forEach((_, i) => {
-    if(i === idx) return;
-    const stOther = document.getElementById('sol-st-'+i)?.value.trim();
-    if(stOther === stVal) {
-      const origen = document.getElementById('sol-origen-'+i)?.value;
-      const sub    = document.getElementById('sol-sub-'+i)?.value;
-      const prov   = document.getElementById('sol-prov-'+i)?.value;
-      if(!document.getElementById('sol-origen-'+idx)?.value && origen)
-        document.getElementById('sol-origen-'+idx).value = origen;
-      if(!document.getElementById('sol-sub-'+idx)?.value && sub)
-        document.getElementById('sol-sub-'+idx).value = sub;
-      if(!document.getElementById('sol-prov-'+idx)?.value && prov)
-        document.getElementById('sol-prov-'+idx).value = prov;
+// Propagar ST a filas del mismo N° en la vista previa
+function propagarSTPrev(idx, val) {
+  if(!val) return;
+  const numRef = solicitudesRaw[idx].NumReqExcel;
+  const osRef  = solicitudesRaw[idx].OS;
+  solicitudesRaw.forEach((g, i) => {
+    if(i !== idx && g.NumReqExcel === numRef && g.OS === osRef) {
+      const inp = document.getElementById(`sol-st-prev-${i}`);
+      if(inp && !inp.value) inp.value = val;
     }
   });
+  const badge = document.getElementById(`sol-st-badge-${idx}`);
+  if(badge) { badge.textContent = val; badge.style.color = 'var(--accent)'; }
 }
 
-async function confirmarSolicitudes() {
-  const fecha = document.getElementById('sol-fecha').value;
-  const coord = document.getElementById('sol-coord').value.trim();
-  if(!fecha) { alert('Por favor selecciona la fecha de ejecución.'); return; }
-  if(!coord) { alert('Por favor ingresa el nombre del coordinador.'); return; }
-
-  const porST = {};
-  const errores = [];
-
-  const filas = window._solFilas || solicitudesRaw;
-  filas.forEach((g, i) => {
-    const st      = document.getElementById('sol-st-'+i)?.value.trim();
-    const origen  = document.getElementById('sol-origen-'+i)?.value.trim()||'';
-    const subflota= document.getElementById('sol-sub-'+i)?.value.trim();
-    const prov    = document.getElementById('sol-prov-'+i)?.value.trim()||'';
-    if(!st)       { errores.push(`ID ${g.id} / ${g.destNom||''}: falta ST`); return; }
-    if(!subflota) { errores.push(`ID ${g.id} / ${g.destNom||''}: falta Subflota`); return; }
-    if(!porST[st]) {
-      porST[st] = {
-        ST: st, TipoProg: 'Produccion',
-        FechaSolicitud: g.fechaSol ? new Date(g.fechaSol).toISOString().substring(0,10) : fecha,
-        FechaEjecucion: fecha, Coordinador: coord,
-        Jefe: g.jefe, RespProd: g.respProd, CodActividad: g.codAct,
-        Actividad: g.actividad, OS: g.os, Sociedad: g.sociedad, Zona: g.zona,
-        CodDestino: g.destCod, NombreDestino: g.destNom, LoteDestino: g.lote,
-        NombreOrigen: origen, Subflota: subflota, ProveedorTransp: prov,
-        TipoAplicacion: g.tipoApl,
-        Producto: g.productos.map(p=>p.producto).join(' / '),
-        UM: g.productos[0]?.um||'',
-        CantidadProgramada: g.productos.reduce((s,p)=>s+(Number(p.cantidad)||0),0),
-        AreaProgramada: g.productos.reduce((s,p)=>s+(Number(p.area)||0),0),
-        _idsSolicitud: [g.id],
-        _destinos: [{destNom: g.destNom, destCod: g.destCod, lote: g.lote,
-                     productos: g.productos.map(p=>p.producto).join(' / '),
-                     cantidad: g.productos.reduce((s,p)=>s+(Number(p.cantidad)||0),0),
-                     um: g.productos[0]?.um||''}],
-        _origen: 'solicitud_excel',
-        _cargadoPor: sesion.usuario, _fechaCarga: new Date().toISOString(),
-      };
-    } else {
-      // Consolidar destino adicional en la misma ST
-      if(!porST[st]._idsSolicitud.includes(g.id)) porST[st]._idsSolicitud.push(g.id);
-      porST[st]._destinos.push({destNom: g.destNom, destCod: g.destCod, lote: g.lote,
-        productos: g.productos.map(p=>p.producto).join(' / '),
-        cantidad: g.productos.reduce((s,p)=>s+(Number(p.cantidad)||0),0),
-        um: g.productos[0]?.um||''});
-      porST[st].Producto += ' / ' + g.productos.map(p=>p.producto).join(' / ');
-      porST[st].CantidadProgramada += g.productos.reduce((s,p)=>s+(Number(p.cantidad)||0),0);
-      porST[st].AreaProgramada     += g.productos.reduce((s,p)=>s+(Number(p.area)||0),0);
-    }
-  });
-
-  if(errores.length) { alert('Faltan campos obligatorios:\n' + errores.join('\n')); return; }
-  const nuevos = Object.values(porST);
-  if(!nuevos.length) { alert('No hay registros válidos.'); return; }
-
-  const btn = document.getElementById('btn-confirmar-sol');
+// ── Guardar requerimientos del programa en BD ───────────────
+async function guardarRequerimientosProg() {
+  const btn = document.getElementById('btn-guardar-prog');
   btn.textContent = 'Guardando...'; btn.disabled = true;
 
+  // Recoger STs ingresadas en la vista previa
+  const items = solicitudesRaw.map((g, i) => ({
+    ...g,
+    ST:        document.getElementById(`sol-st-prev-${i}`)?.value.trim() || null,
+    Estado:    document.getElementById(`sol-st-prev-${i}`)?.value.trim() ? 'programado' : 'pendiente',
+    CreadoPor: sesion.usuario,
+  }));
+
+  // Limpiar campos internos no necesarios en BD
+  items.forEach(item => delete item.productos);
+
   try {
-    // Enviar cada viaje a Azure SQL via API, fallback a PA
-    let enviados = 0;
-    for(const viaje of nuevos) {
-      const payload = {
-        st:                 viaje.ST,
-        campos:             viaje,
-        actualizadoPor:     sesion.usuario,
-        fechaActualizacion: new Date().toLocaleString('es-SV'),
-      };
-      try {
-        await apiCall('programacion', { method: 'PUT', body: JSON.stringify(payload) });
-      } catch(apiErr) {
-        console.warn('[Prog] Fallback PA ST ' + viaje.ST + ':', apiErr.message);
-        const resp = await fetch(PA_GUARDAR_PROG, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if(!resp.ok) throw new Error('Error ST ' + viaje.ST + ': ' + resp.status);
-      }
-      enviados++;
-    }
-    btn.textContent = `✓ ${enviados} viajes guardados`;
-    document.getElementById('sol-status').textContent = `✓ ${enviados} viajes guardados en Azure SQL.`;
-    document.getElementById('sol-tabla-wrap').style.display = 'none';
-    document.getElementById('sol-file').value = '';
-    solicitudesRaw = [];
-    setTimeout(() => { btn.textContent = 'Agregar al programa'; btn.disabled = false; }, 3000);
+    const res = await apiCall('requerimientos', {
+      method: 'POST',
+      body: JSON.stringify({ requerimientos: items }),
+    });
+    btn.textContent = `✓ ${res.insertados} guardados`;
+    document.getElementById('sol-status').textContent = `✓ ${res.insertados} requerimientos guardados en BD`;
+    setTimeout(() => {
+      document.getElementById('sol-prog-wrap').style.display = 'none';
+      document.getElementById('sol-file').value = '';
+      solicitudesRaw = [];
+      btn.textContent = 'Guardar en BD'; btn.disabled = false;
+      cargarRequerimientosBD(); // Refrescar tabla de pendientes
+    }, 2000);
+    if(res.errores?.length) console.warn('[guardarProg] errores:', res.errores);
   } catch(e) {
-    btn.textContent = 'Error'; btn.disabled = false;
-    alert('Error: ' + e.message); console.error(e);
+    btn.textContent = '✗ Error'; btn.disabled = false;
+    document.getElementById('sol-status').textContent = '✗ ' + e.message;
+    console.error('[guardarProg]', e);
   }
 }
 
+// ── Funciones legacy — se mantienen por compatibilidad ──────
+function renderSolicitudes() {}
+function heredarST() {}
+async function confirmarSolicitudes() {}
+let _solFilas = [];
 // ============================================================
 // ARRANQUE
 // ============================================================
@@ -2933,6 +3010,8 @@ function setPage(p) {
   });
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
+  // Cargar requerimientos al abrir Solicitudes
+  if(p === 'solicitudes') cargarRequerimientosBD();
 }
 
 // ============================================================
@@ -3232,23 +3311,28 @@ async function enviarSolicitud() {
   payload.Tipo = 'demanda';
 
   try {
-    // Intentar Azure API primero, fallback a PA
-    try {
-      await apiCall('solicitudes', { method: 'POST', body: JSON.stringify(payload) });
-    } catch(apiErr) {
-      console.warn('[Solicitudes] Fallback PA:', apiErr.message);
-      const resp = await fetch(PA_NUEVA_SOL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if(!resp.ok) throw new Error('HTTP ' + resp.status);
-    }
-
+    // Mapear payload del modal al schema de requerimientos
+    const reqPayload = {
+      Tipo:         'demanda',
+      Estado:       'pendiente',
+      Actividad:    payload.Actividad,
+      NombreOrigen: payload.Origen   || null,
+      NombreDestino:payload.Destino,
+      Lote:         payload.Lote     || null,
+      Comentario:   payload.Observaciones || null,
+      RecursoNombre:payload.TipoServicio  || null,
+      CreadoPor:    sesion.usuario,
+    };
+    await apiCall('requerimientos', { method: 'POST', body: JSON.stringify(reqPayload) });
     status.style.color = 'var(--accent)';
     status.textContent = '✓ Solicitud enviada correctamente.';
-    setTimeout(() => cerrarModalSolicitud(), 1800);
-
+    setTimeout(() => {
+      cerrarModalSolicitud();
+      // Refrescar tabla si Solicitudes está visible
+      if(document.getElementById('page-solicitudes').classList.contains('active')) {
+        cargarRequerimientosBD();
+      }
+    }, 1800);
   } catch(err) {
     status.style.color = 'var(--danger)';
     status.textContent = '✗ Error al enviar: ' + err.message;
