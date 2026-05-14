@@ -730,16 +730,16 @@ tr.clickable { cursor: pointer; }
             <table>
               <thead>
                 <tr>
-                  <th class="th-main" style="width:8px;padding:8px 4px;"></th><!-- color grupo -->
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">ID</span><button class="th-btn" onclick="sortReq('ID_Req')" id="rsrt-ID_Req">↕</button></div></th>
+                  <th class="th-main" style="width:4px;padding:0;"></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">ID</span><button class="th-btn" onclick="sortReq('ID_Req')" id="rsrt-ID_Req">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-id')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-id" placeholder="Buscar ID..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Tipo</span></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">N° / OS</span><button class="th-btn" onclick="sortReq('NumReqExcel')" id="rsrt-NumReqExcel">↕</button></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Zona</span><button class="th-btn" onclick="sortReq('Zona')" id="rsrt-Zona">↕</button></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Origen</span></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Destino</span></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Actividad / Producto</span></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">N° / OS</span><button class="th-btn" onclick="sortReq('NumReqExcel')" id="rsrt-NumReqExcel">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-os')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-os" placeholder="Buscar OS..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Zona</span><button class="th-btn" onclick="sortReq('Zona')" id="rsrt-Zona">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-zona-col')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-zona-col" placeholder="Buscar zona..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Origen</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-origen')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-origen" placeholder="Buscar origen..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Destino</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-destino" placeholder="Buscar destino..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Actividad / Producto</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-actividad')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-actividad" placeholder="Buscar..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ETD</span></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST</span></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-st')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-st" placeholder="Buscar ST..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Estado</span><button class="th-btn" onclick="sortReq('Estado')" id="rsrt-Estado">↕</button></div></th>
                   <th class="th-main">Acciones</th>
                 </tr>
@@ -1546,18 +1546,42 @@ function actualizarKpisPlan() {
 }
 
 // ── Filtrar ────────────────────────────────────────────────
+function toggleReqSearch(id) {
+  const inp = document.getElementById(id);
+  if(!inp) return;
+  inp.classList.toggle('open');
+  if(inp.classList.contains('open')) inp.focus();
+  else { inp.value = ''; filtrarPlan(); }
+}
+
 function filtrarPlan() {
-  const buscar    = (document.getElementById('pf-buscar')?.value    || '').toLowerCase();
-  const tipo      = document.getElementById('pf-tipo')?.value       || '';
-  const estado    = document.getElementById('pf-estado')?.value     || '';
-  const zona      = document.getElementById('pf-zona')?.value       || '';
+  const buscar    = (document.getElementById('pf-buscar')?.value      || '').toLowerCase();
+  const tipo      = document.getElementById('pf-tipo')?.value         || '';
+  const estado    = document.getElementById('pf-estado')?.value       || '';
+  const zona      = document.getElementById('pf-zona')?.value         || '';
   const verCancel = document.getElementById('pf-cancelados')?.checked;
+  // Filtros de columna
+  const tfId      = (document.getElementById('rtf-id')?.value         || '').toLowerCase();
+  const tfOs      = (document.getElementById('rtf-os')?.value         || '').toLowerCase();
+  const tfZonaCol = (document.getElementById('rtf-zona-col')?.value   || '').toLowerCase();
+  const tfOrigen  = (document.getElementById('rtf-origen')?.value     || '').toLowerCase();
+  const tfDestino = (document.getElementById('rtf-destino')?.value    || '').toLowerCase();
+  const tfActiv   = (document.getElementById('rtf-actividad')?.value  || '').toLowerCase();
+  const tfSt      = (document.getElementById('rtf-st')?.value         || '').toLowerCase();
 
   _reqFiltrados = reqPendientes.filter(r => {
     if(!verCancel && r.Estado === 'cancelado') return false;
-    if(tipo   && r.Tipo   !== tipo)   return false;
-    if(estado && r.Estado !== estado) return false;
-    if(zona   && r.Zona   !== zona)   return false;
+    if(tipo      && r.Tipo   !== tipo)   return false;
+    if(estado    && r.Estado !== estado) return false;
+    if(zona      && r.Zona   !== zona)   return false;
+    if(tfId      && !String(r.ID_Req        ||'').toLowerCase().includes(tfId))      return false;
+    if(tfOs      && !String(r.OS            ||'').toLowerCase().includes(tfOs) &&
+                   !String(r.NumReqExcel    ||'').toString().includes(tfOs))         return false;
+    if(tfZonaCol && !String(r.Zona          ||'').toLowerCase().includes(tfZonaCol)) return false;
+    if(tfOrigen  && !String(r.NombreOrigen  ||'').toLowerCase().includes(tfOrigen))  return false;
+    if(tfDestino && !String(r.NombreDestino ||'').toLowerCase().includes(tfDestino)) return false;
+    if(tfActiv   && ![r.Actividad, r.Producto].filter(Boolean).join(' ').toLowerCase().includes(tfActiv)) return false;
+    if(tfSt      && !String(r.ST            ||'').toLowerCase().includes(tfSt))      return false;
     if(buscar) {
       const haystack = [r.ID_Req, r.OS, r.Zona, r.NombreOrigen, r.NombreDestino,
                         r.Actividad, r.Producto, r.ST].filter(Boolean).join(' ').toLowerCase();
