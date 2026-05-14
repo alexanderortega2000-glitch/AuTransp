@@ -1813,7 +1813,7 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
     }
     actualizarKpisPlan();
     filtrarPlan();
-    setTimeout(() => recargarDatos(), 800);
+    setTimeout(() => recargarDatos(true), 800); // true = bypass caché
 
   } catch(e) {
     if(btnEl) { btnEl.textContent = 'Programar'; btnEl.disabled = false; }
@@ -1957,6 +1957,12 @@ async function cargarSolicitud(input) {
         const codOrigen = String(r['Cod. Origen'] || r['Cod_x002e__Origen'] || '').trim();
         const nomOrigen = String(r['Origen']      || '').trim();
         const almacen   = String(r['Almacen']     || r['Almacén'] || '').trim();
+        // Regla origen:
+        //   Almacen presente → origen = Almacen (texto libre, sin código)
+        //   Almacen vacío    → origen = CodOrigen + ' - ' + Origen (caña semilla, etc.)
+        const origenFinal = almacen
+          ? almacen
+          : (codOrigen && nomOrigen ? `${codOrigen} - ${nomOrigen}` : codOrigen || nomOrigen || null);
         grupos[key] = {
           NumReqExcel:  parseInt(num) || null,
           OS: os, Zona: String(r['Zona']||'').trim(),
@@ -1965,8 +1971,8 @@ async function cargarSolicitud(input) {
           CodActividad: String(r['Cod Act']||'').trim(),
           Actividad: String(r['Actividad']||'').trim(),
           Sociedad: String(r['Sociedad']||'').trim(),
-          CodOrigen: codOrigen || null,
-          NombreOrigen: codOrigen ? `${codOrigen} - ${nomOrigen}` : almacen || null,
+          CodOrigen: almacen ? null : (codOrigen || null),
+          NombreOrigen: origenFinal,
           CodDestino: String(r['Cod.']||r['Cod_x002e_']||'').trim() || null,
           NombreDestino: String(r['NomHacienda']||'').trim(),
           Lote: String(r['Lote']||'').trim(),
@@ -2298,7 +2304,7 @@ function normalizarViaje(r) {
 // ============================================================
 // CARGA DE DATOS — fuente única: Azure SQL
 // ============================================================
-async function cargarDatos(silencioso = false) {
+async function cargarDatos(silencioso = false, bypassCache = false) {
   if(!silencioso) {
     document.getElementById('loader').style.display = 'flex';
     loader('Conectando a Azure SQL...');
@@ -2306,7 +2312,7 @@ async function cargarDatos(silencioso = false) {
 
   try {
     const [viajesSQL, segWebRaw] = await Promise.all([
-      apiCall('viajes').catch(e => { console.warn('[API viajes]', e.message); return []; }),
+      apiCall(bypassCache ? 'viajes?_bust=' + Date.now() : 'viajes').catch(e => { console.warn('[API viajes]', e.message); return []; }),
       apiCall('seguimiento').catch(() => []),
     ]);
 
@@ -2394,7 +2400,7 @@ async function cargarRangoCompleto() {
   }
 }
 
-async function recargarDatos() {
+async function recargarDatos(bypassCache = false) {
   const btn = document.getElementById('btn-refresh-icon');
   if(btn) btn.classList.add('spinning');
 
@@ -2409,7 +2415,7 @@ async function recargarDatos() {
     prevMs[id] = getMsValues(id);
   });
 
-  await cargarDatos(true);
+  await cargarDatos(true, bypassCache);
   calcularInfo();
 
   // Restaurar filtros de fecha
