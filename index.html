@@ -2339,7 +2339,7 @@ function procesarViajes(apiData, progData, costosData) {
       v.destino_prog   = n(r._destino   || r.NombreDestino);
       v.subflota       = n(r._subflota  || r.Subflota);
       v.proveedor_prog = n(r._prov      || r.ProveedorTransp);
-      v.horaPlan       = n(r.FechaHoraPlanInicio) || n(r.FechaEjecucion);
+      v.horaPlan       = n(r.FechaHoraPlanInicio) || n(r._fechaEjec);
       v.Actividad      = n(r.Actividad) || v.tipoViaje;
       v.estadoViaje    = n(r.EstatusSTprog);
     }
