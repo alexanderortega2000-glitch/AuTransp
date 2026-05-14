@@ -1705,7 +1705,7 @@ async function programarReq(idReq, i) {
   try {
     const res = await apiCall(`requerimientos/${idReq}`, {
       method: 'PATCH',
-      body: JSON.stringify({ ST: st, FechaEjecucion: etd, actualizadoPor: sesion.usuario }),
+      body: JSON.stringify({ ST: st, FechaEjecucion: etd, actualizadoPor: sesion.nombre || sesion.usuario }),
     });
 
     // Éxito
