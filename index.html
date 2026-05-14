@@ -2140,7 +2140,7 @@ async function intentarLogin() {
   const tabSol = document.getElementById('tab-sol');
   if(tabSol && ['admin','coordinador','controlador'].includes(sesion.rol)) {
     tabSol.style.display = '';
-    document.getElementById('sol-coord').value = sesion.nombre || '';
+    const solCoord = document.getElementById('sol-coord'); if(solCoord) solCoord.value = sesion.nombre || '';
   }
   // Mostrar tab Info solo para admin
   const tabInfo = document.getElementById('tab-info');
