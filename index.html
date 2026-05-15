@@ -2185,15 +2185,35 @@ async function intentarLogin() {
 
   cargarDatos().then(() => {
     calcularInfo();
-    // Filtros por defecto — días hacia atrás configurable desde config.json
+    // Filtros por defecto — desde último mes hasta fecha máxima en datos
     const diasAtras = configData.diasDefaultDesde ?? 30;
     const desde = new Date();
     desde.setDate(desde.getDate() - diasAtras);
-    const diasAdelante = configData.diasDefaultHasta ?? 1;
-    const hasta = new Date();
-    hasta.setDate(hasta.getDate() + diasAdelante);
+
+    // Fecha máxima: la mayor fecha disponible en los datos cargados
+    // Considera FechaEntrega, horaPlanEntrega y fechaEjec de todos los viajes
+    let fechaMax = null;
+    if (viajes.length) {
+      viajes.forEach(v => {
+        const candidatos = [v.fechaEntrega, v.horaPlanEntrega, v.fechaEjec]
+          .filter(Boolean)
+          .map(f => {
+            const m1 = String(f).match(/^(\d{4}-\d{2}-\d{2})/);
+            const m2 = String(f).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+            if (m1) return m1[1];
+            if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+            return null;
+          })
+          .filter(Boolean);
+        candidatos.forEach(f => { if (!fechaMax || f > fechaMax) fechaMax = f; });
+      });
+    }
+    // Si no hay fecha máxima o es menor que hoy+1, usar hoy+1 como mínimo
+    const hoyMas1 = fechaLocal(new Date(Date.now() + 86400000));
+    if (!fechaMax || fechaMax < hoyMas1) fechaMax = hoyMas1;
+
     dpSetValue('dp-desde', fechaLocal(desde));
-    dpSetValue('dp-hasta', fechaLocal(hasta));
+    dpSetValue('dp-hasta', fechaMax);
     // Orden por defecto: ETA descendente
     sortCol = 'horaPlanEntrega';
     sortDir = -1;
@@ -3191,7 +3211,7 @@ function limpiarFiltros() {
   limpiarTodosMs();
   document.querySelectorAll('.th-search-input').forEach(el => { el.value=''; el.classList.remove('open'); });
   ['tf-st','tf-origen','tf-estado','tf-tipo','tf-origen2','tf-destino','tf-coord'].forEach(id => {
-    document.getElementById(id).value = '';
+    const el = document.getElementById(id); if(el) el.value = '';
   });
   aplicarFiltros();
 }
