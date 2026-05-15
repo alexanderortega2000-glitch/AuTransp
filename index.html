@@ -1492,7 +1492,7 @@ let _pendingAdvCallback = null;
 function etdDefault() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T04:00`;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T06:00`;
 }
 
 function opcionesHora(valorActual) {
@@ -1646,7 +1646,7 @@ function renderPlan() {
   }
 
   tbody.innerHTML = _reqFiltrados.map((r, i) => {
-    const grupoKey   = `${r.OS||''}|${r.NumReqExcel||''}`;
+    const grupoKey   = `${r.NumReqExcel||r.ID_Req}`;
     const grupColor  = r.NumReqExcel ? colorGrupo(grupoKey) : 'var(--border)';
     const cancelado  = r.Estado === 'cancelado';
     const programado = r.Estado === 'programado';
@@ -1667,7 +1667,7 @@ function renderPlan() {
 
     const etdVal = r.FechaEjecucion ? r.FechaEjecucion.slice(0,16) : etdDefault();
     const etdFecha = etdVal.slice(0,10);
-    const etdHora  = etdVal.slice(11,16) || '04:00';
+    const etdHora  = etdVal.slice(11,16) || '06:00';
 
     const acciones = cancelado ? `
       <span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||''}</span>
@@ -1738,12 +1738,12 @@ function renderPlan() {
 function propagarSTGrupo(grupoKey, idxOrigen) {
   const stVal    = document.getElementById(`req-st-${idxOrigen}`)?.value.trim() || '';
   const fechaVal = document.getElementById(`req-etd-fecha-${idxOrigen}`)?.value || '';
-  const horaVal  = document.getElementById(`req-etd-hora-${idxOrigen}`)?.value || '04:00';
+  const horaVal  = document.getElementById(`req-etd-hora-${idxOrigen}`)?.value || '06:00';
   if(!stVal) return;
 
   _reqFiltrados.forEach((r, i) => {
     if(i === idxOrigen) return;
-    const gk = `${r.OS||''}|${r.NumReqExcel||''}`;
+    const gk = `${r.NumReqExcel||r.ID_Req}`;
     if(gk !== grupoKey) return;
     if(r.Estado === 'cancelado' || r.Estado === 'programado') return;
     const stInp    = document.getElementById(`req-st-${i}`);
@@ -1768,7 +1768,7 @@ async function programarReq(idReq, i) {
 
   const st    = stEl?.value.trim()    || '';
   const fecha = fechaEl?.value.trim() || '';
-  const hora  = horaEl?.value.trim()  || '04:00';
+  const hora  = horaEl?.value.trim()  || '06:00';
 
   if(!st)    { if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent='⚠ ST requerida';}  stEl?.focus();    return; }
   if(!fecha) { if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent='⚠ ETD requerida';} fechaEl?.focus(); return; }
@@ -1777,29 +1777,12 @@ async function programarReq(idReq, i) {
 
   // Propagar al grupo antes de guardar
   const r = _reqFiltrados[i];
-  const grupoKey = r ? `${r.OS||''}|${r.NumReqExcel||''}` : null;
-  if(grupoKey) propagarSTGrupo(grupoKey, i);
+  if(r) propagarSTGrupo(`${r.NumReqExcel||r.ID_Req}`, i);
 
   if(btnEl) { btnEl.textContent = '...'; btnEl.disabled = true; }
   if(msgEl) { msgEl.style.color = 'var(--text3)'; msgEl.textContent = 'Validando...'; }
 
   await _ejecutarProgramar(idReq, i, st, etd, false);
-
-  // Programar automáticamente las demás filas pendientes del mismo grupo
-  if(grupoKey) {
-    const pendientesGrupo = _reqFiltrados.filter((rf, j) =>
-      j !== i &&
-      rf.Estado !== 'cancelado' && rf.Estado !== 'programado' &&
-      `${rf.OS||''}|${rf.NumReqExcel||''}` === grupoKey
-    );
-    for(const rf of pendientesGrupo) {
-      const j      = _reqFiltrados.indexOf(rf);
-      const stJ    = document.getElementById(`req-st-${j}`)?.value.trim()    || st;
-      const fechaJ = document.getElementById(`req-etd-fecha-${j}`)?.value    || fecha;
-      const horaJ  = document.getElementById(`req-etd-hora-${j}`)?.value     || hora;
-      if(stJ) await _ejecutarProgramar(rf.ID_Req, j, stJ, `${fechaJ}T${horaJ}:00`, false);
-    }
-  }
 }
 
 async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
@@ -1888,10 +1871,10 @@ Motivo: ${motivo}`)) {
     if(idx !== -1) {
       reqPendientes[idx].ST = null;
       reqPendientes[idx].Estado = 'pendiente';
-      reqPendientes[idx].STAnterior = reqPendientes[idx].ST;
     }
     actualizarKpisPlan();
     filtrarPlan();
+    setTimeout(() => recargarDatos(true), 800);
   } catch(e) {
     selectEl.disabled = false;
     selectEl.value = '';
@@ -3441,7 +3424,6 @@ function abrirPanel(st) {
   } else {
     document.getElementById('edit-info').textContent = '';
   }
-  window._editVersion = anot.fechaActualizacion || null;
 
   // Campos editables solo si tiene permiso
   const editable = ['admin','controlador','coordinador'].includes(sesion.rol);
@@ -3468,7 +3450,6 @@ async function guardarEdicion() {
     comentarioCabina:     document.getElementById('ep-comentario').value,
     actualizadoPor:       sesion.usuario,
     fechaActualizacion:   new Date().toLocaleString('es-SV'),
-    _versionCargada:      window._editVersion || null,
   };
 
   anotaciones[st] = anot;
@@ -3498,20 +3479,16 @@ async function guardarEdicion() {
       btn.style.background = '';
     }, 3000);
   } catch(e) {
+    btn.textContent = 'Error al guardar';
+    btn.style.background = 'var(--danger)';
     btn.disabled = false;
-    btn.style.background = '';
-    const infoEl = document.getElementById('edit-info');
-    if(e.message.includes('CONFLICTO') || e.message.includes('409')) {
-      btn.textContent = 'Guardar cambios';
-      if(infoEl) { infoEl.style.color = 'var(--warn)';
-        infoEl.textContent = '⚠ Registro modificado por otro usuario. Cierra y vuelve a abrir para ver los cambios actualizados.'; }
-    } else {
-      btn.textContent = 'Error al guardar';
-      btn.style.background = 'var(--danger)';
-      if(infoEl) infoEl.textContent = '⚠️ No se pudo guardar: ' + e.message;
-      setTimeout(() => { btn.textContent = 'Guardar cambios'; btn.style.background = ''; }, 3000);
-    }
+    document.getElementById('edit-info').textContent = '⚠️ No se pudo guardar: ' + e.message;
     console.error(e);
+    setTimeout(() => {
+      btn.textContent = 'Guardar cambios';
+      btn.style.background = '';
+      btn.disabled = false;
+    }, 3000);
   }
 }
 
@@ -3527,7 +3504,6 @@ async function subirAnotaciones() {
     comentarioCabina:     anot.comentarioCabina     || '',
     actualizadoPor:       anot.actualizadoPor       || sesion.usuario,
     fechaActualizacion:   anot.fechaActualizacion   || new Date().toLocaleString('es-SV'),
-    versionCargada:       anot._versionCargada      || null,
   };
 
   // Intentar Azure API primero, fallback a PA
