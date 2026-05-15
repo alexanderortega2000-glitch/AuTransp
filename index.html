@@ -1726,7 +1726,8 @@ function renderPlan() {
           ? `<span style="font-family:var(--mono);font-size:11px;font-weight:500">${r.ST||'—'}</span>`
           : `<input type="text" id="req-st-${i}" value="${r.ST||''}" placeholder="153xxx"
               style="width:80px;height:24px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:var(--text);"
-              onkeydown="if(event.key==='Enter')propagarSTGrupo('${grupoKey}',${i})">`}
+              oninput="propagarSTInput(this, '${grupoKey}', ${i})"
+              onkeydown="if(event.key==='Enter')this.blur()">`}
       </td>
       <td>${estadoBadge}</td>
       <td style="min-width:160px">${acciones}</td>
@@ -1734,7 +1735,19 @@ function renderPlan() {
   }).join('');
 }
 
-// ── Propagar ST y ETD al mismo grupo (mismo N°+OS) ─────────
+// ── Propagar ST mientras escribe (oninput) ────────────────
+function propagarSTInput(inputEl, grupoKey, idxOrigen) {
+  const val = inputEl.value;
+  _reqFiltrados.forEach((r, i) => {
+    if(i === idxOrigen) return;
+    if(r.Estado === 'cancelado' || r.Estado === 'programado') return;
+    if(`${r.NumReqExcel||r.ID_Req}` !== grupoKey) return;
+    const stInp = document.getElementById(`req-st-${i}`);
+    if(stInp) stInp.value = val;
+  });
+}
+
+// ── Propagar ST y ETD al mismo grupo (mismo N°) ────────────
 function propagarSTGrupo(grupoKey, idxOrigen) {
   const stVal    = document.getElementById(`req-st-${idxOrigen}`)?.value.trim() || '';
   const fechaVal = document.getElementById(`req-etd-fecha-${idxOrigen}`)?.value || '';
@@ -2332,17 +2345,7 @@ async function cargarDatos(silencioso = false, bypassCache = false) {
 
   try {
     const [viajesSQL, segWebRaw] = await Promise.all([
-      (() => {
-        const dpDesde = document.getElementById('dp-desde')?.value;
-        const dpHasta = document.getElementById('dp-hasta')?.value;
-        const desde = dpDesde ? dpDesde.split('/').reverse().join('-') : (() => {
-          const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0,10);
-        })();
-        const hasta = dpHasta ? dpHasta.split('/').reverse().join('-') : '';
-        const bust  = bypassCache ? '&_bust=' + Date.now() : '';
-        const url   = `viajes?desde=${desde}${hasta ? '&hasta='+hasta : ''}${bust}`;
-        return apiCall(url).catch(e => { console.warn('[API viajes]', e.message); return []; });
-      })(),
+      apiCall(bypassCache ? 'viajes?_bust=' + Date.now() : 'viajes').catch(e => { console.warn('[API viajes]', e.message); return []; }),
       apiCall('seguimiento').catch(() => []),
     ]);
 
