@@ -1775,7 +1775,6 @@ async function programarReq(idReq, i) {
 
   const etd = `${fecha}T${hora}:00`;
 
-  // Identificar grupo y propagar ST+ETD a los inputs
   const r = _reqFiltrados[i];
   const grupoKey = r ? `${r.NumReqExcel||r.ID_Req}` : null;
   if(grupoKey) propagarSTGrupo(grupoKey, i);
@@ -1783,10 +1782,8 @@ async function programarReq(idReq, i) {
   if(btnEl) { btnEl.textContent = '...'; btnEl.disabled = true; }
   if(msgEl) { msgEl.style.color = 'var(--text3)'; msgEl.textContent = 'Programando...'; }
 
-  // Programar fila principal
   await _ejecutarProgramar(idReq, i, st, etd, false);
 
-  // Programar en paralelo las demás filas pendientes del mismo grupo
   if(grupoKey && r) {
     const pendientes = _reqFiltrados
       .map((rf, j) => ({ rf, j }))
@@ -1835,7 +1832,7 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
     }
     actualizarKpisPlan();
     filtrarPlan();
-    setTimeout(() => recargarDatos(true), 800); // true = bypass caché
+    setTimeout(() => recargarDatos(true), 1500);
 
   } catch(e) {
     if(btnEl) { btnEl.textContent = 'Programar'; btnEl.disabled = false; }
@@ -1893,7 +1890,7 @@ Motivo: ${motivo}`)) {
     if(idx !== -1) {
       reqPendientes[idx].ST = null;
       reqPendientes[idx].Estado = 'pendiente';
-      }
+    }
     actualizarKpisPlan();
     filtrarPlan();
     setTimeout(() => recargarDatos(true), 1500);
