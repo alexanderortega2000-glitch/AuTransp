@@ -1464,10 +1464,10 @@ function renderSolicitudesGitHub() {
 // ============================================================
 
 // ── Cargar requerimientos pendientes desde BD ──────────────
-async function cargarRequerimientosBD(silencioso = false) {
+async function cargarRequerimientosBD() {
   const tbody  = document.getElementById('sol-pendientes-tbody');
   const countEl= document.getElementById('sol-pendientes-count');
-  if(!silencioso) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
   try {
     reqPendientes = await apiCall('requerimientos?estado=pendiente');
     renderPendientes();
@@ -1851,7 +1851,13 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
     }
     actualizarKpisPlan();
     filtrarPlan();
-    setTimeout(() => { if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD(true); }, 2000);
+    // Actualizar datos en memoria sin re-renderizar (sin parpadeo)
+    setTimeout(async () => {
+      try {
+        const frescos = await apiCall('requerimientos?todos=true');
+        if(frescos?.length) { reqPendientes = frescos; actualizarKpisPlan(); }
+      } catch(e) { /* silencioso */ }
+    }, 2000);
 
   } catch(e) {
     if(btnEl) { btnEl.textContent = 'Programar'; btnEl.disabled = false; }
@@ -1920,7 +1926,12 @@ Motivo: ${motivo}`)) {
     }
     actualizarKpisPlan();
     filtrarPlan();
-    setTimeout(() => { if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD(true); }, 2000);
+    setTimeout(async () => {
+      try {
+        const frescos = await apiCall('requerimientos?todos=true');
+        if(frescos?.length) { reqPendientes = frescos; actualizarKpisPlan(); }
+      } catch(e) { /* silencioso */ }
+    }, 2000);
   } catch(e) {
     selectEl.disabled = false;
     selectEl.value = '';
@@ -2511,7 +2522,7 @@ async function recargarDatos(bypassCache = false) {
   if(prevSortCol) { sortCol = prevSortCol; sortDir = prevSortDir; }
   if(typeof poblarMsDinamicos === 'function') poblarMsDinamicos();
   aplicarFiltros();
-  if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD(true);
+  if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD();
 
   if(btn) btn.classList.remove('spinning');
 }
