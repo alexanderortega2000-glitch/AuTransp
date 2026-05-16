@@ -1851,9 +1851,12 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
     if(btnEl) { btnEl.textContent = 'Programar'; btnEl.disabled = false; }
     if(msgEl) {
       msgEl.style.color = 'var(--danger)';
-      msgEl.textContent = e.message.includes('no encontrada')
+      const msg = e.message.includes('no encontrada') || e.message.includes('ST_NO_EXISTE')
         ? `⚠ ST ${st} no existe en plataforma`
+        : e.message.includes('ST_CANCELADA') || e.message.includes('Cancelada')
+        ? `⚠ ST ${st} está Cancelada — no se puede asignar`
         : `⚠ ${e.message}`;
+      msgEl.textContent = msg;
     }
   }
 }
