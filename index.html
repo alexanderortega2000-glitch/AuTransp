@@ -1464,10 +1464,10 @@ function renderSolicitudesGitHub() {
 // ============================================================
 
 // ── Cargar requerimientos pendientes desde BD ──────────────
-async function cargarRequerimientosBD() {
+async function cargarRequerimientosBD(silencioso = false) {
   const tbody  = document.getElementById('sol-pendientes-tbody');
   const countEl= document.getElementById('sol-pendientes-count');
-  tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
+  if(!silencioso) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
   try {
     reqPendientes = await apiCall('requerimientos?estado=pendiente');
     renderPendientes();
@@ -1677,18 +1677,18 @@ function renderPlan() {
 
     const acciones = cancelado ? `
       <span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||''}</span>
-    ` : (programado || finalizado || enProceso) ? `
+    ` : programado ? `
       <div style="display:flex;gap:4px;flex-wrap:wrap;">
         <select onchange="desasociarReq('${r.ID_Req}', ${i}, this)"
           style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
           <option value="">Desasociar…</option>
           ${MOTIVOS_DESASOC.map(m=>`<option value="${m}">${m}</option>`).join('')}
         </select>
-        ${programado ? `<select onchange="cancelarReq('${r.ID_Req}', this)"
-          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);max-width:110px;">
+        <select onchange="cancelarReq('${r.ID_Req}', this)"
+          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
           <option value="">Cancelar…</option>
           ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
-        </select>` : ''}
+        </select>
       </div>
       <div id="req-msg-${i}" style="font-size:10px;margin-top:2px;font-family:var(--mono);"></div>
     ` : `
@@ -1699,7 +1699,7 @@ function renderPlan() {
           Programar
         </button>
         <select onchange="cancelarReq('${r.ID_Req}', this)"
-          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);max-width:110px;">
+          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
           <option value="">Cancelar…</option>
           ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
         </select>
@@ -1851,7 +1851,7 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
     }
     actualizarKpisPlan();
     filtrarPlan();
-    setTimeout(() => recargarDatos(true), 1500);
+    setTimeout(() => { if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD(true); }, 2000);
 
   } catch(e) {
     if(btnEl) { btnEl.textContent = 'Programar'; btnEl.disabled = false; }
@@ -1920,7 +1920,7 @@ Motivo: ${motivo}`)) {
     }
     actualizarKpisPlan();
     filtrarPlan();
-    setTimeout(() => recargarDatos(true), 1500);
+    setTimeout(() => { if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD(true); }, 2000);
   } catch(e) {
     selectEl.disabled = false;
     selectEl.value = '';
@@ -2511,7 +2511,7 @@ async function recargarDatos(bypassCache = false) {
   if(prevSortCol) { sortCol = prevSortCol; sortDir = prevSortDir; }
   if(typeof poblarMsDinamicos === 'function') poblarMsDinamicos();
   aplicarFiltros();
-  if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD();
+  if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD(true);
 
   if(btn) btn.classList.remove('spinning');
 }
