@@ -1469,7 +1469,7 @@ async function cargarRequerimientosBD() {
   const countEl= document.getElementById('sol-pendientes-count');
   tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
   try {
-    reqPendientes = await apiCall('requerimientos?estado=pendiente');
+    reqPendientes = await apiCall('requerimientos?todos=true');
     renderPendientes();
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--danger);padding:1rem">${e.message}</td></tr>`;
@@ -1945,12 +1945,6 @@ Motivo: ${motivo}`)) {
 async function cancelarReq(idReq, selectEl) {
   const motivo = selectEl.value;
   if(!motivo) return;
-  const reqCan = reqPendientes.find(r => r.ID_Req === idReq);
-  if(reqCan && reqCan.Estado !== 'pendiente') {
-    selectEl.value = '';
-    alert(`No se puede cancelar: el requerimiento está en estado "${reqCan.Estado}".`);
-    return;
-  }
   if(!confirm(`¿Cancelar requerimiento ${idReq}?
 Motivo: ${motivo}`)) {
     selectEl.value = ''; return;
