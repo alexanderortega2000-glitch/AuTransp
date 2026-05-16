@@ -1851,12 +1851,11 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
     if(btnEl) { btnEl.textContent = 'Programar'; btnEl.disabled = false; }
     if(msgEl) {
       msgEl.style.color = 'var(--danger)';
-      const msg = e.message.includes('no encontrada') || e.message.includes('ST_NO_EXISTE')
+      msgEl.textContent = e.message.includes('no encontrada') || e.message.includes('ST_NO_EXISTE')
         ? `⚠ ST ${st} no existe en plataforma`
         : e.message.includes('ST_CANCELADA') || e.message.includes('Cancelada')
         ? `⚠ ST ${st} está Cancelada — no se puede asignar`
         : `⚠ ${e.message}`;
-      msgEl.textContent = msg;
     }
   }
 }
@@ -1866,11 +1865,24 @@ function mostrarModalAdv(advertencias) {
   const modal   = document.getElementById('modal-advertencias');
   const lista   = document.getElementById('modal-adv-lista');
   if(!modal || !lista) return;
-  lista.innerHTML = advertencias.map(a => `
-    <div style="background:var(--warn2);border:0.5px solid var(--warn);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;">
-      <div style="font-size:10px;font-weight:600;color:var(--warn);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px">${a.codigo}</div>
+  // Colores por severidad:
+  // ST_EJECUTADA     → rojo (más severa — viaje ya terminó)
+  // DESTINO_NO_COINCIDE / FECHA_DIFIERE → naranja (verificar)
+  // ST_DUPLICADA     → amarillo (informativo)
+  const colorAdv = (codigo) => {
+    if(codigo === 'ST_EJECUTADA')         return { bg: 'rgba(220,53,69,0.12)',  border: 'var(--danger)', text: 'var(--danger)' };
+    if(codigo === 'DESTINO_NO_COINCIDE' ||
+       codigo === 'FECHA_DIFIERE')        return { bg: 'rgba(255,140,0,0.12)',  border: 'var(--warn)',   text: 'var(--warn)'   };
+    return                                       { bg: 'rgba(255,193,7,0.12)',  border: '#c9a800',       text: '#c9a800'       };
+  };
+  lista.innerHTML = advertencias.map(a => {
+    const c = colorAdv(a.codigo);
+    return `
+    <div style="background:${c.bg};border:0.5px solid ${c.border};border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:10px;font-weight:600;color:${c.text};letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px">${a.codigo}</div>
       <div style="font-size:12px;color:var(--text)">${a.mensaje}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   modal.style.display = 'flex';
 }
 
@@ -1956,10 +1968,7 @@ Motivo: ${motivo}`)) {
     filtrarPlan();
   } catch(e) {
     selectEl.value = '';
-    const msg = e.message.includes('CANCEL_NO_PERMITIDO')
-      ? 'Solo se pueden cancelar requerimientos pendientes.'
-      : `Error: ${e.message}`;
-    alert(msg);
+    alert('Error: ' + e.message);
   }
 }
 
