@@ -1945,6 +1945,12 @@ Motivo: ${motivo}`)) {
 async function cancelarReq(idReq, selectEl) {
   const motivo = selectEl.value;
   if(!motivo) return;
+  const reqCan = reqPendientes.find(r => r.ID_Req === idReq);
+  if(reqCan && reqCan.Estado !== 'pendiente') {
+    selectEl.value = '';
+    alert(`No se puede cancelar: el requerimiento está en estado "${reqCan.Estado}".`);
+    return;
+  }
   if(!confirm(`¿Cancelar requerimiento ${idReq}?
 Motivo: ${motivo}`)) {
     selectEl.value = ''; return;
