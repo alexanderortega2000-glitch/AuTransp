@@ -1,5 +1,5 @@
 const { app } = require('@azure/functions');
-const { query, TYPES } = require('../../db');
+const { query, TYPES } = require('./db');
 
 // ============================================================
 // CACHÉ SELECTIVO
