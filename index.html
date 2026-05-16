@@ -1486,8 +1486,7 @@ let _reqSortCol    = 'NumReqExcel';
 let _reqSortDir    = 1;
 let solicitudesRaw = [];
 // Estado para confirmación de advertencias
-let _pendingAdvCallbacks = [];
-let _advConfirmando = false;
+let _pendingAdvCallbacks = [];  // array — acumula callbacks de cada fila del grupo
 
 // ── ETD default: mañana 06:00 ─────────────────────────────
 function etdDefault() {
@@ -1837,7 +1836,7 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
       return;
     }
 
-    // Éxito — usar el estado que devuelve el backend (puede ser finalizado, en_proceso, etc.)
+    // Éxito — usar estado que devuelve el backend
     const estadoFinal = res.Estado || 'programado';
     const idx = reqPendientes.findIndex(r => r.ID_Req === idReq);
     if(idx !== -1) {
@@ -1896,7 +1895,6 @@ function cerrarModalAdv() {
 }
 
 async function confirmarConAdvertencias() {
-  _advConfirmando = true;
   const cbs = [..._pendingAdvCallbacks];
   _pendingAdvCallbacks = [];
   cerrarModalAdv();
@@ -2522,6 +2520,9 @@ async function recargarDatos(bypassCache = false) {
   if(prevSortCol) { sortCol = prevSortCol; sortDir = prevSortDir; }
   if(typeof poblarMsDinamicos === 'function') poblarMsDinamicos();
   aplicarFiltros();
+
+  // Recargar también los requerimientos si la pestaña Planificación está activa
+  if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD();
 
   if(btn) btn.classList.remove('spinning');
 }
