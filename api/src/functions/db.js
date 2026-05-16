@@ -1,4 +1,3 @@
-//Prueba//
 const { Connection, Request, TYPES } = require('tedious');
 
 const config = {
