@@ -1663,10 +1663,10 @@ function renderPlan() {
       : enProceso
       ? `<span class="badge b-proceso" id="req-estado-${i}">En proceso</span>`
       : programado
-      ? `<span class="badge" id="req-estado-${i}" style="background:#c97a00;color:#fff;border-color:#c97a00">Programado</span>`
+      ? `<span class="badge b-prog" id="req-estado-${i}">Programado</span>`
       : cancelado
-      ? `<span class="badge b-cancelado" id="req-estado-${i}">cancelado</span>`
-      : `<span class="badge b-pendiente" id="req-estado-${i}">pendiente</span>`;
+      ? `<span class="badge b-cancelado" id="req-estado-${i}">Cancelado</span>`
+      : `<span class="badge b-pendiente" id="req-estado-${i}">Pendiente</span>`;
 
     const origenDisp  = r.CodOrigen  ? `${r.CodOrigen} - ${r.NombreOrigen||''}` : (r.NombreOrigen||'—');
     const destinoDisp = r.CodDestino ? `${r.CodDestino} - ${r.NombreDestino||''}` : (r.NombreDestino||'—');
