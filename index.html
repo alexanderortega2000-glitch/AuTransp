@@ -1486,7 +1486,8 @@ let _reqSortCol    = 'NumReqExcel';
 let _reqSortDir    = 1;
 let solicitudesRaw = [];
 // Estado para confirmación de advertencias
-let _pendingAdvCallbacks = [];  // array — acumula callbacks de cada fila del grupo
+let _pendingAdvCallbacks = [];
+let _advConfirmando     = false;
 
 // ── ETD default: mañana 06:00 ─────────────────────────────
 function etdDefault() {
@@ -1849,6 +1850,19 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
 
   } catch(e) {
     if(btnEl) { btnEl.textContent = 'Programar'; btnEl.disabled = false; }
+    // Limpiar ST en todas las filas del grupo si falla
+    const stElFail = document.getElementById(`req-st-${i}`);
+    if(stElFail) stElFail.value = '';
+    const rFail = _reqFiltrados[i];
+    if(rFail) {
+      const gk = `${rFail.NumReqExcel||rFail.ID_Req}`;
+      _reqFiltrados.forEach((rf, j) => {
+        if(j === i || rf.Estado === 'cancelado' || rf.Estado === 'programado') return;
+        if(`${rf.NumReqExcel||rf.ID_Req}` !== gk) return;
+        const inp = document.getElementById(`req-st-${j}`);
+        if(inp) inp.value = '';
+      });
+    }
     if(msgEl) {
       msgEl.style.color = 'var(--danger)';
       msgEl.textContent = e.message.includes('no encontrada') || e.message.includes('ST_NO_EXISTE')
@@ -1865,21 +1879,16 @@ function mostrarModalAdv(advertencias) {
   const modal   = document.getElementById('modal-advertencias');
   const lista   = document.getElementById('modal-adv-lista');
   if(!modal || !lista) return;
-  // Colores por severidad:
-  // ST_EJECUTADA     → rojo (más severa — viaje ya terminó)
-  // DESTINO_NO_COINCIDE / FECHA_DIFIERE → naranja (verificar)
-  // ST_DUPLICADA     → amarillo (informativo)
   const colorAdv = (codigo) => {
-    if(codigo === 'ST_EJECUTADA')         return { bg: 'rgba(220,53,69,0.12)',  border: 'var(--danger)', text: 'var(--danger)' };
-    if(codigo === 'DESTINO_NO_COINCIDE' ||
-       codigo === 'FECHA_DIFIERE')        return { bg: 'rgba(255,140,0,0.12)',  border: 'var(--warn)',   text: 'var(--warn)'   };
-    return                                       { bg: 'rgba(255,193,7,0.12)',  border: '#c9a800',       text: '#c9a800'       };
+    if(codigo === 'ST_EJECUTADA')        return { bg:'rgba(220,53,69,0.12)',  bd:'var(--danger)', tx:'var(--danger)' };
+    if(codigo === 'DESTINO_NO_COINCIDE'||
+       codigo === 'FECHA_DIFIERE')       return { bg:'rgba(255,140,0,0.12)',  bd:'var(--warn)',   tx:'var(--warn)'   };
+    return                                      { bg:'rgba(255,193,7,0.12)',  bd:'#c9a800',       tx:'#c9a800'       };
   };
   lista.innerHTML = advertencias.map(a => {
     const c = colorAdv(a.codigo);
-    return `
-    <div style="background:${c.bg};border:0.5px solid ${c.border};border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;">
-      <div style="font-size:10px;font-weight:600;color:${c.text};letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px">${a.codigo}</div>
+    return `<div style="background:${c.bg};border:0.5px solid ${c.bd};border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:10px;font-weight:600;color:${c.tx};letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px">${a.codigo}</div>
       <div style="font-size:12px;color:var(--text)">${a.mensaje}</div>
     </div>`;
   }).join('');
@@ -1889,10 +1898,20 @@ function mostrarModalAdv(advertencias) {
 function cerrarModalAdv() {
   const modal = document.getElementById('modal-advertencias');
   if(modal) modal.style.display = 'none';
+  if(_pendingAdvCallbacks.length && !_advConfirmando) {
+    // Usuario canceló — limpiar inputs ST de filas pendientes
+    _reqFiltrados.forEach((rf, j) => {
+      if(rf.Estado === 'programado' || rf.Estado === 'cancelado') return;
+      const inp = document.getElementById(`req-st-${j}`);
+      if(inp) inp.value = '';
+    });
+  }
   _pendingAdvCallbacks = [];
+  _advConfirmando = false;
 }
 
 async function confirmarConAdvertencias() {
+  _advConfirmando = true;
   const cbs = [..._pendingAdvCallbacks];
   _pendingAdvCallbacks = [];
   cerrarModalAdv();
@@ -1946,10 +1965,10 @@ Motivo: ${motivo}`)) {
 async function cancelarReq(idReq, selectEl) {
   const motivo = selectEl.value;
   if(!motivo) return;
-  const req = reqPendientes.find(r => r.ID_Req === idReq);
-  if(req && req.Estado !== 'pendiente') {
+  const reqCan = reqPendientes.find(r => r.ID_Req === idReq);
+  if(reqCan && reqCan.Estado !== 'pendiente') {
     selectEl.value = '';
-    alert(`No se puede cancelar: el requerimiento está en estado "${req.Estado}". Solo se pueden cancelar requerimientos pendientes.`);
+    alert(`No se puede cancelar: el requerimiento está en estado "${reqCan.Estado}".`);
     return;
   }
   if(!confirm(`¿Cancelar requerimiento ${idReq}?
