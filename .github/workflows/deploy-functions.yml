@@ -34,4 +34,5 @@ jobs:
         with:
           app-name: autransp-api-awekazaja2gngee4
           package: api/src/functions
+          resource-group-name: autransp-rg
           scm-do-build-during-deployment: false
