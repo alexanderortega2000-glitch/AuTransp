@@ -32,7 +32,6 @@ jobs:
       - name: Deploy to Azure Functions
         uses: Azure/functions-action@v1
         with:
-          app-name: autransp-api-awekazaja2gngee4
+          app-name: autransp-api
           package: api/src/functions
-          resource-group-name: autransp-rg
           scm-do-build-during-deployment: false
