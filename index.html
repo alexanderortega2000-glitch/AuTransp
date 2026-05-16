@@ -1652,7 +1652,6 @@ function renderPlan() {
     const programado  = r.Estado === 'programado';
     const finalizado  = r.Estado === 'finalizado';
     const enProceso   = r.Estado === 'en_proceso';
-    const cerrado     = cancelado || finalizado || enProceso;
     const rowOp       = cancelado ? 'opacity:0.5;' : '';
 
     const tipoBadge = r.Tipo === 'programa'
@@ -1660,11 +1659,11 @@ function renderPlan() {
       : `<span class="badge b-demanda">Dem</span>`;
 
     const estadoBadge = finalizado
-      ? `<span class="badge b-finalizado" id="req-estado-${i}" style="background:var(--accent);color:#fff">finalizado</span>`
+      ? `<span class="badge b-finalizado" id="req-estado-${i}">Finalizado</span>`
       : enProceso
-      ? `<span class="badge b-finalizado" id="req-estado-${i}" style="background:#1a6e3c;color:#fff">en proceso</span>`
+      ? `<span class="badge b-proceso" id="req-estado-${i}">En proceso</span>`
       : programado
-      ? `<span class="badge b-finalizado" id="req-estado-${i}">programado</span>`
+      ? `<span class="badge" id="req-estado-${i}" style="background:#c97a00;color:#fff;border-color:#c97a00">Programado</span>`
       : cancelado
       ? `<span class="badge b-cancelado" id="req-estado-${i}">cancelado</span>`
       : `<span class="badge b-pendiente" id="req-estado-${i}">pendiente</span>`;
@@ -1678,7 +1677,7 @@ function renderPlan() {
 
     const acciones = cancelado ? `
       <span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||''}</span>
-    ` : (programado || finalizado || enProceso) ? `
+    ` : programado ? `
       <div style="display:flex;gap:4px;flex-wrap:wrap;">
         <select onchange="desasociarReq('${r.ID_Req}', ${i}, this)"
           style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
@@ -1843,12 +1842,11 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
       return;
     }
 
-    // Éxito — usar estado que devuelve el backend
-    const estadoFinal = res.Estado || 'programado';
+    // Éxito
     const idx = reqPendientes.findIndex(r => r.ID_Req === idReq);
     if(idx !== -1) {
       reqPendientes[idx].ST = st;
-      reqPendientes[idx].Estado = estadoFinal;
+      reqPendientes[idx].Estado = res.Estado || 'programado';
       reqPendientes[idx].FechaEjecucion = etd;
     }
     actualizarKpisPlan();
@@ -1947,12 +1945,6 @@ Motivo: ${motivo}`)) {
 async function cancelarReq(idReq, selectEl) {
   const motivo = selectEl.value;
   if(!motivo) return;
-  const reqCan = reqPendientes.find(r => r.ID_Req === idReq);
-  if(reqCan && reqCan.Estado !== 'pendiente') {
-    selectEl.value = '';
-    alert(`No se puede cancelar: el requerimiento está en estado "${reqCan.Estado}".`);
-    return;
-  }
   if(!confirm(`¿Cancelar requerimiento ${idReq}?
 Motivo: ${motivo}`)) {
     selectEl.value = ''; return;
