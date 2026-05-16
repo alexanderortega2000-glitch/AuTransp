@@ -1931,6 +1931,12 @@ Motivo: ${motivo}`)) {
 async function cancelarReq(idReq, selectEl) {
   const motivo = selectEl.value;
   if(!motivo) return;
+  const req = reqPendientes.find(r => r.ID_Req === idReq);
+  if(req && req.Estado !== 'pendiente') {
+    selectEl.value = '';
+    alert(`No se puede cancelar: el requerimiento está en estado "${req.Estado}". Solo se pueden cancelar requerimientos pendientes.`);
+    return;
+  }
   if(!confirm(`¿Cancelar requerimiento ${idReq}?
 Motivo: ${motivo}`)) {
     selectEl.value = ''; return;
@@ -1947,7 +1953,10 @@ Motivo: ${motivo}`)) {
     filtrarPlan();
   } catch(e) {
     selectEl.value = '';
-    alert('Error: ' + e.message);
+    const msg = e.message.includes('CANCEL_NO_PERMITIDO')
+      ? 'Solo se pueden cancelar requerimientos pendientes.'
+      : `Error: ${e.message}`;
+    alert(msg);
   }
 }
 
