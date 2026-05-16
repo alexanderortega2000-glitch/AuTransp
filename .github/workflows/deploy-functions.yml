@@ -34,4 +34,14 @@ jobs:
         with:
           app-name: autransp-api
           package: api/src/functions
-          scm-do-build-during-deployment: false
+          scm-do-build-during-deployment: true
+
+      - name: Remove WEBSITE_RUN_FROM_PACKAGE setting
+        uses: azure/CLI@v1
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az functionapp config appsettings delete \
+              --name autransp-api \
+              --resource-group autransp-rg \
+              --setting-names WEBSITE_RUN_FROM_PACKAGE
