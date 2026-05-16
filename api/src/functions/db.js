@@ -48,5 +48,5 @@ function query(sql, params = []) {
     }
   });
 }
-
+"prueba"
 module.exports = { query, TYPES };
