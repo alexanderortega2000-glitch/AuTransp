@@ -1648,15 +1648,22 @@ function renderPlan() {
   tbody.innerHTML = _reqFiltrados.map((r, i) => {
     const grupoKey   = `${r.NumReqExcel||r.ID_Req}`;
     const grupColor  = r.NumReqExcel ? colorGrupo(grupoKey) : 'var(--border)';
-    const cancelado  = r.Estado === 'cancelado';
-    const programado = r.Estado === 'programado';
-    const rowOp      = cancelado ? 'opacity:0.5;' : '';
+    const cancelado   = r.Estado === 'cancelado';
+    const programado  = r.Estado === 'programado';
+    const finalizado  = r.Estado === 'finalizado';
+    const enProceso   = r.Estado === 'en_proceso';
+    const cerrado     = cancelado || finalizado || enProceso;
+    const rowOp       = cancelado ? 'opacity:0.5;' : '';
 
     const tipoBadge = r.Tipo === 'programa'
       ? `<span class="badge b-prog">Prog</span>`
       : `<span class="badge b-demanda">Dem</span>`;
 
-    const estadoBadge = programado
+    const estadoBadge = finalizado
+      ? `<span class="badge b-finalizado" id="req-estado-${i}" style="background:var(--accent);color:#fff">finalizado</span>`
+      : enProceso
+      ? `<span class="badge b-finalizado" id="req-estado-${i}" style="background:#1a6e3c;color:#fff">en proceso</span>`
+      : programado
       ? `<span class="badge b-finalizado" id="req-estado-${i}">programado</span>`
       : cancelado
       ? `<span class="badge b-cancelado" id="req-estado-${i}">cancelado</span>`
@@ -1671,7 +1678,7 @@ function renderPlan() {
 
     const acciones = cancelado ? `
       <span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||''}</span>
-    ` : programado ? `
+    ` : (programado || finalizado || enProceso) ? `
       <div style="display:flex;gap:4px;flex-wrap:wrap;">
         <select onchange="desasociarReq('${r.ID_Req}', ${i}, this)"
           style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
@@ -1711,7 +1718,7 @@ function renderPlan() {
       <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${destinoDisp}">${destinoDisp}${r.Lote?` <span style="color:var(--text3);font-size:10px">L${r.Lote}</span>`:''}</td>
       <td style="font-size:11px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Actividad||'—'}<br><span style="font-size:10px;color:var(--text3)">${r.Producto||''}</span></td>
       <td style="white-space:nowrap">
-        ${cancelado || programado ? `<span style="font-size:11px;color:var(--text2);font-family:var(--mono)">${r.FechaEjecucion?r.FechaEjecucion.slice(0,16).replace('T',' '):'—'}</span>` : `
+        ${(cancelado || programado || finalizado || enProceso) ? `<span style="font-size:11px;color:var(--text2);font-family:var(--mono)">${r.FechaEjecucion?r.FechaEjecucion.slice(0,16).replace('T',' '):'—'}</span>` : `
         <div style="display:flex;gap:2px;">
           <input type="date" id="req-etd-fecha-${i}" value="${etdFecha}"
             style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text);font-family:var(--mono);width:105px;">
@@ -1722,7 +1729,7 @@ function renderPlan() {
         </div>`}
       </td>
       <td>
-        ${cancelado || programado
+        ${(cancelado || programado || finalizado || enProceso)
           ? `<span style="font-family:var(--mono);font-size:11px;font-weight:500">${r.ST||'—'}</span>`
           : `<input type="text" id="req-st-${i}" value="${r.ST||''}" placeholder="153xxx"
               style="width:80px;height:24px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:var(--text);"
@@ -1883,15 +1890,7 @@ function mostrarModalAdv(advertencias) {
 function cerrarModalAdv() {
   const modal = document.getElementById('modal-advertencias');
   if(modal) modal.style.display = 'none';
-  if(_pendingAdvCallbacks.length && !_advConfirmando) {
-    _reqFiltrados.forEach((rf, j) => {
-      if(rf.Estado === 'programado' || rf.Estado === 'cancelado') return;
-      const inp = document.getElementById(`req-st-${j}`);
-      if(inp) inp.value = '';
-    });
-  }
   _pendingAdvCallbacks = [];
-  _advConfirmando = false;
 }
 
 async function confirmarConAdvertencias() {
@@ -2520,8 +2519,6 @@ async function recargarDatos(bypassCache = false) {
   if(prevSortCol) { sortCol = prevSortCol; sortDir = prevSortDir; }
   if(typeof poblarMsDinamicos === 'function') poblarMsDinamicos();
   aplicarFiltros();
-
-  // Recargar también los requerimientos si la pestaña Planificación está activa
   if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD();
 
   if(btn) btn.classList.remove('spinning');
