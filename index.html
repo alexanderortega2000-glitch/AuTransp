@@ -1470,7 +1470,8 @@ async function cargarRequerimientosBD() {
   tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
   try {
     reqPendientes = await apiCall('requerimientos?todos=true');
-    renderPendientes();
+    actualizarKpisPlan();
+    filtrarPlan();
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--danger);padding:1rem">${e.message}</td></tr>`;
     if(countEl) countEl.textContent = 'Error al cargar';
