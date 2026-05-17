@@ -40,6 +40,14 @@ app.http('viajes', {
   methods: ['GET'],
   authLevel: 'anonymous',
   handler: async (request) => {
+    // ── Autenticación API Key ─────────────────────────────
+    const apiKey = request.headers.get('x-api-key');
+    if (!apiKey || apiKey !== process.env.API_KEY) {
+      return { status: 401,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ error: 'Unauthorized' }) };
+    }
+
     try {
       const desdeRaw  = request.query.get('desde');
       const hastaRaw  = request.query.get('hasta');
