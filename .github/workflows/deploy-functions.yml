@@ -1,0 +1,57 @@
+name: Deploy Azure Functions
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - 'api/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd api/src/functions
+          npm install --production
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: autransp-api
+          package: api/src/functions
+          scm-do-build-during-deployment: true
+
+      - name: Post-deploy cleanup
+        uses: azure/CLI@v1
+        with:
+          azcliversion: latest
+          inlineScript: |
+            # Eliminar WEBSITE_RUN_FROM_PACKAGE para que wwwroot sea editable
+            az functionapp config appsettings delete \
+              --name autransp-api \
+              --resource-group autransp-rg \
+              --setting-names WEBSITE_RUN_FROM_PACKAGE
+
+            # Restaurar CORS
+            az functionapp cors add \
+              --name autransp-api \
+              --resource-group autransp-rg \
+              --allowed-origins \
+                https://delightful-mushroom-023410f0f.7.azurestaticapps.net \
+                https://delightful-mushroom-023410f0f-1.eastus2.7.azurestaticapps.net \
+                https://portal.azure.com

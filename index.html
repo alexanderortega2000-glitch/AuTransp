@@ -424,7 +424,7 @@ tr.clickable { cursor: pointer; }
       <div class="topbar-tabs">
         <button class="topbar-tab active" onclick="setPage('resumen')">Resumen</button>
         <button class="topbar-tab" onclick="setPage('detalle')">Detalle</button>
-        <button class="topbar-tab" id="tab-sol" onclick="setPage('solicitudes')" style="display:none">Solicitudes</button>
+        <button class="topbar-tab" id="tab-sol" onclick="setPage('solicitudes')" style="display:none">Planificación</button>
         <button class="topbar-tab" id="tab-info" onclick="setPage('info')" style="display:none">Info</button>
       </div>
     </div>
@@ -644,145 +644,133 @@ tr.clickable { cursor: pointer; }
       <div class="pag" id="pag"></div>
     </div>
 
-    <!-- SOLICITUDES -->
+    <!-- PLANIFICACIÓN -->
     <div id="page-solicitudes" class="page">
-      <div style="max-width:1200px;">
+      <div style="max-width:1400px;">
 
-        <!-- ── SECCIÓN: PROGRAMA DE ACTIVIDADES ── -->
-        <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-            <div>
-              <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);">Programa de actividades</div>
-              <div style="font-size:11px;color:var(--text3);margin-top:2px;">Carga el Excel, asigna ST a cada requerimiento. Misma ST en filas del mismo N° = mismo viaje.</div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <input type="file" id="sol-file" accept=".xlsx" onchange="cargarSolicitud(this)" style="font-size:11px;">
-              <span id="sol-status" style="font-size:11px;color:var(--text2);font-family:var(--mono);"></span>
-            </div>
+        <!-- KPIs -->
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px;" id="plan-kpis">
+          <div class="kpi-card"><div class="kpi-card-label">Total reqs</div><div class="kpi-card-num" id="pk-total">—</div></div>
+          <div class="kpi-card"><div class="kpi-card-label">Pendientes</div><div class="kpi-card-num" id="pk-pend" style="color:var(--warn)">—</div></div>
+          <div class="kpi-card"><div class="kpi-card-label">Programados</div><div class="kpi-card-num" id="pk-prog" style="color:var(--accent)">—</div></div>
+          <div class="kpi-card"><div class="kpi-card-label">% Programado</div><div class="kpi-card-num" id="pk-pct" style="color:var(--accent)">—</div></div>
+          <div class="kpi-card"><div class="kpi-card-label">Cancelados</div><div class="kpi-card-num" id="pk-cancel" style="color:var(--text3)">—</div></div>
+        </div>
+
+        <!-- Toolbar -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <!-- Filtros rápidos -->
+            <input type="text" id="pf-buscar"
+              placeholder="Buscar ID, OS, zona, destino..."
+              oninput="filtrarPlan()"
+              style="height:28px;padding:0 10px;width:220px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+            <select id="pf-tipo" onchange="filtrarPlan()"
+              style="height:28px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+              <option value="">Tipo: todos</option>
+              <option value="programa">Programa</option>
+              <option value="demanda">Demanda</option>
+            </select>
+            <select id="pf-estado" onchange="filtrarPlan()"
+              style="height:28px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+              <option value="">Estado: todos</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="programado">Programado</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+            <select id="pf-zona" onchange="filtrarPlan()"
+              style="height:28px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+              <option value="">Zona: todas</option>
+            </select>
+            <label style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;cursor:pointer;">
+              <input type="checkbox" id="pf-cancelados" onchange="filtrarPlan()" style="accent-color:var(--accent)">
+              Ver cancelados
+            </label>
           </div>
-          <div id="sol-prog-wrap" style="display:none;">
-            <div style="overflow-x:auto;">
-              <table>
-                <thead><tr>
-                  <th class="th-main" style="width:40px">N°</th>
-                  <th class="th-main">OS</th>
-                  <th class="th-main">Zona</th>
-                  <th class="th-main">Origen</th>
-                  <th class="th-main">Destino / Lote</th>
-                  <th class="th-main">Producto(s)</th>
-                  <th class="th-main">Cant.</th>
-                  <th class="th-main" style="color:var(--accent)">ST *</th>
-                  <th class="th-main" style="width:80px">Estado</th>
-                </tr></thead>
-                <tbody id="sol-prog-tbody"></tbody>
-              </table>
-            </div>
-            <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px;">
-              <button class="btn-sm" onclick="document.getElementById('sol-file').value='';document.getElementById('sol-prog-wrap').style.display='none';">Cancelar</button>
-              <button class="btn-sm primary" id="btn-guardar-prog" onclick="guardarRequerimientosProg()">Guardar en BD</button>
-            </div>
+          <div style="display:flex;gap:8px;">
+            <input type="file" id="sol-file" accept=".xlsx" onchange="cargarSolicitud(this)" style="font-size:11px;display:none;" id="plan-file-input">
+            <button class="btn-sm" onclick="document.getElementById('plan-file-input').click()">↑ Cargar Excel</button>
+            <button class="btn-sm" onclick="cargarRequerimientosBD()">↻ Actualizar</button>
+            <button class="btn-sm primary" onclick="abrirModalSolicitud()">+ Nueva solicitud</button>
           </div>
         </div>
 
-        <!-- ── SECCIÓN: REQUERIMIENTOS PENDIENTES ── -->
-        <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <div>
-              <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);">Pendientes de programar</div>
-              <div style="font-size:11px;color:var(--text3);margin-top:2px;" id="sol-pendientes-count">Cargando...</div>
-            </div>
+        <!-- Status carga Excel -->
+        <div id="sol-status" style="font-size:11px;color:var(--text2);margin-bottom:8px;font-family:var(--mono);min-height:16px;"></div>
+
+        <!-- Preview Excel (antes de guardar) -->
+        <div id="sol-prog-wrap" style="display:none;background:var(--surface);border:0.5px solid var(--warn);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--warn);">Preview — Pendiente de guardar</div>
             <div style="display:flex;gap:8px;">
-              <button class="btn-sm" onclick="cargarRequerimientosBD()">↻ Actualizar</button>
-              <button class="btn-sm primary" onclick="abrirModalSolicitud()" style="height:28px;">+ Nueva solicitud</button>
+              <button class="btn-sm" onclick="document.getElementById('plan-file-input').value='';document.getElementById('sol-prog-wrap').style.display='none';">Cancelar</button>
+              <button class="btn-sm primary" id="btn-guardar-prog" onclick="guardarRequerimientosProg()">Guardar en BD</button>
             </div>
           </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead><tr>
+                <th class="th-main" style="width:40px">N°</th>
+                <th class="th-main">OS</th>
+                <th class="th-main">Zona</th>
+                <th class="th-main">Origen</th>
+                <th class="th-main">Destino / Lote</th>
+                <th class="th-main">Producto(s)</th>
+                <th class="th-main">Cant.</th>
+                <th class="th-main" style="color:var(--accent)">ST (opcional)</th>
+              </tr></thead>
+              <tbody id="sol-prog-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tabla principal de planificación -->
+        <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
           <div style="overflow-x:auto;">
             <table>
               <thead>
                 <tr>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">ID</span><button class="th-btn" onclick="sortReq('ID_Req')" id="rsrt-ID_Req">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-id')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-id" placeholder="Buscar ID..." oninput="filtrarPendientes()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Tipo</span><button class="th-btn" onclick="sortReq('Tipo')" id="rsrt-Tipo">↕</button></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">OS / N°</span><button class="th-btn" onclick="sortReq('OS')" id="rsrt-OS">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-os')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-os" placeholder="Buscar OS..." oninput="filtrarPendientes()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Zona</span><button class="th-btn" onclick="sortReq('Zona')" id="rsrt-Zona">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-zona')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-zona" placeholder="Buscar zona..." oninput="filtrarPendientes()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Origen</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-origen')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-origen" placeholder="Buscar origen..." oninput="filtrarPendientes()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Destino</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-destino" placeholder="Buscar destino..." oninput="filtrarPendientes()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Actividad</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-actividad')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-actividad" placeholder="Buscar..." oninput="filtrarPendientes()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Producto(s)</span></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ETD *</span></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST *</span></div></th>
+                  <th class="th-main" style="width:4px;padding:0;"></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">ID</span><button class="th-btn" onclick="sortReq('ID_Req')" id="rsrt-ID_Req">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-id')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-id" placeholder="Buscar ID..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Tipo</span></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">N° / OS</span><button class="th-btn" onclick="sortReq('NumReqExcel')" id="rsrt-NumReqExcel">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-os')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-os" placeholder="Buscar OS..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Zona</span><button class="th-btn" onclick="sortReq('Zona')" id="rsrt-Zona">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-zona-col')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-zona-col" placeholder="Buscar zona..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Origen</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-origen')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-origen" placeholder="Buscar origen..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Destino</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-destino" placeholder="Buscar destino..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Actividad / Producto</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-actividad')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-actividad" placeholder="Buscar..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ETD</span></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-st')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-st" placeholder="Buscar ST..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Estado</span><button class="th-btn" onclick="sortReq('Estado')" id="rsrt-Estado">↕</button></div></th>
-                  <th class="th-main"></th>
+                  <th class="th-main">Acciones</th>
                 </tr>
               </thead>
               <tbody id="sol-pendientes-tbody">
-                <tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>
+                <tr><td colspan="12" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>
               </tbody>
             </table>
           </div>
+          <div style="font-size:11px;color:var(--text3);padding:8px 16px;" id="sol-pendientes-count"></div>
         </div>
 
-        <!-- legacy wraps — ocultos, se mantienen por compatibilidad -->
+        <!-- Modal confirmación advertencias -->
+        <div id="modal-advertencias" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+          <div style="background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius-lg);width:480px;padding:24px;">
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px;">⚠ Advertencias de validación</div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:16px;">Revisa antes de confirmar la asignación</div>
+            <div id="modal-adv-lista" style="margin-bottom:20px;"></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+              <button class="btn-sm" onclick="cerrarModalAdv()">Cancelar</button>
+              <button class="btn-sm primary" onclick="confirmarConAdvertencias()" id="btn-adv-confirmar">Confirmar de todas formas</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- legacy -->
         <div id="sol-github-wrap" style="display:none;"></div>
         <div id="sol-tabla-wrap" style="display:none;"></div>
         <div id="sol-github-status" style="display:none;"></div>
-        <div id="sol-coord" style="display:none;"></div>
-        <div id="sol-fecha" style="display:none;"></div>
+        <input type="file" id="plan-file-input" accept=".xlsx" onchange="cargarSolicitud(this)" style="display:none;">
 
-        <!-- Solicitudes desde GitHub (Power Automate) -->
-        <div id="sol-github-wrap" style="margin-bottom:20px;display:none;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div>
-              <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);">Solicitudes planificadas — desde GitHub</div>
-              <div style="font-size:11px;color:var(--text3);margin-top:2px;" id="sol-github-count"></div>
-            </div>
-            <button class="btn-sm" onclick="recargarDatos()">↻ Actualizar</button>
-            <span id="btn-refresh-icon" title="Sincronizando datos..." style="display:none;font-size:16px;animation:none">🔄</span>
-          </div>
-          <div style="overflow-x:auto;">
-            <table>
-              <thead><tr>
-                <th class="th-main">ID sol.</th>
-                <th class="th-main">Zona</th>
-                <th class="th-main">Destino</th>
-                <th class="th-main">Producto(s)</th>
-                <th class="th-main">Actividad</th>
-                <th class="th-main">Origen</th>
-                <th class="th-main">ST asignada</th>
-                <th class="th-main">Coordinador</th>
-                <th class="th-main">Estado</th>
-              </tr></thead>
-              <tbody id="sol-github-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Carga manual desde Excel -->
-        <div id="sol-tabla-wrap" style="display:none;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div>
-              <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);">Carga manual desde Excel</div>
-              <div style="font-size:11px;color:var(--text3);margin-top:2px;">Asigna ST a cada fila. Filas con la misma ST se consolidan en un viaje. Completa <span style="color:var(--accent)">*</span> por ST.</div>
-            </div>
-            <button class="btn-sm primary" id="btn-confirmar-sol" onclick="confirmarSolicitudes()">Agregar al programa</button>
-          </div>
-          <div style="overflow-x:auto;">
-            <table>
-              <thead><tr>
-                <th class="th-main">ID sol.</th>
-                <th class="th-main">Zona</th>
-                <th class="th-main">OS</th>
-                <th class="th-main">Destino</th>
-                <th class="th-main">Producto(s)</th>
-                <th class="th-main">Actividad</th>
-                <th class="th-main" style="color:var(--accent)">ST *</th>
-                <th class="th-main" style="color:var(--accent)">Origen *</th>
-                <th class="th-main" style="color:var(--accent)">Subflota *</th>
-                <th class="th-main">Proveedor</th>
-              </tr></thead>
-              <tbody id="sol-tbody"></tbody>
-            </table>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -1030,9 +1018,11 @@ const GITHUB_API   = 'https://api.github.com/repos/alexanderortega2000-glitch/Au
 const API_BASE = 'https://autransp-api-awekazaja2gngee4.centralus-01.azurewebsites.net/api';
 const apiUrl = (endpoint) => `${API_BASE}/${endpoint}`;
 
+const API_KEY = 'autransp-2026-k9mX4vQzRpL7nWjYeB3sC8dT';
+
 async function apiCall(endpoint, options = {}) {
   const resp = await fetch(apiUrl(endpoint), {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, ...options.headers },
     ...options,
   });
   if (!resp.ok) {
@@ -1474,8 +1464,6 @@ function renderSolicitudesGitHub() {
 // ============================================================
 // MÓDULO DE SOLICITUDES — PROGRAMA + DEMANDA
 // ============================================================
-let solicitudesRaw   = [];   // filas parseadas del Excel (pre-guardado)
-let reqPendientes    = [];   // requerimientos pendientes desde BD
 
 // ── Cargar requerimientos pendientes desde BD ──────────────
 async function cargarRequerimientosBD() {
@@ -1491,54 +1479,140 @@ async function cargarRequerimientosBD() {
   }
 }
 
+// ============================================================
+// PLANIFICACIÓN — módulo completo
+// ============================================================
+let reqPendientes  = [];
+let _reqFiltrados  = [];
+let _reqSortCol    = 'NumReqExcel';
+let _reqSortDir    = 1;
+let solicitudesRaw = [];
+// Estado para confirmación de advertencias
+let _pendingAdvCallbacks = [];  // array — acumula callbacks de cada fila del grupo
+
 // ── ETD default: mañana 06:00 ─────────────────────────────
 function etdDefault() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  const yyyy = d.getFullYear();
-  const mm   = String(d.getMonth()+1).padStart(2,'0');
-  const dd   = String(d.getDate()).padStart(2,'0');
-  return `${yyyy}-${mm}-${dd}T06:00`;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T04:00`;
 }
 
-// Opciones de tiempo cada 30 min en formato HH:MM
 function opcionesHora(valorActual) {
-  const opts = [];
+  let opts = '';
   for(let h = 0; h < 24; h++) {
     for(let m = 0; m < 60; m += 30) {
-      const hh  = String(h).padStart(2,'0');
-      const mm  = String(m).padStart(2,'0');
-      const val = `${hh}:${mm}`;
-      const sel = valorActual === val ? 'selected' : '';
-      opts.push(`<option value="${val}" ${sel}>${val}</option>`);
+      const val = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      opts += `<option value="${val}"${valorActual===val?' selected':''}>${val}</option>`;
     }
   }
-  return opts.join('');
+  return opts;
 }
 
-// Estado de filtros y sort de requerimientos
-let _reqSortCol = 'FechaCreacion', _reqSortDir = -1;
-let _reqFiltrados = [];
+// ── Cargar requerimientos desde BD ────────────────────────
+async function cargarRequerimientosBD() {
+  const tbody = document.getElementById('sol-pendientes-tbody');
+  if(tbody) tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
+  try {
+    // Cargar todos (incluyendo programados y cancelados según filtro)
+    reqPendientes = await apiCall('requerimientos?todos=true');
+    _reqFiltrados = [...reqPendientes];
+    poblarFiltroZona();
+    filtrarPlan();
+    actualizarKpisPlan();
+  } catch(e) {
+    if(tbody) tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--danger);padding:1rem">${e.message}</td></tr>`;
+  }
+}
 
-function filtrarPendientes() {
-  const tfId  = (document.getElementById('rtf-id')?.value       || '').toLowerCase();
-  const tfOs  = (document.getElementById('rtf-os')?.value       || '').toLowerCase();
-  const tfZona= (document.getElementById('rtf-zona')?.value     || '').toLowerCase();
-  const tfOri = (document.getElementById('rtf-origen')?.value   || '').toLowerCase();
-  const tfDes = (document.getElementById('rtf-destino')?.value  || '').toLowerCase();
-  const tfAct = (document.getElementById('rtf-actividad')?.value|| '').toLowerCase();
+function poblarFiltroZona() {
+  const sel = document.getElementById('pf-zona');
+  if(!sel) return;
+  const zonas = [...new Set(reqPendientes.map(r => r.Zona).filter(Boolean))].sort();
+  const cur   = sel.value;
+  sel.innerHTML = '<option value="">Zona: todas</option>' +
+    zonas.map(z => `<option value="${z}"${z===cur?' selected':''}>${z}</option>`).join('');
+}
+
+function actualizarKpisPlan() {
+  const total   = reqPendientes.filter(r => r.Estado !== 'cancelado').length;
+  const pend    = reqPendientes.filter(r => r.Estado === 'pendiente').length;
+  const prog    = reqPendientes.filter(r => r.Estado === 'programado').length;
+  const cancel  = reqPendientes.filter(r => r.Estado === 'cancelado').length;
+  const pct     = total > 0 ? Math.round(prog / total * 100) : 0;
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  set('pk-total',  (total + cancel).toLocaleString());
+  set('pk-pend',   pend.toLocaleString());
+  set('pk-prog',   prog.toLocaleString());
+  set('pk-pct',    pct + '%');
+  set('pk-cancel', cancel.toLocaleString());
+}
+
+// ── Filtrar ────────────────────────────────────────────────
+function toggleReqSearch(id) {
+  const inp = document.getElementById(id);
+  if(!inp) return;
+  inp.classList.toggle('open');
+  if(inp.classList.contains('open')) inp.focus();
+  else { inp.value = ''; inp.classList.remove('has-value'); marcarFiltrosActivosReq(); filtrarPlan(); }
+}
+
+function marcarFiltrosActivosReq() {
+  document.querySelectorAll('#page-planificacion .th-search-input').forEach(inp => {
+    const hasVal = inp.value.trim().length > 0;
+    inp.classList.toggle('has-value', hasVal);
+    const wrap = inp.closest('.th-search-wrap');
+    if(wrap) {
+      const btn = wrap.querySelector('.th-btn');
+      if(btn) btn.classList.toggle('filter-active', hasVal);
+    }
+  });
+}
+
+function filtrarPlan() {
+  marcarFiltrosActivosReq();
+  const buscar    = (document.getElementById('pf-buscar')?.value      || '').toLowerCase();
+  const tipo      = document.getElementById('pf-tipo')?.value         || '';
+  const estado    = document.getElementById('pf-estado')?.value       || '';
+  const zona      = document.getElementById('pf-zona')?.value         || '';
+  const verCancel = document.getElementById('pf-cancelados')?.checked;
+  // Filtros de columna
+  const tfId      = (document.getElementById('rtf-id')?.value         || '').toLowerCase();
+  const tfOs      = (document.getElementById('rtf-os')?.value         || '').toLowerCase();
+  const tfZonaCol = (document.getElementById('rtf-zona-col')?.value   || '').toLowerCase();
+  const tfOrigen  = (document.getElementById('rtf-origen')?.value     || '').toLowerCase();
+  const tfDestino = (document.getElementById('rtf-destino')?.value    || '').toLowerCase();
+  const tfActiv   = (document.getElementById('rtf-actividad')?.value  || '').toLowerCase();
+  const tfSt      = (document.getElementById('rtf-st')?.value         || '').toLowerCase();
 
   _reqFiltrados = reqPendientes.filter(r => {
-    if(tfId   && !String(r.ID_Req      ||'').toLowerCase().includes(tfId))   return false;
-    if(tfOs   && !String(r.OS          ||'').toLowerCase().includes(tfOs) &&
-                 !String(r.NumReqExcel ||'').toLowerCase().includes(tfOs))   return false;
-    if(tfZona && !String(r.Zona        ||'').toLowerCase().includes(tfZona)) return false;
-    if(tfOri  && !String(r.NombreOrigen||'').toLowerCase().includes(tfOri))  return false;
-    if(tfDes  && !String(r.NombreDestino||'').toLowerCase().includes(tfDes)) return false;
-    if(tfAct  && !String(r.Actividad   ||'').toLowerCase().includes(tfAct))  return false;
+    if(!verCancel && r.Estado === 'cancelado') return false;
+    if(tipo      && r.Tipo   !== tipo)   return false;
+    if(estado    && r.Estado !== estado) return false;
+    if(zona      && r.Zona   !== zona)   return false;
+    if(tfId      && !String(r.ID_Req        ||'').toLowerCase().includes(tfId))      return false;
+    if(tfOs      && !String(r.OS            ||'').toLowerCase().includes(tfOs) &&
+                   !String(r.NumReqExcel    ||'').toString().includes(tfOs))         return false;
+    if(tfZonaCol && !String(r.Zona          ||'').toLowerCase().includes(tfZonaCol)) return false;
+    if(tfOrigen  && !String(r.NombreOrigen  ||'').toLowerCase().includes(tfOrigen))  return false;
+    if(tfDestino && !String(r.NombreDestino ||'').toLowerCase().includes(tfDestino)) return false;
+    if(tfActiv   && ![r.Actividad, r.Producto].filter(Boolean).join(' ').toLowerCase().includes(tfActiv)) return false;
+    if(tfSt      && !String(r.ST            ||'').toLowerCase().includes(tfSt))      return false;
+    if(buscar) {
+      const haystack = [r.ID_Req, r.OS, r.Zona, r.NombreOrigen, r.NombreDestino,
+                        r.Actividad, r.Producto, r.ST].filter(Boolean).join(' ').toLowerCase();
+      if(!haystack.includes(buscar)) return false;
+    }
     return true;
   });
-  renderPendientes();
+
+  // Sort
+  _reqFiltrados.sort((a, b) => {
+    const va = String(a[_reqSortCol] ?? '').toLowerCase();
+    const vb = String(b[_reqSortCol] ?? '').toLowerCase();
+    return va < vb ? -_reqSortDir : va > vb ? _reqSortDir : 0;
+  });
+
+  renderPlan();
 }
 
 function sortReq(col) {
@@ -1547,197 +1621,341 @@ function sortReq(col) {
   document.querySelectorAll('[id^="rsrt-"]').forEach(b => { b.classList.remove('active'); b.textContent = '↕'; });
   const btn = document.getElementById('rsrt-' + col);
   if(btn) { btn.classList.add('active'); btn.textContent = _reqSortDir === 1 ? '↑' : '↓'; }
-  filtrarPendientes();
+  filtrarPlan();
 }
 
-function toggleReqSearch(id) {
-  const inp = document.getElementById(id);
-  if(!inp) return;
-  inp.classList.toggle('open');
-  if(inp.classList.contains('open')) inp.focus();
-  else { inp.value = ''; filtrarPendientes(); }
+// ── Render tabla principal ─────────────────────────────────
+// Colores de grupo por NumReqExcel+OS
+const GRUPO_COLORS = ['#1a5c38','#1e3a8a','#92400e','#5b21b6','#9d174d','#065f46','#7c2d12'];
+function colorGrupo(key) {
+  let hash = 0;
+  for(let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) & 0xffff;
+  return GRUPO_COLORS[hash % GRUPO_COLORS.length];
 }
 
-function renderPendientes() {
+const MOTIVOS_CANCEL = [
+  'Operación suspendida','Cambio de prioridad',
+  'Sin disponibilidad de transporte','Error de captura','Otro',
+];
+const MOTIVOS_DESASOC = [
+  'ST asignada por error','ST reasignada a otro requerimiento',
+  'Viaje reprogramado','Otro',
+];
+
+function renderPlan() {
   const tbody   = document.getElementById('sol-pendientes-tbody');
   const countEl = document.getElementById('sol-pendientes-count');
+  if(!tbody) return;
 
-  // Inicializar _reqFiltrados si vacío
-  if(!_reqFiltrados.length && reqPendientes.length) _reqFiltrados = [...reqPendientes];
+  if(countEl) {
+    const tot = _reqFiltrados.length;
+    const all = reqPendientes.length;
+    countEl.textContent = tot === all
+      ? `${tot} requerimientos`
+      : `${tot} de ${all} requerimientos (filtrados)`;
+  }
 
-  // Aplicar sort
-  const sorted = [..._reqFiltrados].sort((a, b) => {
-    const va = String(a[_reqSortCol] || '').toLowerCase();
-    const vb = String(b[_reqSortCol] || '').toLowerCase();
-    return va < vb ? -_reqSortDir : va > vb ? _reqSortDir : 0;
-  });
-
-  const total  = reqPendientes.length;
-  const pend   = reqPendientes.filter(r => r.Estado === 'pendiente').length;
-  const prog   = reqPendientes.filter(r => r.Estado === 'programado').length;
-  const cancel = reqPendientes.filter(r => r.Estado === 'cancelado').length;
-  if(countEl) countEl.textContent =
-    `${total} total · ${pend} pendiente · ${prog} programado${cancel ? ' · ' + cancel + ' cancelado' : ''}` +
-    (sorted.length < total ? ` · ${sorted.length} filtrados` : '');
-
-  if(!sorted.length) {
+  if(!_reqFiltrados.length) {
     tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Sin resultados</td></tr>`;
     return;
   }
 
-  const MOTIVOS_CANCEL = [
-    'Operación suspendida',
-    'Cambio de prioridad',
-    'Sin disponibilidad de transporte',
-    'Error de captura',
-    'Otro',
-  ];
+  tbody.innerHTML = _reqFiltrados.map((r, i) => {
+    const grupoKey   = `${r.NumReqExcel||r.ID_Req}`;
+    const grupColor  = r.NumReqExcel ? colorGrupo(grupoKey) : 'var(--border)';
+    const cancelado   = r.Estado === 'cancelado';
+    const programado  = r.Estado === 'programado';
+    const finalizado  = r.Estado === 'finalizado';
+    const enProceso   = r.Estado === 'en_proceso';
+    const rowOp       = cancelado ? 'opacity:0.5;' : '';
 
-  tbody.innerHTML = sorted.map((r, i) => {
     const tipoBadge = r.Tipo === 'programa'
-      ? `<span class="badge b-prog">Programa</span>`
-      : `<span class="badge b-demanda">Demanda</span>`;
-    const estadoBadge = r.Estado === 'programado'
-      ? `<span class="badge b-finalizado">programado</span>`
-      : r.Estado === 'cancelado'
-      ? `<span class="badge b-cancelado">cancelado</span>`
-      : `<span class="badge b-pendiente">pendiente</span>`;
-    const osNum = [r.OS, r.NumReqExcel ? `#${r.NumReqExcel}` : ''].filter(Boolean).join(' · ');
+      ? `<span class="badge b-prog">Prog</span>`
+      : `<span class="badge b-demanda">Dem</span>`;
 
-    // Origen con Cod&Nombre
-    const origenDisplay = r.CodOrigen
-      ? `${r.CodOrigen} - ${r.NombreOrigen||''}`
-      : (r.NombreOrigen || '—');
-    // Destino con Cod&Nombre
-    const destinoDisplay = r.CodDestino
-      ? `${r.CodDestino} - ${r.NombreDestino||''}`
-      : (r.NombreDestino || '—');
+    const estadoBadge = finalizado
+      ? `<span class="badge b-finalizado" id="req-estado-${i}">Finalizado</span>`
+      : enProceso
+      ? `<span class="badge b-proceso" id="req-estado-${i}">En proceso</span>`
+      : programado
+      ? `<span class="badge b-prog" id="req-estado-${i}">Programado</span>`
+      : cancelado
+      ? `<span class="badge b-cancelado" id="req-estado-${i}">Cancelado</span>`
+      : `<span class="badge b-pendiente" id="req-estado-${i}">Pendiente</span>`;
 
-    const cancelado = r.Estado === 'cancelado';
-    const rowStyle  = cancelado ? 'opacity:0.55;' : '';
+    const origenDisp  = r.CodOrigen  ? `${r.CodOrigen} - ${r.NombreOrigen||''}` : (r.NombreOrigen||'—');
+    const destinoDisp = r.CodDestino ? `${r.CodDestino} - ${r.NombreDestino||''}` : (r.NombreDestino||'—');
 
-    return `<tr style="${rowStyle}">
-      <td style="font-family:var(--mono);font-size:11px;font-weight:500">${r.ID_Req}</td>
+    const etdVal = r.FechaEjecucion ? r.FechaEjecucion.slice(0,16) : etdDefault();
+    const etdFecha = etdVal.slice(0,10);
+    const etdHora  = etdVal.slice(11,16) || '04:00';
+
+    const acciones = cancelado ? `
+      <span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||''}</span>
+    ` : programado ? `
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <select onchange="desasociarReq('${r.ID_Req}', ${i}, this)"
+          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
+          <option value="">Desasociar…</option>
+          ${MOTIVOS_DESASOC.map(m=>`<option value="${m}">${m}</option>`).join('')}
+        </select>
+        <select onchange="cancelarReq('${r.ID_Req}', this)"
+          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
+          <option value="">Cancelar…</option>
+          ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
+        </select>
+      </div>
+      <div id="req-msg-${i}" style="font-size:10px;margin-top:2px;font-family:var(--mono);"></div>
+    ` : `
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+        <button onclick="programarReq('${r.ID_Req}', ${i})"
+          id="req-btn-${i}"
+          style="height:24px;padding:0 8px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:11px;cursor:pointer;white-space:nowrap;">
+          Programar
+        </button>
+        <select onchange="cancelarReq('${r.ID_Req}', this)"
+          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
+          <option value="">Cancelar…</option>
+          ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
+        </select>
+      </div>
+      <div id="req-msg-${i}" style="font-size:10px;margin-top:2px;font-family:var(--mono);"></div>
+    `;
+
+    return `<tr style="${rowOp}">
+      <td style="padding:0;width:4px;background:${grupColor};"></td>
+      <td style="font-family:var(--mono);font-size:10px;font-weight:500;white-space:nowrap">${r.ID_Req}</td>
       <td>${tipoBadge}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${osNum||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:nowrap">${r.NumReqExcel?`#${r.NumReqExcel} `:''}<span style="color:var(--text3)">${r.OS||''}</span></td>
       <td style="font-size:11px;color:var(--text2)">${r.Zona||'—'}</td>
-      <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${origenDisplay}">${origenDisplay}</td>
-      <td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${destinoDisplay}">${destinoDisplay}${r.Lote?` <span style="color:var(--text3)">L${r.Lote}</span>`:''}</td>
-      <td style="font-size:11px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Actividad||'—'}</td>
-      <td style="font-size:11px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Producto||'—'}</td>
-      <td>
-        ${cancelado ? `<span style="font-size:11px;color:var(--text3);font-family:var(--mono)">${r.FechaEjecucion ? r.FechaEjecucion.slice(0,16).replace('T',' ') : '—'}</span>` : `
-        <div style="display:flex;gap:3px;align-items:center;">
-          <input type="date" id="req-etd-fecha-${i}"
-            value="${r.FechaEjecucion ? r.FechaEjecucion.slice(0,10) : etdDefault().slice(0,10)}"
-            style="height:26px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:var(--mono);width:110px;">
+      <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${origenDisp}">${origenDisp}</td>
+      <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${destinoDisp}">${destinoDisp}${r.Lote?` <span style="color:var(--text3);font-size:10px">L${r.Lote}</span>`:''}</td>
+      <td style="font-size:11px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Actividad||'—'}<br><span style="font-size:10px;color:var(--text3)">${r.Producto||''}</span></td>
+      <td style="white-space:nowrap">
+        ${(cancelado || programado || finalizado || enProceso) ? `<span style="font-size:11px;color:var(--text2);font-family:var(--mono)">${r.FechaEjecucion?r.FechaEjecucion.slice(0,16).replace('T',' '):'—'}</span>` : `
+        <div style="display:flex;gap:2px;">
+          <input type="date" id="req-etd-fecha-${i}" value="${etdFecha}"
+            style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text);font-family:var(--mono);width:105px;">
           <select id="req-etd-hora-${i}"
-            style="height:26px;padding:0 2px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:var(--mono);width:60px;">
-            ${opcionesHora(r.FechaEjecucion ? r.FechaEjecucion.slice(11,16) : '06:00')}
+            style="height:24px;padding:0 2px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text);font-family:var(--mono);width:55px;">
+            ${opcionesHora(etdHora)}
           </select>
         </div>`}
       </td>
       <td>
-        <input type="text" id="req-st-${i}" value="${r.ST||''}"
-          placeholder="153xxx"
-          ${cancelado ? 'disabled' : ''}
-          style="width:85px;height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:var(--mono);"
-          onkeydown="if(event.key==='Enter')this.blur()">
+        ${(cancelado || programado || finalizado || enProceso)
+          ? `<span style="font-family:var(--mono);font-size:11px;font-weight:500">${r.ST||'—'}</span>`
+          : `<input type="text" id="req-st-${i}" value="${r.ST||''}" placeholder="153xxx"
+              style="width:80px;height:24px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:var(--text);"
+              onkeydown="if(event.key==='Enter'){propagarSTGrupo('${grupoKey}',${i});this.blur();}">`}
       </td>
       <td>${estadoBadge}</td>
-      <td>
-        <div style="display:flex;gap:4px;align-items:center;">
-          ${!cancelado && r.Estado !== 'programado' ? `
-          <button onclick="programarReq('${r.ID_Req}', ${i})"
-            style="height:26px;padding:0 8px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:11px;font-family:var(--sans);cursor:pointer;white-space:nowrap;"
-            id="req-btn-${i}">
-            Programar
-          </button>` : ''}
-          ${!cancelado ? `
-          <select onchange="cancelarReq('${r.ID_Req}', this)"
-            style="height:26px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text3);max-width:110px;"
-            title="Cancelar requerimiento">
-            <option value="">Cancelar…</option>
-            ${MOTIVOS_CANCEL.map(m => `<option value="${m}">${m}</option>`).join('')}
-          </select>` : `<span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||''}</span>`}
-        </div>
-        <div id="req-msg-${i}" style="font-size:10px;margin-top:3px;font-family:var(--mono);"></div>
-      </td>
+      <td style="min-width:160px">${acciones}</td>
     </tr>`;
   }).join('');
 }
 
-// ── Asignar ST desde tabla de pendientes (onblur) ──────────
-// asignarST mantenida como alias por compatibilidad
-async function asignarST(idReq, inputEl, etdEl) {}
+// ── Propagar ST mientras escribe (oninput) ────────────────
+function propagarSTInput(inputEl, grupoKey, idxOrigen) {
+  const val = inputEl.value;
+  _reqFiltrados.forEach((r, i) => {
+    if(i === idxOrigen) return;
+    if(r.Estado === 'cancelado' || r.Estado === 'programado') return;
+    if(`${r.NumReqExcel||r.ID_Req}` !== grupoKey) return;
+    const stInp = document.getElementById(`req-st-${i}`);
+    if(stInp) stInp.value = val;
+  });
+}
 
+// ── Propagar ST y ETD al mismo grupo (mismo N°) ────────────
+function propagarSTGrupo(grupoKey, idxOrigen) {
+  const stVal    = document.getElementById(`req-st-${idxOrigen}`)?.value.trim() || '';
+  const fechaVal = document.getElementById(`req-etd-fecha-${idxOrigen}`)?.value || '';
+  const horaVal  = document.getElementById(`req-etd-hora-${idxOrigen}`)?.value || '04:00';
+  if(!stVal) return;
+
+  _reqFiltrados.forEach((r, i) => {
+    if(i === idxOrigen) return;
+    const gk = `${r.NumReqExcel||r.ID_Req}`;
+    if(gk !== grupoKey) return;
+    if(r.Estado === 'cancelado' || r.Estado === 'programado') return;
+    const stInp    = document.getElementById(`req-st-${i}`);
+    const fechaInp = document.getElementById(`req-etd-fecha-${i}`);
+    const horaInp  = document.getElementById(`req-etd-hora-${i}`);
+    if(stInp    && !stInp.value)    stInp.value    = stVal;
+    if(fechaInp && !fechaInp.value) fechaInp.value = fechaVal;
+    if(horaInp  && horaVal) {
+      const opt = horaInp.querySelector(`option[value="${horaVal}"]`);
+      if(opt) opt.selected = true;
+    }
+  });
+}
+
+// ── Programar requerimiento ────────────────────────────────
 async function programarReq(idReq, i) {
   const stEl    = document.getElementById(`req-st-${i}`);
   const fechaEl = document.getElementById(`req-etd-fecha-${i}`);
   const horaEl  = document.getElementById(`req-etd-hora-${i}`);
-  const badgeEl = document.getElementById(`req-estado-${i}`);
   const btnEl   = document.getElementById(`req-btn-${i}`);
   const msgEl   = document.getElementById(`req-msg-${i}`);
 
   const st    = stEl?.value.trim()    || '';
   const fecha = fechaEl?.value.trim() || '';
-  const hora  = horaEl?.value.trim()  || '06:00';
+  const hora  = horaEl?.value.trim()  || '04:00';
 
-  // Validar campos obligatorios
-  if(!st) {
-    msgEl.style.color = 'var(--danger)';
-    msgEl.textContent = '⚠ ST requerida';
-    stEl?.focus();
-    return;
-  }
-  if(!fecha) {
-    msgEl.style.color = 'var(--danger)';
-    msgEl.textContent = '⚠ ETD requerida';
-    fechaEl?.focus();
-    return;
-  }
+  if(!st)    { if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent='⚠ ST requerida';}  stEl?.focus();    return; }
+  if(!fecha) { if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent='⚠ ETD requerida';} fechaEl?.focus(); return; }
 
   const etd = `${fecha}T${hora}:00`;
 
-  if(btnEl) { btnEl.textContent = '...'; btnEl.disabled = true; }
-  if(msgEl) { msgEl.style.color = 'var(--text3)'; msgEl.textContent = 'Validando ST...'; }
+  const r = _reqFiltrados[i];
+  const grupoKey = r ? `${r.NumReqExcel||r.ID_Req}` : null;
 
+  if(btnEl) { btnEl.textContent = '...'; btnEl.disabled = true; }
+  if(msgEl) { msgEl.style.color = 'var(--text3)'; msgEl.textContent = 'Programando...'; }
+
+  // Programar fila principal
+  await _ejecutarProgramar(idReq, i, st, etd, false);
+
+  // Programar en paralelo las demás filas pendientes del mismo N°
+  if(grupoKey && r) {
+    const pendientes = _reqFiltrados
+      .map((rf, j) => ({ rf, j }))
+      .filter(({ rf, j }) =>
+        j !== i &&
+        rf.Estado !== 'cancelado' &&
+        rf.Estado !== 'programado' &&
+        `${rf.NumReqExcel||rf.ID_Req}` === grupoKey
+      );
+    if(pendientes.length) {
+      await Promise.all(pendientes.map(async ({ rf, j }) => {
+        const stJ    = document.getElementById(`req-st-${j}`)?.value.trim()    || st;
+        const fechaJ = document.getElementById(`req-etd-fecha-${j}`)?.value    || fecha;
+        const horaJ  = document.getElementById(`req-etd-hora-${j}`)?.value     || hora;
+        if(stJ) await _ejecutarProgramar(rf.ID_Req, j, stJ, `${fechaJ}T${horaJ}:00`, false);
+      }));
+    }
+  }
+}
+
+async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
+  const btnEl = document.getElementById(`req-btn-${i}`);
+  const msgEl = document.getElementById(`req-msg-${i}`);
   try {
     const res = await apiCall(`requerimientos/${idReq}`, {
       method: 'PATCH',
-      body: JSON.stringify({ ST: st, FechaEjecucion: etd, actualizadoPor: sesion.nombre || sesion.usuario }),
+      body: JSON.stringify({ ST: st, FechaEjecucion: etd,
+        actualizadoPor: sesion.nombre || sesion.usuario, forzar }),
     });
 
-    // Éxito
-    if(badgeEl) { badgeEl.textContent = 'programado'; badgeEl.className = 'badge b-finalizado'; }
-    if(stEl)    stEl.style.borderColor    = 'var(--accent)';
-    if(fechaEl) fechaEl.style.borderColor = 'var(--accent)';
-    if(horaEl)  horaEl.style.borderColor  = 'var(--accent)';
-    if(msgEl)   { msgEl.style.color = 'var(--accent)'; msgEl.textContent = '✓ Programado'; }
-    if(btnEl)   { btnEl.style.display = 'none'; }
+    if(res.requiereConfirmacion) {
+      // Mostrar modal de advertencias
+      _pendingAdvCallbacks.push(() => _ejecutarProgramar(idReq, i, st, etd, true));
+      mostrarModalAdv(res.advertencias);
+      if(btnEl) { btnEl.textContent = 'Programar'; btnEl.disabled = false; }
+      if(msgEl) { msgEl.textContent = ''; }
+      return;
+    }
 
-    // Actualizar en memoria
+    // Éxito
     const idx = reqPendientes.findIndex(r => r.ID_Req === idReq);
     if(idx !== -1) {
       reqPendientes[idx].ST = st;
-      reqPendientes[idx].Estado = 'programado';
+      reqPendientes[idx].Estado = res.Estado || 'programado';
       reqPendientes[idx].FechaEjecucion = etd;
     }
-    // Refrescar vista principal silenciosamente
-    setTimeout(() => recargarDatos(), 1000);
+    // Ocultar botón Programar y mostrar estado
+    if(btnEl) btnEl.style.display = 'none';
+    if(msgEl) { msgEl.style.color = 'var(--accent)'; msgEl.textContent = '✓ Programado'; }
+    actualizarKpisPlan();
+    filtrarPlan();
+    setTimeout(() => recargarDatos(true), 1500);
 
   } catch(e) {
-    // Error — puede ser ST_NO_EXISTE u otro
-    const stNoExiste = e.message.includes('no encontrada') || e.message.includes('ST_NO_EXISTE');
-    if(stEl)  stEl.style.borderColor = 'var(--danger)';
     if(btnEl) { btnEl.textContent = 'Programar'; btnEl.disabled = false; }
     if(msgEl) {
       msgEl.style.color = 'var(--danger)';
-      msgEl.textContent = stNoExiste
+      msgEl.textContent = e.message.includes('no encontrada')
         ? `⚠ ST ${st} no existe en plataforma`
         : `⚠ ${e.message}`;
     }
-    console.warn('[programarReq]', e.message);
+  }
+}
+
+// ── Modal advertencias ─────────────────────────────────────
+function mostrarModalAdv(advertencias) {
+  const modal   = document.getElementById('modal-advertencias');
+  const lista   = document.getElementById('modal-adv-lista');
+  if(!modal || !lista) return;
+  const colorAdv = (codigo) => {
+    if(codigo === 'ST_EJECUTADA')        return { bg:'rgba(220,53,69,0.12)',  bd:'var(--danger)', tx:'var(--danger)' };
+    if(codigo === 'DESTINO_NO_COINCIDE'||
+       codigo === 'FECHA_DIFIERE')       return { bg:'rgba(255,140,0,0.12)',  bd:'var(--warn)',   tx:'var(--warn)'   };
+    return                                      { bg:'rgba(255,193,7,0.12)',  bd:'#c9a800',       tx:'#c9a800'       };
+  };
+  lista.innerHTML = advertencias.map(a => {
+    const c = colorAdv(a.codigo);
+    return `<div style="background:${c.bg};border:0.5px solid ${c.bd};border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:10px;font-weight:600;color:${c.tx};letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px">${a.codigo}</div>
+      <div style="font-size:12px;color:var(--text)">${a.mensaje}</div>
+    </div>`;
+  }).join('');
+  modal.style.display = 'flex';
+}
+
+function cerrarModalAdv() {
+  const modal = document.getElementById('modal-advertencias');
+  if(modal) modal.style.display = 'none';
+  _pendingAdvCallbacks = [];
+}
+
+async function confirmarConAdvertencias() {
+  const cbs = [..._pendingAdvCallbacks];
+  _pendingAdvCallbacks = [];
+  cerrarModalAdv();
+  if(cbs.length) await Promise.all(cbs.map(cb => cb()));
+}
+
+// ── Desasociar ST ──────────────────────────────────────────
+async function desasociarReq(idReq, i, selectEl) {
+  const motivo = selectEl.value;
+  if(!motivo) return;
+  if(!confirm(`¿Desasociar ST del requerimiento ${idReq}?
+Motivo: ${motivo}`)) {
+    selectEl.value = ''; return;
+  }
+  selectEl.disabled = true;
+  try {
+    await apiCall(`requerimientos/${idReq}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ ST: null, MotivoCorreccion: motivo,
+        actualizadoPor: sesion.nombre || sesion.usuario }),
+    });
+    const idx = reqPendientes.findIndex(r => r.ID_Req === idReq);
+    if(idx !== -1) {
+      reqPendientes[idx].ST = null;
+      reqPendientes[idx].Estado = 'pendiente';
+    }
+    actualizarKpisPlan();
+    filtrarPlan();
+    setTimeout(() => recargarDatos(true), 1500);
+  } catch(e) {
+    selectEl.disabled = false;
+    selectEl.value = '';
+    // Si requiere motivo por ST ejecutada
+    if(e.message.includes('MOTIVO_REQUERIDO') || e.message.includes('ejecutada')) {
+      const motCorr = prompt(`La ST ya fue ejecutada. Ingresa el motivo de la corrección:`);
+      if(motCorr) {
+        await apiCall(`requerimientos/${idReq}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ ST: null, MotivoCorreccion: motCorr,
+            actualizadoPor: sesion.nombre || sesion.usuario }),
+        });
+        filtrarPlan();
+      }
+    } else {
+      alert('Error: ' + e.message);
+    }
   }
 }
 
@@ -1752,24 +1970,25 @@ Motivo: ${motivo}`)) {
   try {
     await apiCall(`requerimientos/${idReq}`, {
       method: 'PATCH',
-      body: JSON.stringify({ Estado: 'cancelado', MotivoCancel: motivo, actualizadoPor: sesion.usuario }),
+      body: JSON.stringify({ Estado: 'cancelado', MotivoCancel: motivo,
+        actualizadoPor: sesion.nombre || sesion.usuario }),
     });
     const idx = reqPendientes.findIndex(r => r.ID_Req === idReq);
     if(idx !== -1) { reqPendientes[idx].Estado = 'cancelado'; reqPendientes[idx].MotivoCancel = motivo; }
-    _reqFiltrados = _reqFiltrados.map(r => r.ID_Req === idReq ? {...r, Estado:'cancelado', MotivoCancel: motivo} : r);
-    renderPendientes();
+    actualizarKpisPlan();
+    filtrarPlan();
   } catch(e) {
     selectEl.value = '';
-    alert('Error al cancelar: ' + e.message);
+    alert('Error: ' + e.message);
   }
 }
 
-// ── Cargar y parsear Excel del programa de actividades ──────
+// ── Parser Excel programa de actividades ──────────────────
 async function cargarSolicitud(input) {
   const file = input.files[0];
   if(!file) return;
   const statusEl = document.getElementById('sol-status');
-  statusEl.textContent = 'Leyendo archivo...';
+  if(statusEl) statusEl.textContent = 'Leyendo archivo...';
 
   try {
     const buf  = await file.arrayBuffer();
@@ -1777,7 +1996,6 @@ async function cargarSolicitud(input) {
     const sheetName = wb.SheetNames.includes('BD_Solicitud') ? 'BD_Solicitud' : wb.SheetNames[0];
     const ws   = wb.Sheets[sheetName];
 
-    // Detectar si encabezados están en fila 2
     const allRows = XLSX.utils.sheet_to_json(ws, { defval: '', header: 1 });
     const firstRow = allRows[0] || [];
     const hasEmptyHeader = firstRow.every(v => v === '' || v == null);
@@ -1793,9 +2011,8 @@ async function cargarSolicitud(input) {
       rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
     }
 
-    if(!rows.length) { statusEl.textContent = '⚠ Archivo vacío'; return; }
+    if(!rows.length) { if(statusEl) statusEl.textContent = '⚠ Archivo vacío'; return; }
 
-    // Agrupar por N° + OS (mismo viaje)
     const grupos = {};
     rows.forEach(r => {
       const num = String(r['N°'] || r['N'] || '').trim();
@@ -1803,87 +2020,80 @@ async function cargarSolicitud(input) {
       if(!num) return;
       const key = `${os}||${num}`;
       if(!grupos[key]) {
-        // Regla origen: Cod. Origen presente → explícito; ausente → Almacen
-        const codOrigen  = String(r['Cod. Origen'] || r['Cod_x002e__Origen'] || '').trim();
-        const nomOrigen  = String(r['Origen'] || '').trim();
-        const almacen    = String(r['Almacen'] || r['Almacén'] || '').trim();
-        const origenFinal = codOrigen
-          ? (codOrigen + (nomOrigen ? ' - ' + nomOrigen : ''))
-          : almacen;
-
+        const codOrigen = String(r['Cod. Origen'] || r['Cod_x002e__Origen'] || '').trim();
+        const nomOrigen = String(r['Origen']      || '').trim();
+        const almacen   = String(r['Almacen']     || r['Almacén'] || '').trim();
+        // Regla origen:
+        //   Almacen presente → origen = Almacen (texto libre, sin código)
+        //   Almacen vacío    → origen = CodOrigen + ' - ' + Origen (caña semilla, etc.)
+        const origenFinal = almacen
+          ? almacen
+          : (codOrigen && nomOrigen ? `${codOrigen} - ${nomOrigen}` : codOrigen || nomOrigen || null);
         grupos[key] = {
           NumReqExcel:  parseInt(num) || null,
-          OS:           os,
-          Zona:         String(r['Zona'] || '').trim(),
-          Jefe:         String(r['Jefe'] || '').trim(),
-          RespProd:     String(r['Resp Prod'] || '').trim(),
-          CodActividad: String(r['Cod Act'] || '').trim(),
-          Actividad:    String(r['Actividad'] || '').trim(),
-          Sociedad:     String(r['Sociedad'] || '').trim(),
-          CodOrigen:    codOrigen || null,
-          NombreOrigen: origenFinal || null,
-          CodDestino:   String(r['Cod.'] || r['Cod_x002e_'] || '').trim() || null,
-          NombreDestino:String(r['NomHacienda'] || '').trim(),
-          Lote:         String(r['Lote'] || '').trim(),
-          CodRecurso:   String(r['Codigo Recurso'] || '').trim(),
-          RecursoNombre:String(r['Recurso de Transporte'] || '').trim(),
-          Implemento:   String(r['Implemento'] || '').trim() || null,
-          Comentario:   String(r['Comentario'] || '').trim() || null,
-          Tipo:         'programa',
-          Estado:       'pendiente',
-          productos:    [],
+          OS: os, Zona: String(r['Zona']||'').trim(),
+          Jefe: String(r['Jefe']||'').trim(),
+          RespProd: String(r['Resp Prod']||'').trim(),
+          CodActividad: String(r['Cod Act']||'').trim(),
+          Actividad: String(r['Actividad']||'').trim(),
+          Sociedad: String(r['Sociedad']||'').trim(),
+          CodOrigen: almacen ? null : (codOrigen || null),
+          NombreOrigen: origenFinal,
+          CodDestino: String(r['Cod.']||r['Cod_x002e_']||'').trim() || null,
+          NombreDestino: String(r['NomHacienda']||'').trim(),
+          Lote: String(r['Lote']||'').trim(),
+          CodRecurso: String(r['Codigo Recurso']||'').trim(),
+          RecursoNombre: String(r['Recurso de Transporte']||'').trim(),
+          Implemento: String(r['Implemento']||'').trim() || null,
+          Comentario: String(r['Comentario']||'').trim() || null,
+          Tipo: 'programa', Estado: 'pendiente', productos: [],
         };
       }
-      // Acumular productos del grupo
-      const prod = String(r['Producto'] || '').trim();
+      const prod = String(r['Producto']||'').trim();
       const cant = parseFloat(r['Cantidad Programada']) || 0;
-      const um   = String(r['UM'] || '').trim();
+      const um   = String(r['UM']||'').trim();
       const area = parseFloat(r['HA Programada']) || 0;
       if(prod) grupos[key].productos.push({ prod, cant, um, area });
     });
 
     solicitudesRaw = Object.values(grupos).map(g => {
-      // Consolidar productos
-      const prods  = g.productos.map(p => p.prod).filter((v,i,a) => a.indexOf(v)===i).join(' / ');
-      const cantTotal = g.productos.reduce((s,p) => s+p.cant, 0);
-      const areaTotal = g.productos.reduce((s,p) => s+p.area, 0);
-      const um = g.productos[0]?.um || '';
-      return { ...g, Producto: prods, CantidadTotal: cantTotal || null, AreaTotal: areaTotal || null, UM: um };
+      const prods    = g.productos.map(p=>p.prod).filter((v,i,a)=>a.indexOf(v)===i).join(' / ');
+      const cantTot  = g.productos.reduce((s,p)=>s+p.cant,0);
+      const areaTot  = g.productos.reduce((s,p)=>s+p.area,0);
+      const um       = g.productos[0]?.um || '';
+      return { ...g, Producto: prods, CantidadTotal: cantTot||null, AreaTotal: areaTot||null, UM: um };
     });
 
-    statusEl.textContent = `✓ ${solicitudesRaw.length} requerimientos leídos (${rows.length} líneas)`;
+    if(statusEl) statusEl.textContent = `✓ ${solicitudesRaw.length} requerimientos leídos`;
     renderSolicitudesProg();
     document.getElementById('sol-prog-wrap').style.display = 'block';
-
   } catch(e) {
-    statusEl.textContent = '✗ Error: ' + e.message;
+    if(statusEl) statusEl.textContent = '✗ Error: ' + e.message;
     console.error('[cargarSolicitud]', e);
   }
 }
 
-// ── Render tabla previa del programa ───────────────────────
 function renderSolicitudesProg() {
   const tbody = document.getElementById('sol-prog-tbody');
+  if(!tbody) return;
   tbody.innerHTML = solicitudesRaw.map((g, i) => {
     const prodLabel = g.Producto.length > 40 ? g.Producto.slice(0,40)+'…' : g.Producto;
     const cant = g.CantidadTotal ? `${g.CantidadTotal.toLocaleString()} ${g.UM}` : '—';
-    return `<tr id="sol-prog-row-${i}">
+    return `<tr>
       <td style="font-family:var(--mono);font-weight:600;color:var(--accent)">${g.NumReqExcel}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${g.OS}</td>
       <td style="font-size:11px;color:var(--text2)">${g.Zona}</td>
-      <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.NombreOrigen||''}">${g.NombreOrigen||'—'}</td>
-      <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.NombreDestino}">${g.NombreDestino} <span style="color:var(--text3)">L${g.Lote||'—'}</span></td>
-      <td style="font-size:11px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.Producto}">${prodLabel}</td>
+      <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.NombreOrigen||'—'}</td>
+      <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.NombreDestino} <span style="color:var(--text3)">L${g.Lote||'—'}</span></td>
+      <td style="font-size:11px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${prodLabel}</td>
       <td style="font-family:var(--mono);font-size:11px;text-align:right">${cant}</td>
-      <td><input type="text" id="sol-st-prev-${i}" placeholder="153xxx"
-          style="width:90px;height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:var(--text);"
-          onchange="propagarSTPrev(${i}, this.value)"></td>
-      <td><span id="sol-st-badge-${i}" style="font-size:10px;color:var(--text3)">—</span></td>
+      <td><input type="text" id="sol-st-prev-${i}" placeholder="153xxx (opcional)"
+        style="width:120px;height:24px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);"
+        onchange="propagarSTPrev(${i}, this.value)"></td>
     </tr>`;
   }).join('');
 }
 
-// Propagar ST a filas del mismo N° en la vista previa
 function propagarSTPrev(idx, val) {
   if(!val) return;
   const numRef = solicitudesRaw[idx].NumReqExcel;
@@ -1894,53 +2104,50 @@ function propagarSTPrev(idx, val) {
       if(inp && !inp.value) inp.value = val;
     }
   });
-  const badge = document.getElementById(`sol-st-badge-${idx}`);
-  if(badge) { badge.textContent = val; badge.style.color = 'var(--accent)'; }
 }
 
-// ── Guardar requerimientos del programa en BD ───────────────
 async function guardarRequerimientosProg() {
   const btn = document.getElementById('btn-guardar-prog');
-  btn.textContent = 'Guardando...'; btn.disabled = true;
-
-  // Recoger STs ingresadas en la vista previa
-  const items = solicitudesRaw.map((g, i) => ({
-    ...g,
-    ST:        document.getElementById(`sol-st-prev-${i}`)?.value.trim() || null,
-    Estado:    document.getElementById(`sol-st-prev-${i}`)?.value.trim() ? 'programado' : 'pendiente',
-    CreadoPor: sesion.usuario,
-  }));
-
-  // Limpiar campos internos no necesarios en BD
-  items.forEach(item => delete item.productos);
-
+  if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
+  const items = solicitudesRaw.map((g, i) => {
+    const stVal = document.getElementById(`sol-st-prev-${i}`)?.value.trim() || null;
+    const item  = { ...g, CreadoPor: sesion.usuario };
+    if(stVal) { item.ST = stVal; item.Estado = 'programado'; }
+    delete item.productos;
+    return item;
+  });
   try {
     const res = await apiCall('requerimientos', {
-      method: 'POST',
-      body: JSON.stringify({ requerimientos: items }),
+      method: 'POST', body: JSON.stringify({ requerimientos: items }),
     });
-    btn.textContent = `✓ ${res.insertados} guardados`;
-    document.getElementById('sol-status').textContent = `✓ ${res.insertados} requerimientos guardados en BD`;
+    if(btn) btn.textContent = `✓ ${res.insertados} guardados`;
+    const statusEl = document.getElementById('sol-status');
+    if(statusEl) statusEl.textContent = `✓ ${res.insertados} requerimientos guardados`;
     setTimeout(() => {
       document.getElementById('sol-prog-wrap').style.display = 'none';
-      document.getElementById('sol-file').value = '';
+      const fi = document.getElementById('plan-file-input');
+      if(fi) fi.value = '';
       solicitudesRaw = [];
-      btn.textContent = 'Guardar en BD'; btn.disabled = false;
-      cargarRequerimientosBD(); // Refrescar tabla de pendientes
-    }, 2000);
+      if(btn) { btn.textContent = 'Guardar en BD'; btn.disabled = false; }
+      cargarRequerimientosBD();
+    }, 1500);
     if(res.errores?.length) console.warn('[guardarProg] errores:', res.errores);
   } catch(e) {
-    btn.textContent = '✗ Error'; btn.disabled = false;
-    document.getElementById('sol-status').textContent = '✗ ' + e.message;
-    console.error('[guardarProg]', e);
+    if(btn) { btn.textContent = '✗ Error'; btn.disabled = false; }
+    const statusEl = document.getElementById('sol-status');
+    if(statusEl) statusEl.textContent = '✗ ' + e.message;
   }
 }
 
-// ── Funciones legacy — se mantienen por compatibilidad ──────
+// ── asignarST legacy alias ─────────────────────────────────
+async function asignarST() {}
+
+// ── Funciones legacy ───────────────────────────────────────
 function renderSolicitudes() {}
 function heredarST() {}
 async function confirmarSolicitudes() {}
 let _solFilas = [];
+
 // ============================================================
 // ARRANQUE
 // ============================================================
@@ -2029,7 +2236,7 @@ async function intentarLogin() {
   const tabSol = document.getElementById('tab-sol');
   if(tabSol && ['admin','coordinador','controlador'].includes(sesion.rol)) {
     tabSol.style.display = '';
-    document.getElementById('sol-coord').value = sesion.nombre || '';
+    const solCoord = document.getElementById('sol-coord'); if(solCoord) solCoord.value = sesion.nombre || '';
   }
   // Mostrar tab Info solo para admin
   const tabInfo = document.getElementById('tab-info');
@@ -2044,15 +2251,35 @@ async function intentarLogin() {
 
   cargarDatos().then(() => {
     calcularInfo();
-    // Filtros por defecto — días hacia atrás configurable desde config.json
+    // Filtros por defecto — desde último mes hasta fecha máxima en datos
     const diasAtras = configData.diasDefaultDesde ?? 30;
     const desde = new Date();
     desde.setDate(desde.getDate() - diasAtras);
-    const diasAdelante = configData.diasDefaultHasta ?? 1;
-    const hasta = new Date();
-    hasta.setDate(hasta.getDate() + diasAdelante);
+
+    // Fecha máxima: la mayor fecha disponible en los datos cargados
+    // Considera FechaEntrega, horaPlanEntrega y fechaEjec de todos los viajes
+    let fechaMax = null;
+    if (viajes.length) {
+      viajes.forEach(v => {
+        const candidatos = [v.fechaEntrega, v.horaPlanEntrega, v.fechaEjec]
+          .filter(Boolean)
+          .map(f => {
+            const m1 = String(f).match(/^(\d{4}-\d{2}-\d{2})/);
+            const m2 = String(f).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+            if (m1) return m1[1];
+            if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+            return null;
+          })
+          .filter(Boolean);
+        candidatos.forEach(f => { if (!fechaMax || f > fechaMax) fechaMax = f; });
+      });
+    }
+    // Si no hay fecha máxima o es menor que hoy+1, usar hoy+1 como mínimo
+    const hoyMas1 = fechaLocal(new Date(Date.now() + 86400000));
+    if (!fechaMax || fechaMax < hoyMas1) fechaMax = hoyMas1;
+
     dpSetValue('dp-desde', fechaLocal(desde));
-    dpSetValue('dp-hasta', fechaLocal(hasta));
+    dpSetValue('dp-hasta', fechaMax);
     // Orden por defecto: ETA descendente
     sortCol = 'horaPlanEntrega';
     sortDir = -1;
@@ -2157,13 +2384,14 @@ function normalizarViaje(r) {
     // OrigenDato calculado en servidor
     OrigenDato:      r.OrigenDato,
     FechaPrincipal:  r.FechaPrincipal,
+    fechaPrincipal:  r.FechaPrincipal,
   };
 }
 
 // ============================================================
 // CARGA DE DATOS — fuente única: Azure SQL
 // ============================================================
-async function cargarDatos(silencioso = false) {
+async function cargarDatos(silencioso = false, bypassCache = false) {
   if(!silencioso) {
     document.getElementById('loader').style.display = 'flex';
     loader('Conectando a Azure SQL...');
@@ -2171,7 +2399,17 @@ async function cargarDatos(silencioso = false) {
 
   try {
     const [viajesSQL, segWebRaw] = await Promise.all([
-      apiCall('viajes').catch(e => { console.warn('[API viajes]', e.message); return []; }),
+      (() => {
+        const dpDesde = document.getElementById('dp-desde')?.value;
+        const dpHasta = document.getElementById('dp-hasta')?.value;
+        const desde = dpDesde ? dpDesde.split('/').reverse().join('-') : (() => {
+          const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0,10);
+        })();
+        const hasta = dpHasta ? dpHasta.split('/').reverse().join('-') : '';
+        const bust  = bypassCache ? '&_bust=' + Date.now() : '';
+        const url   = `viajes?desde=${desde}${hasta ? '&hasta='+hasta : ''}${bust}`;
+        return apiCall(url).catch(e => { console.warn('[API viajes]', e.message); return []; });
+      })(),
       apiCall('seguimiento').catch(() => []),
     ]);
 
@@ -2259,7 +2497,7 @@ async function cargarRangoCompleto() {
   }
 }
 
-async function recargarDatos() {
+async function recargarDatos(bypassCache = false) {
   const btn = document.getElementById('btn-refresh-icon');
   if(btn) btn.classList.add('spinning');
 
@@ -2274,7 +2512,7 @@ async function recargarDatos() {
     prevMs[id] = getMsValues(id);
   });
 
-  await cargarDatos(true);
+  await cargarDatos(true, bypassCache);
   calcularInfo();
 
   // Restaurar filtros de fecha
@@ -2292,6 +2530,7 @@ async function recargarDatos() {
   if(prevSortCol) { sortCol = prevSortCol; sortDir = prevSortDir; }
   if(typeof poblarMsDinamicos === 'function') poblarMsDinamicos();
   aplicarFiltros();
+  if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD();
 
   if(btn) btn.classList.remove('spinning');
 }
@@ -2314,6 +2553,7 @@ function procesarViajes(apiData, progData, costosData) {
     v.origen_api  = n(r.DsPuntoPartida);
     v.destino_api = n(r.DsPuntoEntrega);
     v.fechaEntrega     = n(r.FechaEntrega);
+    v.fechaPrincipal   = n(r.FechaPrincipal);
     v.fechaInicio      = n(r.FechaInicioViaje);
     v.fechaFin         = n(r.FechaFinalizacion);
     v.horaPlanEntrega  = n(r.FechaEntrega) || n(r.FechaHoraPlanLlegada);
@@ -2432,7 +2672,7 @@ function procesarViajes(apiData, progData, costosData) {
     // Hora real inicio — API → Seg
     if(!v.horaRealInicio) v.horaRealInicio = v.horaRealSeg || null;
     // Fecha de referencia para filtros
-    v.fechaRef = v.fechaEjec || v.fechaEntrega || null;
+    v.fechaRef = v.fechaEjec || v.fechaEntrega || v.fechaPrincipal || null;
 
     // Origen solicitud
     if(v.enProg)                  v.origenSolicitud = 'Programado';
@@ -2996,7 +3236,7 @@ function aplicarFiltros() {
         if(m2) return m2[1];
         return null;
       };
-      const fechas = [v.fechaEjec, v.fechaEntrega, v.horaPlanEntrega, v.horaRealEntrega]
+      const fechas = [v.fechaEjec, v.fechaEntrega, v.horaPlanEntrega, v.horaRealEntrega, v.fechaRef]
         .map(normFecha).filter(Boolean);
       if(fechas.length === 0) return false;
       const enRango = fechas.some(f => {
@@ -3050,7 +3290,7 @@ function limpiarFiltros() {
   limpiarTodosMs();
   document.querySelectorAll('.th-search-input').forEach(el => { el.value=''; el.classList.remove('open'); });
   ['tf-st','tf-origen','tf-estado','tf-tipo','tf-origen2','tf-destino','tf-coord'].forEach(id => {
-    document.getElementById(id).value = '';
+    const el = document.getElementById(id); if(el) el.value = '';
   });
   aplicarFiltros();
 }
@@ -3208,7 +3448,6 @@ function setPage(p) {
   });
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
-  // Cargar requerimientos al abrir Solicitudes
   if(p === 'solicitudes') cargarRequerimientosBD();
 }
 
@@ -3262,6 +3501,7 @@ function abrirPanel(st) {
   } else {
     document.getElementById('edit-info').textContent = '';
   }
+  window._editVersion = anot.fechaActualizacion || null;
 
   // Campos editables solo si tiene permiso
   const editable = ['admin','controlador','coordinador'].includes(sesion.rol);
