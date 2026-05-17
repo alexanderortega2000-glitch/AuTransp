@@ -2368,6 +2368,7 @@ function normalizarViaje(r) {
     // OrigenDato calculado en servidor
     OrigenDato:      r.OrigenDato,
     FechaPrincipal:  r.FechaPrincipal,
+    fechaPrincipal:  r.FechaPrincipal,
   };
 }
 
@@ -2654,7 +2655,7 @@ function procesarViajes(apiData, progData, costosData) {
     // Hora real inicio — API → Seg
     if(!v.horaRealInicio) v.horaRealInicio = v.horaRealSeg || null;
     // Fecha de referencia para filtros
-    v.fechaRef = v.fechaEjec || v.fechaEntrega || null;
+    v.fechaRef = v.fechaEjec || v.fechaEntrega || v.fechaPrincipal || null;
 
     // Origen solicitud
     if(v.enProg)                  v.origenSolicitud = 'Programado';
@@ -3218,7 +3219,7 @@ function aplicarFiltros() {
         if(m2) return m2[1];
         return null;
       };
-      const fechas = [v.fechaEjec, v.fechaEntrega, v.horaPlanEntrega, v.horaRealEntrega]
+      const fechas = [v.fechaEjec, v.fechaEntrega, v.horaPlanEntrega, v.horaRealEntrega, v.fechaRef]
         .map(normFecha).filter(Boolean);
       if(fechas.length === 0) return false;
       const enRango = fechas.some(f => {
