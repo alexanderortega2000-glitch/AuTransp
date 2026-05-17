@@ -15,11 +15,23 @@ const err = (status, msg, extra = {}) => ({ status, headers: HEADERS, body: JSON
 //   ?estado=pendiente|programado|cancelado   (omitir = todos)
 //   ?todos=true                              (incluye cancelados)
 // ============================================================
+// ── Verificación API Key ─────────────────────────────────
+function checkApiKey(request) {
+  const key = request.headers.get('x-api-key');
+  return key && key === process.env.API_KEY;
+}
+const unauthorized = () => ({
+  status: 401,
+  headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+  body: JSON.stringify({ error: 'Unauthorized' }),
+});
+
 app.http('requerimientos-get', {
   methods: ['GET'],
   route: 'requerimientos',
   authLevel: 'anonymous',
   handler: async (request) => {
+    if (!checkApiKey(request)) return unauthorized();
     try {
       const tipo   = request.query.get('tipo');
       const estado = request.query.get('estado');
@@ -76,6 +88,7 @@ app.http('requerimientos-post', {
   route: 'requerimientos',
   authLevel: 'anonymous',
   handler: async (request) => {
+    if (!checkApiKey(request)) return unauthorized();
     try {
       const body  = await request.json();
       const items = Array.isArray(body.requerimientos)
@@ -182,6 +195,7 @@ app.http('requerimientos-patch', {
   route: 'requerimientos/{id}',
   authLevel: 'anonymous',
   handler: async (request) => {
+    if (!checkApiKey(request)) return unauthorized();
     try {
       const id   = request.params.id;
       const body = await request.json();
