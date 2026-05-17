@@ -1553,10 +1553,23 @@ function toggleReqSearch(id) {
   if(!inp) return;
   inp.classList.toggle('open');
   if(inp.classList.contains('open')) inp.focus();
-  else { inp.value = ''; filtrarPlan(); }
+  else { inp.value = ''; inp.classList.remove('has-value'); marcarFiltrosActivosReq(); filtrarPlan(); }
+}
+
+function marcarFiltrosActivosReq() {
+  document.querySelectorAll('#page-planificacion .th-search-input').forEach(inp => {
+    const hasVal = inp.value.trim().length > 0;
+    inp.classList.toggle('has-value', hasVal);
+    const wrap = inp.closest('.th-search-wrap');
+    if(wrap) {
+      const btn = wrap.querySelector('.th-btn');
+      if(btn) btn.classList.toggle('filter-active', hasVal);
+    }
+  });
 }
 
 function filtrarPlan() {
+  marcarFiltrosActivosReq();
   const buscar    = (document.getElementById('pf-buscar')?.value      || '').toLowerCase();
   const tipo      = document.getElementById('pf-tipo')?.value         || '';
   const estado    = document.getElementById('pf-estado')?.value       || '';
@@ -1851,6 +1864,9 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
       reqPendientes[idx].Estado = res.Estado || 'programado';
       reqPendientes[idx].FechaEjecucion = etd;
     }
+    // Ocultar botón Programar y mostrar estado
+    if(btnEl) btnEl.style.display = 'none';
+    if(msgEl) { msgEl.style.color = 'var(--accent)'; msgEl.textContent = '✓ Programado'; }
     actualizarKpisPlan();
     filtrarPlan();
     setTimeout(() => recargarDatos(true), 1500);
