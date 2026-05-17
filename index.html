@@ -1018,9 +1018,11 @@ const GITHUB_API   = 'https://api.github.com/repos/alexanderortega2000-glitch/Au
 const API_BASE = 'https://autransp-api-awekazaja2gngee4.centralus-01.azurewebsites.net/api';
 const apiUrl = (endpoint) => `${API_BASE}/${endpoint}`;
 
+const API_KEY = 'autransp-2026-k9mX4vQzRpL7nWjYeB3sC8dT';
+
 async function apiCall(endpoint, options = {}) {
   const resp = await fetch(apiUrl(endpoint), {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, ...options.headers },
     ...options,
   });
   if (!resp.ok) {
@@ -1851,13 +1853,7 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
     }
     actualizarKpisPlan();
     filtrarPlan();
-    // Actualizar datos en memoria sin re-renderizar (sin parpadeo)
-    setTimeout(async () => {
-      try {
-        const frescos = await apiCall('requerimientos?todos=true');
-        if(frescos?.length) { reqPendientes = frescos; actualizarKpisPlan(); }
-      } catch(e) { /* silencioso */ }
-    }, 2000);
+    setTimeout(() => recargarDatos(true), 1500);
 
   } catch(e) {
     if(btnEl) { btnEl.textContent = 'Programar'; btnEl.disabled = false; }
@@ -1926,12 +1922,7 @@ Motivo: ${motivo}`)) {
     }
     actualizarKpisPlan();
     filtrarPlan();
-    setTimeout(async () => {
-      try {
-        const frescos = await apiCall('requerimientos?todos=true');
-        if(frescos?.length) { reqPendientes = frescos; actualizarKpisPlan(); }
-      } catch(e) { /* silencioso */ }
-    }, 2000);
+    setTimeout(() => recargarDatos(true), 1500);
   } catch(e) {
     selectEl.disabled = false;
     selectEl.value = '';
