@@ -36,12 +36,22 @@ jobs:
           package: api/src/functions
           scm-do-build-during-deployment: true
 
-      - name: Remove WEBSITE_RUN_FROM_PACKAGE setting
+      - name: Post-deploy cleanup
         uses: azure/CLI@v1
         with:
           azcliversion: latest
           inlineScript: |
+            # Eliminar WEBSITE_RUN_FROM_PACKAGE para que wwwroot sea editable
             az functionapp config appsettings delete \
               --name autransp-api \
               --resource-group autransp-rg \
               --setting-names WEBSITE_RUN_FROM_PACKAGE
+
+            # Restaurar CORS
+            az functionapp cors add \
+              --name autransp-api \
+              --resource-group autransp-rg \
+              --allowed-origins \
+                https://delightful-mushroom-023410f0f.7.azurestaticapps.net \
+                https://delightful-mushroom-023410f0f-1.eastus2.7.azurestaticapps.net \
+                https://portal.azure.com
