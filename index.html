@@ -1858,15 +1858,19 @@ async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
     }
 
     // Éxito
-    const idx = reqPendientes.findIndex(r => r.ID_Req === idReq);
-    if(idx !== -1) {
-      reqPendientes[idx].ST = st;
-      reqPendientes[idx].Estado = res.Estado || 'programado';
-      reqPendientes[idx].FechaEjecucion = etd;
+    const nuevoEstado = res.Estado || 'programado';
+    const idxReq = reqPendientes.findIndex(r => r.ID_Req === idReq);
+    if(idxReq !== -1) {
+      reqPendientes[idxReq].ST = st;
+      reqPendientes[idxReq].Estado = nuevoEstado;
+      reqPendientes[idxReq].FechaEjecucion = etd;
     }
-    // Ocultar botón Programar y mostrar estado
-    if(btnEl) btnEl.style.display = 'none';
-    if(msgEl) { msgEl.style.color = 'var(--accent)'; msgEl.textContent = '✓ Programado'; }
+    const idxFilt = _reqFiltrados.findIndex(r => r.ID_Req === idReq);
+    if(idxFilt !== -1) {
+      _reqFiltrados[idxFilt].ST = st;
+      _reqFiltrados[idxFilt].Estado = nuevoEstado;
+      _reqFiltrados[idxFilt].FechaEjecucion = etd;
+    }
     actualizarKpisPlan();
     filtrarPlan();
     setTimeout(() => recargarDatos(true), 1500);
