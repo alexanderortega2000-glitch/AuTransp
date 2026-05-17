@@ -2537,6 +2537,7 @@ function procesarViajes(apiData, progData, costosData) {
     v.origen_api  = n(r.DsPuntoPartida);
     v.destino_api = n(r.DsPuntoEntrega);
     v.fechaEntrega     = n(r.FechaEntrega);
+    v.fechaPrincipal   = n(r.FechaPrincipal);
     v.fechaInicio      = n(r.FechaInicioViaje);
     v.fechaFin         = n(r.FechaFinalizacion);
     v.horaPlanEntrega  = n(r.FechaEntrega) || n(r.FechaHoraPlanLlegada);
@@ -3765,7 +3766,7 @@ async function enviarSolicitud() {
 document.getElementById('modal-solicitud').addEventListener('click', function(e) {
   if(e.target === this) cerrarModalSolicitud();
 });
-//PruebaDEV4
+//PruebaDEV
 </script>
 </body>
 </html>
