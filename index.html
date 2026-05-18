@@ -740,7 +740,7 @@ tr.clickable { cursor: pointer; }
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Origen</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-origen')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-origen" placeholder="Buscar origen..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Destino</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-destino" placeholder="Buscar destino..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Actividad / Producto</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-actividad')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-actividad" placeholder="Buscar..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Resp. Prod.</span></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Cliente</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-cliente')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-cliente" placeholder="Buscar cliente..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ETD</span></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-st')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-st" placeholder="Buscar ST..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Estado</span><button class="th-btn" onclick="sortReq('Estado')" id="rsrt-Estado">↕</button></div></th>
@@ -1604,7 +1604,9 @@ function filtrarPlan() {
     if(tfSt      && !String(r.ST            ||'').toLowerCase().includes(tfSt))      return false;
     if(buscar) {
       const haystack = [r.ID_Req, r.OS, r.Zona, r.NombreOrigen, r.NombreDestino,
-                        r.Actividad, r.Producto, r.ST].filter(Boolean).join(' ').toLowerCase();
+                        r.CodDestino, r.NombreOrigen, r.CodOrigen,
+                        r.Actividad, r.Producto, r.ST, r.RespProd,
+                        r.Tipo, r.NumReqExcel ? String(r.NumReqExcel) : null].filter(Boolean).join(' ').toLowerCase();
       if(!haystack.includes(buscar)) return false;
     }
     return true;
