@@ -1509,18 +1509,18 @@ function opcionesHora(valorActual) {
 }
 
 // ── Cargar requerimientos desde BD ────────────────────────
-async function cargarRequerimientosBD() {
+async function cargarRequerimientosBD(silencioso = false) {
   const tbody = document.getElementById('sol-pendientes-tbody');
-  if(tbody) tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
+  if(!silencioso && tbody) tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
   try {
     // Cargar todos (incluyendo programados y cancelados según filtro)
     reqPendientes = await apiCall('requerimientos?todos=true');
     _reqFiltrados = [...reqPendientes];
     poblarFiltroZona();
-    filtrarPlan();
+    if(!silencioso) filtrarPlan();
     actualizarKpisPlan();
   } catch(e) {
-    if(tbody) tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--danger);padding:1rem">${e.message}</td></tr>`;
+    if(!silencioso && tbody) tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--danger);padding:1rem">${e.message}</td></tr>`;
   }
 }
 
@@ -1949,9 +1949,17 @@ Motivo: ${motivo}`)) {
       reqPendientes[idx].ST = null;
       reqPendientes[idx].Estado = 'pendiente';
     }
+    const idxFilt = _reqFiltrados.findIndex(r => r.ID_Req === idReq);
+    if(idxFilt !== -1) {
+      _reqFiltrados[idxFilt].ST = null;
+      _reqFiltrados[idxFilt].Estado = 'pendiente';
+    }
     actualizarKpisPlan();
     filtrarPlan();
-    setTimeout(() => recargarDatos(true), 1500);
+    // Recargar datos en background sin re-renderizar tabla
+    setTimeout(async () => {
+      await recargarDatos(true);
+    }, 2000);
   } catch(e) {
     selectEl.disabled = false;
     selectEl.value = '';
@@ -2543,7 +2551,7 @@ async function recargarDatos(bypassCache = false) {
   if(prevSortCol) { sortCol = prevSortCol; sortDir = prevSortDir; }
   if(typeof poblarMsDinamicos === 'function') poblarMsDinamicos();
   aplicarFiltros();
-  if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD();
+  if(typeof cargarRequerimientosBD === 'function') cargarRequerimientosBD(true);
 
   if(btn) btn.classList.remove('spinning');
 }
