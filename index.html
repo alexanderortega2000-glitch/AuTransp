@@ -374,6 +374,31 @@ tr.clickable { cursor: pointer; }
 .edit-info { font-size: 11px; color: var(--text3); margin-bottom: 10px; font-family: var(--mono); }
 .readonly-field { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 8px 10px; font-size: 12px; color: var(--text2); }
 
+/* ── PANEL PLANIFICACIÓN LATERAL ────────────────────────── */
+#plan-panel {
+  position: fixed; right: 0; top: 48px; bottom: 0; width: 320px;
+  background: var(--surface); border-left: 0.5px solid var(--border2);
+  transform: translateX(100%); transition: transform .2s ease;
+  z-index: 55; display: flex; flex-direction: column;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.06);
+}
+#plan-panel.open { transform: translateX(0); }
+.plan-panel-header {
+  padding: 12px 16px; border-bottom: 0.5px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between;
+  background: var(--bg2);
+}
+.plan-panel-body { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.plan-panel-footer { padding: 12px 16px; border-top: 0.5px solid var(--border); }
+.plan-slot-card {
+  background: var(--bg2); border: 0.5px solid var(--border);
+  border-radius: var(--radius); padding: 8px 10px; margin-bottom: 6px;
+}
+.plan-slot-new {
+  border: 0.5px dashed var(--border2); border-radius: var(--radius);
+  padding: 8px 10px; margin-bottom: 6px;
+}
+
 /* ── LOADING ─────────────────────────────────────────── */
 #loader {
   position: fixed; inset: 0; background: var(--bg);
@@ -718,9 +743,8 @@ tr.clickable { cursor: pointer; }
                 <th class="th-main">Zona</th>
                 <th class="th-main">Origen</th>
                 <th class="th-main">Destino / Lote</th>
-                <th class="th-main">Producto(s)</th>
+                <th class="th-main">Producto</th>
                 <th class="th-main">Cant.</th>
-                <th class="th-main" style="color:var(--accent)">ST (opcional)</th>
               </tr></thead>
               <tbody id="sol-prog-tbody"></tbody>
             </table>
@@ -955,6 +979,21 @@ tr.clickable { cursor: pointer; }
       <button onclick="cerrarModalSolicitud()" class="btn-sm" style="flex:1;height:36px;">Cancelar</button>
       <button onclick="enviarSolicitud()" class="btn-sm primary" id="ns-btn-enviar" style="flex:2;height:36px;font-size:13px;">Enviar solicitud</button>
     </div>
+  </div>
+</div>
+
+<!-- PANEL PLANIFICACIÓN -->
+<div id="plan-panel">
+  <div class="plan-panel-header">
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px">Requerimiento N° <span id="pp-num">—</span></div>
+      <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="pp-titulo">—</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:1px" id="pp-sub">—</div>
+    </div>
+    <button onclick="cerrarPlanPanel()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2);padding:4px;flex-shrink:0;">×</button>
+  </div>
+  <div class="plan-panel-body" id="pp-body">
+    <div style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono);font-size:12px">Selecciona un requerimiento</div>
   </div>
 </div>
 
@@ -1774,11 +1813,14 @@ function renderPlan() {
     const acciones = cancelado ? `
       <span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||''}</span>
     ` : esProgramadoOSimilar ? `
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        ${renderSlotsAcciones(r, i)}
+      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+        <button onclick="abrirPlanPanel(${r.NumReqExcel||'\'' + r.ID_Req + '\''})"
+          style="height:24px;padding:0 8px;background:var(--bg);color:var(--text);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;cursor:pointer;">
+          Gestionar STs
+        </button>
         ${!finalizado && !finParcial ? `
         <select onchange="cancelarReq('${r.ID_Req}', this)"
-          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);max-width:140px;">
+          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
           <option value="">Cancelar…</option>
           ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
         </select>` : ''}
@@ -1786,7 +1828,7 @@ function renderPlan() {
       <div id="req-msg-${i}" style="font-size:10px;margin-top:2px;font-family:var(--mono);"></div>
     ` : `
       <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
-        <button onclick="programarReq('${r.ID_Req}', ${i})"
+        <button onclick="abrirPlanPanel(${r.NumReqExcel||'\'' + r.ID_Req + '\''})"
           id="req-btn-${i}"
           style="height:24px;padding:0 8px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:11px;cursor:pointer;white-space:nowrap;">
           Programar
@@ -1822,11 +1864,9 @@ function renderPlan() {
         </div>`}
       </td>
       <td>
-        ${(cancelado || programado || finalizado || enProceso)
-          ? `<span style="font-family:var(--mono);font-size:11px;font-weight:500">${r.ST||'—'}</span>`
-          : `<input type="text" id="req-st-${i}" value="${r.ST||''}" placeholder="153xxx"
-              style="width:80px;height:24px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:var(--text);"
-              onkeydown="if(event.key==='Enter'){propagarSTGrupo('${grupoKey}',${i});this.blur();}">`}
+        <div style="font-family:var(--mono);font-size:11px;">
+          ${[r.ST,r.ST2,r.ST3,r.ST4].filter(Boolean).map(s=>`<div style="font-weight:500">${s}</div>`).join('')||'<span style="color:var(--text3)">—</span>'}
+        </div>
       </td>
       <td>${estadoBadge}</td>
       <td style="min-width:160px">${acciones}</td>
@@ -2105,55 +2145,48 @@ async function cargarSolicitud(input) {
 
     if(!rows.length) { if(statusEl) statusEl.textContent = '⚠ Archivo vacío'; return; }
 
-    const grupos = {};
+    // Una fila por producto — no consolidar
+    solicitudesRaw = [];
     rows.forEach(r => {
       const num = String(r['N°'] || r['N'] || '').trim();
       const os  = String(r['OS'] || '').trim();
       if(!num) return;
-      const key = `${os}||${num}`;
-      if(!grupos[key]) {
-        const codOrigen = String(r['Cod. Origen'] || r['Cod_x002e__Origen'] || '').trim();
-        const nomOrigen = String(r['Origen']      || '').trim();
-        const almacen   = String(r['Almacen']     || r['Almacén'] || '').trim();
-        // Regla origen:
-        //   Almacen presente → origen = Almacen (texto libre, sin código)
-        //   Almacen vacío    → origen = CodOrigen + ' - ' + Origen (caña semilla, etc.)
-        const origenFinal = almacen
-          ? almacen
-          : (codOrigen && nomOrigen ? `${codOrigen} - ${nomOrigen}` : codOrigen || nomOrigen || null);
-        grupos[key] = {
-          NumReqExcel:  parseInt(num) || null,
-          OS: os, Zona: String(r['Zona']||'').trim(),
-          Jefe: String(r['Jefe']||'').trim(),
-          RespProd: String(r['Resp Prod']||'').trim(),
-          CodActividad: String(r['Cod Act']||'').trim(),
-          Actividad: String(r['Actividad']||'').trim(),
-          Sociedad: String(r['Sociedad']||'').trim(),
-          CodOrigen: almacen ? null : (codOrigen || null),
-          NombreOrigen: origenFinal,
-          CodDestino: String(r['Cod.']||r['Cod_x002e_']||'').trim() || null,
-          NombreDestino: String(r['NomHacienda']||'').trim(),
-          Lote: String(r['Lote']||'').trim(),
-          CodRecurso: String(r['Codigo Recurso']||'').trim(),
-          RecursoNombre: String(r['Recurso de Transporte']||'').trim(),
-          Implemento: String(r['Implemento']||'').trim() || null,
-          Comentario: String(r['Comentario']||'').trim() || null,
-          Tipo: 'programa', Estado: 'pendiente', productos: [],
-        };
-      }
       const prod = String(r['Producto']||'').trim();
-      const cant = parseFloat(r['Cantidad Programada']) || 0;
+      const cant = parseFloat(r['Cantidad Programada']) || null;
       const um   = String(r['UM']||'').trim();
-      const area = parseFloat(r['HA Programada']) || 0;
-      if(prod) grupos[key].productos.push({ prod, cant, um, area });
-    });
+      const area = parseFloat(r['HA Programada']) || null;
 
-    solicitudesRaw = Object.values(grupos).map(g => {
-      const prods    = g.productos.map(p=>p.prod).filter((v,i,a)=>a.indexOf(v)===i).join(' / ');
-      const cantTot  = g.productos.reduce((s,p)=>s+p.cant,0);
-      const areaTot  = g.productos.reduce((s,p)=>s+p.area,0);
-      const um       = g.productos[0]?.um || '';
-      return { ...g, Producto: prods, CantidadTotal: cantTot||null, AreaTotal: areaTot||null, UM: um };
+      const codOrigen  = String(r['Cod. Origen'] || r['Cod_x002e__Origen'] || '').trim();
+      const nomOrigen  = String(r['Origen']      || '').trim();
+      const almacen    = String(r['Almacen']     || r['Almacén'] || '').trim();
+      const origenFinal = almacen
+        ? almacen
+        : (codOrigen && nomOrigen ? `${codOrigen} - ${nomOrigen}` : codOrigen || nomOrigen || null);
+
+      solicitudesRaw.push({
+        NumReqExcel:  parseInt(num) || null,
+        OS: os,
+        Zona:         String(r['Zona']       ||'').trim(),
+        Jefe:         String(r['Jefe']       ||'').trim(),
+        RespProd:     String(r['Resp Prod']  ||'').trim(),
+        CodActividad: String(r['Cod Act']    ||'').trim(),
+        Actividad:    String(r['Actividad']  ||'').trim(),
+        Sociedad:     String(r['Sociedad']   ||'').trim(),
+        CodOrigen:    almacen ? null : (codOrigen || null),
+        NombreOrigen: origenFinal,
+        CodDestino:   String(r['Cod.']||r['Cod_x002e_']||'').trim() || null,
+        NombreDestino:String(r['NomHacienda']||'').trim(),
+        Lote:         String(r['Lote']       ||'').trim(),
+        CodRecurso:   String(r['Codigo Recurso']||'').trim(),
+        RecursoNombre:String(r['Recurso de Transporte']||'').trim(),
+        Implemento:   String(r['Implemento'] ||'').trim() || null,
+        Comentario:   String(r['Comentario'] ||'').trim() || null,
+        Producto:     prod || null,
+        UM:           um   || null,
+        CantidadTotal:cant,
+        AreaTotal:    area,
+        Tipo: 'programa', Estado: 'pendiente',
+      });
     });
 
     if(statusEl) statusEl.textContent = `✓ ${solicitudesRaw.length} requerimientos leídos`;
@@ -2169,19 +2202,16 @@ function renderSolicitudesProg() {
   const tbody = document.getElementById('sol-prog-tbody');
   if(!tbody) return;
   tbody.innerHTML = solicitudesRaw.map((g, i) => {
-    const prodLabel = g.Producto.length > 40 ? g.Producto.slice(0,40)+'…' : g.Producto;
-    const cant = g.CantidadTotal ? `${g.CantidadTotal.toLocaleString()} ${g.UM}` : '—';
+    const prodLabel = (g.Producto||'—').length > 35 ? (g.Producto||'—').slice(0,35)+'…' : (g.Producto||'—');
+    const cant = g.CantidadTotal ? `${g.CantidadTotal.toLocaleString()} ${g.UM||''}` : '—';
     return `<tr>
       <td style="font-family:var(--mono);font-weight:600;color:var(--accent)">${g.NumReqExcel}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${g.OS}</td>
       <td style="font-size:11px;color:var(--text2)">${g.Zona}</td>
       <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.NombreOrigen||'—'}</td>
-      <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.NombreDestino} <span style="color:var(--text3)">L${g.Lote||'—'}</span></td>
-      <td style="font-size:11px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${prodLabel}</td>
+      <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.NombreDestino||'—'} <span style="color:var(--text3)">${g.Lote?'L'+g.Lote:''}</span></td>
+      <td style="font-size:11px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.Producto||''}">${prodLabel}</td>
       <td style="font-family:var(--mono);font-size:11px;text-align:right">${cant}</td>
-      <td><input type="text" id="sol-st-prev-${i}" placeholder="153xxx (opcional)"
-        style="width:120px;height:24px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);"
-        onchange="propagarSTPrev(${i}, this.value)"></td>
     </tr>`;
   }).join('');
 }
@@ -2201,13 +2231,10 @@ function propagarSTPrev(idx, val) {
 async function guardarRequerimientosProg() {
   const btn = document.getElementById('btn-guardar-prog');
   if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
-  const items = solicitudesRaw.map((g, i) => {
-    const stVal = document.getElementById(`sol-st-prev-${i}`)?.value.trim() || null;
-    const item  = { ...g, CreadoPor: sesion.usuario };
-    if(stVal) { item.ST = stVal; item.Estado = 'programado'; }
-    delete item.productos;
-    return item;
-  });
+  const items = solicitudesRaw.map(g => ({
+    ...g,
+    CreadoPor: sesion.usuario,
+  }));
   try {
     const res = await apiCall('requerimientos', {
       method: 'POST', body: JSON.stringify({ requerimientos: items }),
@@ -2292,6 +2319,219 @@ Motivo: ${motivo}`)) {
     selectEl.value = '';
     alert('Error: ' + e.message);
   }
+}
+
+// ── Panel lateral de planificación ───────────────────────
+let _ppReqs = [];
+
+function abrirPlanPanel(numReqExcel) {
+  _ppReqs = _reqFiltrados.filter(r =>
+    r.NumReqExcel == numReqExcel || r.ID_Req === String(numReqExcel)
+  );
+  if (!_ppReqs.length) return;
+  const r0 = _ppReqs[0];
+  document.getElementById('pp-num').textContent    = r0.NumReqExcel || r0.ID_Req;
+  document.getElementById('pp-titulo').textContent = r0.NombreDestino || r0.Actividad || '—';
+  document.getElementById('pp-sub').textContent    =
+    [r0.Zona, r0.OS, r0.FechaEjecucion ? r0.FechaEjecucion.slice(0,10) : ''].filter(Boolean).join(' · ');
+  renderPlanPanel();
+  document.getElementById('plan-panel').classList.add('open');
+}
+
+function cerrarPlanPanel() {
+  document.getElementById('plan-panel').classList.remove('open');
+  _ppReqs = [];
+}
+
+function opcionesHora(selected) {
+  let opts = '';
+  for (let h = 0; h < 24; h++) {
+    for (let m of [0, 30]) {
+      const t = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      opts += `<option value="${t}" ${t===selected?'selected':''}>${t}</option>`;
+    }
+  }
+  return opts;
+}
+
+function renderPlanPanel() {
+  const body = document.getElementById('pp-body');
+  if (!body || !_ppReqs.length) return;
+  const um = _ppReqs[0]?.UM || '';
+  const cantTotalGrupo = _ppReqs.reduce((s,r)=>s+(parseFloat(r.CantidadTotal)||0),0);
+  const cantAsignada   = _ppReqs.reduce((s,r)=>
+    s+(parseFloat(r.CantidadST1)||0)+(parseFloat(r.CantidadST2)||0)+
+      (parseFloat(r.CantidadST3)||0)+(parseFloat(r.CantidadST4)||0),0);
+  const pct    = cantTotalGrupo>0 ? Math.round(cantAsignada/cantTotalGrupo*100) : 0;
+  const colorP = pct>=100?'var(--accent)':pct>0?'var(--warn)':'var(--text3)';
+  const cantPendiente = Math.max(0, cantTotalGrupo - cantAsignada);
+
+  let h = '';
+
+  if (cantTotalGrupo>0) {
+    h += `<div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+        <span style="color:var(--text2)">Cobertura total</span>
+        <span style="font-family:var(--mono);color:${colorP};font-weight:500">${cantAsignada}/${cantTotalGrupo} ${um} (${pct}%)</span>
+      </div>
+      <div style="height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${Math.min(pct,100)}%;background:${colorP};border-radius:3px;transition:width .3s"></div>
+      </div></div>`;
+  }
+
+  h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">Productos</div>`;
+  _ppReqs.forEach(r => {
+    const cAsig=(parseFloat(r.CantidadST1)||0)+(parseFloat(r.CantidadST2)||0)+
+                (parseFloat(r.CantidadST3)||0)+(parseFloat(r.CantidadST4)||0);
+    h += `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:12px;">
+      <span style="color:var(--text);flex:1">${r.Producto||r.Actividad||'—'}</span>
+      <span style="font-family:var(--mono);color:var(--text2);font-size:11px;white-space:nowrap;margin-left:8px">${r.CantidadTotal||'?'} ${um}</span>
+      ${cAsig>0?`<span style="font-size:10px;color:var(--accent);margin-left:6px">✓${cAsig}</span>`:''}
+    </div>`;
+  });
+
+  // STs asignadas
+  const stMap = {};
+  _ppReqs.forEach(r => {
+    [[r.ST,'ST',r.CantidadST1],[r.ST2,'ST2',r.CantidadST2],[r.ST3,'ST3',r.CantidadST3],[r.ST4,'ST4',r.CantidadST4]]
+      .filter(([st])=>st)
+      .forEach(([st,col,cant]) => {
+        if(!stMap[st]) stMap[st]={st,cant:0,col,ids:[]};
+        stMap[st].cant+=parseFloat(cant)||0;
+        stMap[st].ids.push(r.ID_Req);
+      });
+  });
+  const stList = Object.values(stMap);
+  if (stList.length) {
+    h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin:10px 0 6px">STs asignadas</div>`;
+    stList.forEach(s => {
+      h += `<div class="plan-slot-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-family:var(--mono);font-size:12px;font-weight:500">${s.st}</span>
+          ${cantTotalGrupo>0?`<span style="font-size:11px;color:var(--text2);font-family:var(--mono)">${s.cant} ${um}</span>`:''}
+          <button onclick="desasociarSTGrupo('${s.st}','${s.ids.join(',')}')"
+            style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0 4px;" title="Desasociar">✕</button>
+        </div></div>`;
+    });
+  }
+
+  // Agregar nueva ST
+  const slotsLibres = 4 - stList.length;
+  if (slotsLibres>0 && _ppReqs.some(r=>r.Estado!=='cancelado')) {
+    const horaDefault = _ppReqs[0]?.FechaEjecucion?.slice(11,16) || '04:00';
+    const fechaDefault = _ppReqs[0]?.FechaEjecucion?.slice(0,10) || '';
+    h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin:10px 0 6px">Agregar ST</div>
+    <div class="plan-slot-new">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">ST</div>
+          <input type="text" id="pp-new-st" placeholder="154xxx"
+            style="width:80px;height:26px;padding:0 6px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:var(--text);"></div>
+        <div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">ETD</div>
+          <input type="date" id="pp-new-fecha" value="${fechaDefault}"
+            style="height:26px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);width:110px;"></div>
+        <div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">Hora</div>
+          <select id="pp-new-hora"
+            style="height:26px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);width:62px;">
+            ${opcionesHora(horaDefault)}</select></div>
+        ${cantTotalGrupo>0?`<div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">Cant. (${um})</div>
+          <input type="number" id="pp-new-cant" placeholder="${cantPendiente}" value="${cantPendiente||''}"
+            style="width:65px;height:26px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text);"></div>`:''}
+      </div>
+      <div id="pp-msg" style="font-size:10px;margin-top:4px;font-family:var(--mono);min-height:14px;"></div>
+      <button onclick="agregarSTPanel()"
+        style="width:100%;margin-top:8px;height:28px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:12px;cursor:pointer;">
+        Asignar ST</button>
+    </div>`;
+  }
+
+  body.innerHTML = h;
+}
+
+async function agregarSTPanel() {
+  const st    = document.getElementById('pp-new-st')?.value.trim()||'';
+  const fecha = document.getElementById('pp-new-fecha')?.value||'';
+  const hora  = document.getElementById('pp-new-hora')?.value||'04:00';
+  const cant  = parseFloat(document.getElementById('pp-new-cant')?.value)||null;
+  const msgEl = document.getElementById('pp-msg');
+  if(!st)   { if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent='⚠ ST requerida';} return; }
+  if(!fecha){ if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent='⚠ ETD requerida';} return; }
+  const etd = `${fecha}T${hora}:00`;
+  if(msgEl){msgEl.style.color='var(--text3)';msgEl.textContent='Asignando...';}
+
+  const pendientes = _ppReqs.filter(r=>!['cancelado','finalizado','finalizado parcial'].includes(r.Estado));
+  if(!pendientes.length){ if(msgEl){msgEl.textContent='Sin filas pendientes.';} return; }
+
+  let cantRestante = cant;
+  for (const r of pendientes) {
+    const cAsig=(parseFloat(r.CantidadST1)||0)+(parseFloat(r.CantidadST2)||0)+
+                (parseFloat(r.CantidadST3)||0)+(parseFloat(r.CantidadST4)||0);
+    const cFalta = Math.max(0,(parseFloat(r.CantidadTotal)||0)-cAsig);
+    const cEsta  = cant!==null ? Math.min(cFalta, cantRestante||0) : null;
+    if(cant!==null) cantRestante = Math.max(0,(cantRestante||0)-cEsta);
+    try {
+      const res = await apiCall(`requerimientos/${r.ID_Req}`, {
+        method:'PATCH',
+        body: JSON.stringify({ ST:st, FechaEjecucion:etd, cantidad:cEsta||null,
+          actualizadoPor: sesion.nombre||sesion.usuario, forzar:false }),
+      });
+      if(res.requiereConfirmacion){
+        _pendingAdvCallbacks.push(()=>agregarSTPanel_forzar(st,etd,cEsta,r.ID_Req));
+        mostrarModalAdv(res.advertencias);
+        if(msgEl){msgEl.style.color='var(--text3)';msgEl.textContent='';}
+        return;
+      }
+      const slotNum=res.slot||1;
+      const stKey=slotNum===1?'ST':`ST${slotNum}`;
+      const cKey=`CantidadST${slotNum}`;
+      [reqPendientes,_reqFiltrados,_ppReqs].forEach(arr=>{
+        const idx=arr.findIndex(x=>x.ID_Req===r.ID_Req);
+        if(idx!==-1){arr[idx][stKey]=st;arr[idx][cKey]=cEsta;arr[idx].Estado=res.Estado;}
+      });
+    } catch(e){
+      if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent=`⚠ ${e.message}`;}
+      return;
+    }
+  }
+  if(msgEl){msgEl.style.color='var(--accent)';msgEl.textContent='✓ ST asignada';}
+  actualizarKpisPlan(); filtrarPlan(); renderPlanPanel();
+  setTimeout(async()=>{ await recargarDatos(true); },2000);
+}
+
+async function agregarSTPanel_forzar(st,etd,cant,idReq){
+  const res=await apiCall(`requerimientos/${idReq}`,{method:'PATCH',
+    body:JSON.stringify({ST:st,FechaEjecucion:etd,cantidad:cant,
+      actualizadoPor:sesion.nombre||sesion.usuario,forzar:true})});
+  [reqPendientes,_reqFiltrados,_ppReqs].forEach(arr=>{
+    const idx=arr.findIndex(x=>x.ID_Req===idReq);
+    if(idx!==-1){const slotNum=res.slot||1;const stKey=slotNum===1?'ST':`ST${slotNum}`;
+      arr[idx][stKey]=st;arr[idx].Estado=res.Estado;}
+  });
+  renderPlanPanel(); filtrarPlan();
+}
+
+async function desasociarSTGrupo(st, idsStr) {
+  const ids = idsStr.split(',');
+  const motivo = prompt(`Desasociar ST ${st}. Ingresa el motivo:`);
+  if(!motivo) return;
+  for (const idReq of ids) {
+    const r = reqPendientes.find(x=>x.ID_Req===idReq)||_reqFiltrados.find(x=>x.ID_Req===idReq);
+    if(!r) continue;
+    const slot = r.ST===st?1:r.ST2===st?2:r.ST3===st?3:r.ST4===st?4:null;
+    if(!slot) continue;
+    try {
+      await apiCall(`requerimientos/${idReq}`,{method:'PATCH',
+        body:JSON.stringify({desasociarSlot:slot,MotivoCorreccion:motivo,
+          actualizadoPor:sesion.nombre||sesion.usuario})});
+      const stKey=slot===1?'ST':`ST${slot}`;
+      const cKey=`CantidadST${slot}`;
+      [reqPendientes,_reqFiltrados,_ppReqs].forEach(arr=>{
+        const i=arr.findIndex(x=>x.ID_Req===idReq);
+        if(i!==-1){arr[i][stKey]=null;arr[i][cKey]=null;}
+      });
+    } catch(e){ alert('Error: '+e.message); return; }
+  }
+  actualizarKpisPlan(); filtrarPlan(); renderPlanPanel();
+  setTimeout(async()=>{ await recargarDatos(true); },2000);
 }
 
 // ── asignarST legacy alias ─────────────────────────────────
