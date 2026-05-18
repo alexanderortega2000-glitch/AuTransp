@@ -320,6 +320,7 @@ tr.clickable { cursor: pointer; }
 .b-prog    { background: var(--warn2);  color: var(--warn); }
 .b-demanda { background: var(--info2);  color: var(--info); }
 .b-fgestion{ background: var(--bg3);    color: var(--text2); }
+.b-parcial { background: #fef9c3;       color: #854d0e; }
 .ciclo-ok  { font-size: 11px; color: var(--accent); font-family: var(--mono); }
 .ciclo-pen { font-size: 11px; color: var(--warn); font-family: var(--mono); }
 .ciclo-no  { font-size: 11px; color: var(--text3); }
@@ -1590,6 +1591,8 @@ function filtrarPlan() {
 
   _reqFiltrados = reqPendientes.filter(r => {
     if(!verCancel && r.Estado === 'cancelado') return false;
+    // Incluir estados parciales como programado/en_proceso/finalizado
+    const estadoBase = r.Estado?.replace(' parcial','') || '';
     if(tipo      && r.Tipo   !== tipo)   return false;
     if(estado    && r.Estado !== estado) return false;
     if(zona      && r.Zona   !== zona)   return false;
@@ -1640,6 +1643,67 @@ function colorGrupo(key) {
   return GRUPO_COLORS[hash % GRUPO_COLORS.length];
 }
 
+// ── Render slots ST para acciones ───────────────────────────
+function renderSlotsAcciones(r, i) {
+  const slots = [
+    { n: 1, st: r.ST,  cant: r.CantidadST1 },
+    { n: 2, st: r.ST2, cant: r.CantidadST2 },
+    { n: 3, st: r.ST3, cant: r.CantidadST3 },
+    { n: 4, st: r.ST4, cant: r.CantidadST4 },
+  ];
+  const cantTotal = r.CantidadTotal || 0;
+  const cantAsignada = slots.reduce((s, x) => s + (x.cant || 0), 0);
+  const pct = cantTotal > 0 ? Math.round(cantAsignada / cantTotal * 100) : 0;
+  const um = r.UM || '';
+
+  let html = '';
+
+  // Barra de progreso si hay cantidad
+  if (cantTotal > 0) {
+    const color = pct >= 100 ? 'var(--accent)' : pct > 0 ? 'var(--warn)' : 'var(--text3)';
+    html += `<div style="margin-bottom:4px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:2px;">
+        <span>Cobertura</span>
+        <span style="font-family:var(--mono);color:${color}">${cantAsignada}/${cantTotal} ${um} (${pct}%)</span>
+      </div>
+      <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;">
+        <div style="height:100%;width:${Math.min(pct,100)}%;background:${color};border-radius:2px;"></div>
+      </div>
+    </div>`;
+  }
+
+  // Slots asignados
+  slots.filter(s => s.st).forEach(s => {
+    html += `<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap;">
+      <span style="font-family:var(--mono);font-size:11px;font-weight:500;min-width:55px">${s.st}</span>
+      ${cantTotal > 0 ? `<span style="font-size:10px;color:var(--text3)">${s.cant||'?'} ${um}</span>` : ''}
+      <select onchange="desasociarSlotReq('${r.ID_Req}', ${s.n}, ${i}, this)"
+        style="height:22px;padding:0 2px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:9px;color:var(--text3);">
+        <option value="">Desasociar…</option>
+        ${MOTIVOS_DESASOC.map(m=>`<option value="${m}">${m}</option>`).join('')}
+      </select>
+    </div>`;
+  });
+
+  // Botón agregar ST si hay slots disponibles
+  const slotsLibres = slots.filter(s => !s.st).length;
+  if (slotsLibres > 0) {
+    const nextSlot = slots.find(s => !s.st)?.n;
+    html += `<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap;">
+      <input type="text" id="req-st-add-${i}" placeholder="ST adicional"
+        style="width:75px;height:22px;padding:0 4px;background:var(--bg);border:0.5px dashed var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);">
+      ${cantTotal > 0 ? `<input type="number" id="req-cant-add-${i}" placeholder="${um}"
+        style="width:50px;height:22px;padding:0 4px;background:var(--bg);border:0.5px dashed var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);">` : ''}
+      <button onclick="agregarSTSlot('${r.ID_Req}', ${nextSlot}, ${i})"
+        style="height:22px;padding:0 6px;background:var(--accent2);color:var(--accent);border:0.5px solid var(--accent);border-radius:var(--radius);font-size:10px;cursor:pointer;">
+        + ST
+      </button>
+    </div>`;
+  }
+
+  return html;
+}
+
 const MOTIVOS_CANCEL = [
   'Operación suspendida','Cambio de prioridad',
   'Sin disponibilidad de transporte','Error de captura','Otro',
@@ -1680,12 +1744,21 @@ function renderPlan() {
       ? `<span class="badge b-prog">Prog</span>`
       : `<span class="badge b-demanda">Dem</span>`;
 
+    const finParcial = r.Estado === 'finalizado parcial';
+    const enProcParcial = r.Estado === 'en proceso parcial';
+    const progParcial = r.Estado === 'programado parcial';
     const estadoBadge = finalizado
       ? `<span class="badge b-finalizado" id="req-estado-${i}">Finalizado</span>`
+      : finParcial
+      ? `<span class="badge b-parcial" id="req-estado-${i}">Finalizado parcial</span>`
       : enProceso
       ? `<span class="badge b-proceso" id="req-estado-${i}">En proceso</span>`
+      : enProcParcial
+      ? `<span class="badge b-parcial" id="req-estado-${i}">En proceso parcial</span>`
       : programado
       ? `<span class="badge b-prog" id="req-estado-${i}">Programado</span>`
+      : progParcial
+      ? `<span class="badge b-parcial" id="req-estado-${i}">Programado parcial</span>`
       : cancelado
       ? `<span class="badge b-cancelado" id="req-estado-${i}">Cancelado</span>`
       : `<span class="badge b-pendiente" id="req-estado-${i}">Pendiente</span>`;
@@ -1697,29 +1770,18 @@ function renderPlan() {
     const etdFecha = etdVal.slice(0,10);
     const etdHora  = etdVal.slice(11,16) || '04:00';
 
+    const esProgramadoOSimilar = programado || progParcial || enProceso || enProcParcial || finalizado || finParcial;
     const acciones = cancelado ? `
       <span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||''}</span>
-    ` : (finalizado || enProceso) ? `
-      <div style="display:flex;gap:4px;flex-wrap:wrap;">
-        <select onchange="desasociarReq('${r.ID_Req}', ${i}, this)"
-          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
-          <option value="">Desasociar…</option>
-          ${MOTIVOS_DESASOC.map(m=>`<option value="${m}">${m}</option>`).join('')}
-        </select>
-      </div>
-      <div id="req-msg-${i}" style="font-size:10px;margin-top:2px;font-family:var(--mono);"></div>
-    ` : programado ? `
-      <div style="display:flex;gap:4px;flex-wrap:wrap;">
-        <select onchange="desasociarReq('${r.ID_Req}', ${i}, this)"
-          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
-          <option value="">Desasociar…</option>
-          ${MOTIVOS_DESASOC.map(m=>`<option value="${m}">${m}</option>`).join('')}
-        </select>
+    ` : esProgramadoOSimilar ? `
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        ${renderSlotsAcciones(r, i)}
+        ${!finalizado && !finParcial ? `
         <select onchange="cancelarReq('${r.ID_Req}', this)"
-          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
+          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);max-width:140px;">
           <option value="">Cancelar…</option>
           ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
-        </select>
+        </select>` : ''}
       </div>
       <div id="req-msg-${i}" style="font-size:10px;margin-top:2px;font-family:var(--mono);"></div>
     ` : `
@@ -1855,14 +1917,15 @@ async function programarReq(idReq, i) {
   }
 }
 
-async function _ejecutarProgramar(idReq, i, st, etd, forzar) {
+async function _ejecutarProgramar(idReq, i, st, etd, forzar, slotNum, cantidad) {
   const btnEl = document.getElementById(`req-btn-${i}`);
   const msgEl = document.getElementById(`req-msg-${i}`);
   try {
     const res = await apiCall(`requerimientos/${idReq}`, {
       method: 'PATCH',
       body: JSON.stringify({ ST: st, FechaEjecucion: etd,
-        actualizadoPor: sesion.nombre || sesion.usuario, forzar }),
+        actualizadoPor: sesion.nombre || sesion.usuario, forzar,
+        slot: slotNum || null, cantidad: cantidad || null }),
     });
 
     if(res.requiereConfirmacion) {
@@ -2165,6 +2228,69 @@ async function guardarRequerimientosProg() {
     if(btn) { btn.textContent = '✗ Error'; btn.disabled = false; }
     const statusEl = document.getElementById('sol-status');
     if(statusEl) statusEl.textContent = '✗ ' + e.message;
+  }
+}
+
+// ── Agregar ST a slot adicional ───────────────────────────
+async function agregarSTSlot(idReq, slotNum, i) {
+  const stEl   = document.getElementById(`req-st-add-${i}`);
+  const cantEl = document.getElementById(`req-cant-add-${i}`);
+  const msgEl  = document.getElementById(`req-msg-${i}`);
+  const st     = stEl?.value.trim() || '';
+  const cant   = cantEl ? parseFloat(cantEl.value) || null : null;
+
+  if (!st) { if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent='⚠ ST requerida';} return; }
+
+  const r = _reqFiltrados[i];
+  const fechaEl = document.getElementById(`req-etd-fecha-${i}`);
+  const horaEl  = document.getElementById(`req-etd-hora-${i}`);
+  const etd = fechaEl?.value ? `${fechaEl.value}T${horaEl?.value||'04:00'}:00` : null;
+
+  if(msgEl){msgEl.style.color='var(--text3)';msgEl.textContent='Agregando...';}
+
+  await _ejecutarProgramar(idReq, i, st, etd, false, slotNum, cant);
+}
+
+// ── Desasociar slot específico ─────────────────────────────
+async function desasociarSlotReq(idReq, slotNum, i, selectEl) {
+  const motivo = selectEl.value;
+  if (!motivo) return;
+  if (!confirm(`¿Desasociar ST del slot ${slotNum} del requerimiento ${idReq}?
+Motivo: ${motivo}`)) {
+    selectEl.value = ''; return;
+  }
+  selectEl.disabled = true;
+  try {
+    await apiCall(`requerimientos/${idReq}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        desasociarSlot: slotNum,
+        MotivoCorreccion: motivo,
+        actualizadoPor: sesion.nombre || sesion.usuario,
+      }),
+    });
+    // Actualizar en memoria
+    const idx = reqPendientes.findIndex(r => r.ID_Req === idReq);
+    if (idx !== -1) {
+      const stKey   = slotNum === 1 ? 'ST'  : `ST${slotNum}`;
+      const cantKey = `CantidadST${slotNum}`;
+      reqPendientes[idx][stKey]   = null;
+      reqPendientes[idx][cantKey] = null;
+    }
+    const idxF = _reqFiltrados.findIndex(r => r.ID_Req === idReq);
+    if (idxF !== -1) {
+      const stKey   = slotNum === 1 ? 'ST'  : `ST${slotNum}`;
+      const cantKey = `CantidadST${slotNum}`;
+      _reqFiltrados[idxF][stKey]   = null;
+      _reqFiltrados[idxF][cantKey] = null;
+    }
+    actualizarKpisPlan();
+    filtrarPlan();
+    setTimeout(async () => { await recargarDatos(true); }, 2000);
+  } catch(e) {
+    selectEl.disabled = false;
+    selectEl.value = '';
+    alert('Error: ' + e.message);
   }
 }
 
