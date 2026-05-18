@@ -1585,6 +1585,7 @@ function filtrarPlan() {
   const tfOrigen  = (document.getElementById('rtf-origen')?.value     || '').toLowerCase();
   const tfDestino = (document.getElementById('rtf-destino')?.value    || '').toLowerCase();
   const tfActiv   = (document.getElementById('rtf-actividad')?.value  || '').toLowerCase();
+  const tfCliente = (document.getElementById('rtf-cliente')?.value     || '').toLowerCase();
   const tfSt      = (document.getElementById('rtf-st')?.value         || '').toLowerCase();
 
   _reqFiltrados = reqPendientes.filter(r => {
@@ -1597,8 +1598,9 @@ function filtrarPlan() {
                    !String(r.NumReqExcel    ||'').toString().includes(tfOs))         return false;
     if(tfZonaCol && !String(r.Zona          ||'').toLowerCase().includes(tfZonaCol)) return false;
     if(tfOrigen  && !String(r.NombreOrigen  ||'').toLowerCase().includes(tfOrigen))  return false;
-    if(tfDestino && !String(r.NombreDestino ||'').toLowerCase().includes(tfDestino)) return false;
+    if(tfDestino && ![r.NombreDestino, r.CodDestino].filter(Boolean).join(' ').toLowerCase().includes(tfDestino)) return false;
     if(tfActiv   && ![r.Actividad, r.Producto].filter(Boolean).join(' ').toLowerCase().includes(tfActiv)) return false;
+    if(tfCliente && !String(r.RespProd      ||'').toLowerCase().includes(tfCliente)) return false;
     if(tfSt      && !String(r.ST            ||'').toLowerCase().includes(tfSt))      return false;
     if(buscar) {
       const haystack = [r.ID_Req, r.OS, r.Zona, r.NombreOrigen, r.NombreDestino,
@@ -1743,7 +1745,7 @@ function renderPlan() {
       <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${origenDisp}">${origenDisp}</td>
       <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${destinoDisp}">${destinoDisp}${r.Lote?` <span style="color:var(--text3);font-size:10px">L${r.Lote}</span>`:''}</td>
       <td style="font-size:11px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Actividad||'—'}<br><span style="font-size:10px;color:var(--text3)">${r.Producto||''}</span></td>
-      <td style="font-size:11px;color:var(--text2);white-space:nowrap">${r.RespProd||'—'}</td>
+      <td style="font-size:11px;color:var(--text2);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis" title="${r.RespProd||''}">${r.RespProd||'—'}</td>
       <td style="white-space:nowrap">
         ${(cancelado || programado || finalizado || enProceso) ? `<span style="font-size:11px;color:var(--text2);font-family:var(--mono)">${r.FechaEjecucion?r.FechaEjecucion.slice(0,16).replace('T',' '):'—'}</span>` : `
         <div style="display:flex;gap:2px;">
