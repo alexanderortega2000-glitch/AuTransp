@@ -740,6 +740,7 @@ tr.clickable { cursor: pointer; }
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Origen</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-origen')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-origen" placeholder="Buscar origen..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Destino</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-destino" placeholder="Buscar destino..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Actividad / Producto</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-actividad')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-actividad" placeholder="Buscar..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Resp. Prod.</span></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ETD</span></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-st')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-st" placeholder="Buscar ST..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Estado</span><button class="th-btn" onclick="sortReq('Estado')" id="rsrt-Estado">↕</button></div></th>
@@ -747,7 +748,7 @@ tr.clickable { cursor: pointer; }
                 </tr>
               </thead>
               <tbody id="sol-pendientes-tbody">
-                <tr><td colspan="12" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>
+                <tr><td colspan="13" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1513,7 +1514,7 @@ function opcionesHora(valorActual) {
 // ── Cargar requerimientos desde BD ────────────────────────
 async function cargarRequerimientosBD(silencioso = false) {
   const tbody = document.getElementById('sol-pendientes-tbody');
-  if(!silencioso && tbody) tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
+  if(!silencioso && tbody) tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Cargando...</td></tr>`;
   try {
     // Cargar todos (incluyendo programados y cancelados según filtro)
     reqPendientes = await apiCall('requerimientos?todos=true');
@@ -1522,7 +1523,7 @@ async function cargarRequerimientosBD(silencioso = false) {
     if(!silencioso) filtrarPlan();
     actualizarKpisPlan();
   } catch(e) {
-    if(!silencioso && tbody) tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--danger);padding:1rem">${e.message}</td></tr>`;
+    if(!silencioso && tbody) tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;color:var(--danger);padding:1rem">${e.message}</td></tr>`;
   }
 }
 
@@ -1559,7 +1560,7 @@ function toggleReqSearch(id) {
 }
 
 function marcarFiltrosActivosReq() {
-  document.querySelectorAll('#page-planificacion .th-search-input').forEach(inp => {
+  document.querySelectorAll('#page-solicitudes .th-search-input').forEach(inp => {
     const hasVal = inp.value.trim().length > 0;
     inp.classList.toggle('has-value', hasVal);
     const wrap = inp.closest('.th-search-wrap');
@@ -1658,7 +1659,7 @@ function renderPlan() {
   }
 
   if(!_reqFiltrados.length) {
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Sin resultados</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Sin resultados</td></tr>`;
     return;
   }
 
@@ -1742,6 +1743,7 @@ function renderPlan() {
       <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${origenDisp}">${origenDisp}</td>
       <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${destinoDisp}">${destinoDisp}${r.Lote?` <span style="color:var(--text3);font-size:10px">L${r.Lote}</span>`:''}</td>
       <td style="font-size:11px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Actividad||'—'}<br><span style="font-size:10px;color:var(--text3)">${r.Producto||''}</span></td>
+      <td style="font-size:11px;color:var(--text2);white-space:nowrap">${r.RespProd||'—'}</td>
       <td style="white-space:nowrap">
         ${(cancelado || programado || finalizado || enProceso) ? `<span style="font-size:11px;color:var(--text2);font-family:var(--mono)">${r.FechaEjecucion?r.FechaEjecucion.slice(0,16).replace('T',' '):'—'}</span>` : `
         <div style="display:flex;gap:2px;">
