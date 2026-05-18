@@ -339,6 +339,8 @@ tr.clickable { cursor: pointer; }
   display: none;
 }
 .th-search-input.open { display: block; }
+.th-btn.filter-active { color: var(--accent) !important; background: var(--accent2) !important; border-radius: 3px; }
+.th-search-input.has-value { border-color: var(--accent); background: var(--accent2); }
 
 /* ── PANEL DE EDICIÓN ────────────────────────────────── */
 #edit-panel {
@@ -2806,7 +2808,7 @@ function toggleSearch(id) {
   if(!inp) return;
   inp.classList.toggle('open');
   if(inp.classList.contains('open')) { inp.focus(); }
-  else { inp.value=''; aplicarFiltros(); }
+  else { inp.value=''; inp.classList.remove('has-value'); marcarFiltrosActivos(); aplicarFiltros(); }
 }
 
 // Close search inputs when clicking outside
@@ -3186,7 +3188,20 @@ function limpiarTodosMs() {
   recalcularFechasConDatos();
 }
 
+function marcarFiltrosActivos() {
+  document.querySelectorAll('#page-detalle .th-search-input').forEach(inp => {
+    const hasVal = inp.value.trim().length > 0;
+    inp.classList.toggle('has-value', hasVal);
+    const wrap = inp.closest('.th-search-wrap');
+    if(wrap) {
+      const btn = wrap.querySelector('.th-btn');
+      if(btn) btn.classList.toggle('filter-active', hasVal);
+    }
+  });
+}
+
 function aplicarFiltros() {
+  marcarFiltrosActivos();
   const desde  = document.getElementById('f-desde').value;
   const hasta  = document.getElementById('f-hasta').value;
 
