@@ -2501,6 +2501,7 @@ function propagarSTPPanel(input, idx) {
 }
 
 async function confirmarProgramacion() {
+  const body  = document.getElementById('pp-body');
   const fecha = document.getElementById('pp-etd')?.value || '';
   const hora  = document.getElementById('pp-hora')?.value || '04:00';
   const msgEl = document.getElementById('pp-msg');
@@ -2511,27 +2512,31 @@ async function confirmarProgramacion() {
   }
   const etd = `${fecha}T${hora}:00`;
 
-  // Recoger filas con ST ingresada
-  const fPend=(body._filasPend||[])
-    .map(({r,ri})=>({
+  const fPend = (body._filasPend || [])
+    .map(({r, ri}) => ({
       r, ri,
-      st:      (document.getElementById(`pp-st-${ri}`)?.value||'').trim(),
-      cantStr:  document.getElementById(`pp-cant-${ri}`)?.value??'',
+      st:      (document.getElementById(`pp-st-${ri}`)?.value || '').trim(),
+      cantStr:  document.getElementById(`pp-cant-${ri}`)?.value ?? '',
       disabled: document.getElementById(`pp-st-${ri}`)?.disabled,
     }))
-    .filter(f=>f.st&&!f.disabled);
-  if(!fPend.length){
-    if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent='⚠ Ingresa al menos una ST';}
+    .filter(f => f.st && !f.disabled);
+
+  if (!fPend.length) {
+    if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent='⚠ Ingresa al menos una ST'; }
     return;
   }
-  const filas=fPend.map(f=>({...f, cant: f.cantStr.trim()!==''?(parseFloat(f.cantStr)||0):null}));
 
-  if (res.requiereConfirmacion) {
-        _pendingAdvCallbacks.push(() => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant));
-        mostrarModalAdv(res.advertencias);
-        if (msgEl) { msgEl.style.color='var(--text3)'; msgEl.textContent=''; }
-        return;
-      }
+  const filas = fPend.map(f => ({
+    ...f,
+    cant: f.cantStr.trim() !== '' ? (parseFloat(f.cantStr) || 0) : null,
+  }));
+
+  for (const {r, cant, st} of filas) {
+    if ((parseFloat(r.CantidadTotal) || 0) > 0 && (cant == null || cant <= 0)) {
+      if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent=`⚠ Ingresa la cantidad para ST ${st}`; }
+      return;
+    }
+  }
 
   if (msgEl) { msgEl.style.color='var(--text3)'; msgEl.textContent='Guardando...'; }
 
@@ -2547,7 +2552,9 @@ async function confirmarProgramacion() {
       });
 
       if (res.requiereConfirmacion) {
-        res.advertencias.forEach(a=>_pendingAdvCallbacks.push(()=>confirmarProgramacion_forzar(r.ID_Req, st, etd, cant)));
+        res.advertencias.forEach(a => _pendingAdvCallbacks.push(
+          () => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant)
+        ));
         mostrarModalAdv(res.advertencias);
         if (msgEl) { msgEl.style.color='var(--text3)'; msgEl.textContent=''; }
         continue;
@@ -2573,6 +2580,7 @@ async function confirmarProgramacion() {
   renderPlanPanel();
   setTimeout(async () => { await recargarDatos(true); }, 2000);
 }
+
 
 async function confirmarProgramacion_forzar(idReq, st, etd, cant) {
   const res = await apiCall(`requerimientos/${idReq}`, {
