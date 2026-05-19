@@ -2385,13 +2385,28 @@ function renderPlanPanel() {
             {n:3,st:r.ST3,cant:r.CantidadST3},{n:4,st:r.ST4,cant:r.CantidadST4}]
       .filter(s => s.st);
   }
+  // Tooltip destino: "COD - Nombre" o solo Nombre
+  function tooltipDestino(r) {
+    const cod  = r.CodDestino  || '';
+    const nom  = r.NombreDestino || '';
+    return cod && nom ? `${cod} - ${nom}` : cod || nom || '';
+  }
+  function labelDestino(r) {
+    return r.CodDestino || r.NombreDestino || '—';
+  }
 
-  // ── Flag sobreprogramación ──
+  // ── Totales por UM para sumatoria ──
+  const totalesPorUM = {};
+  _ppReqs.forEach(r => {
+    const u = r.UM || '—';
+    const c = parseFloat(r.CantidadTotal) || 0;
+    totalesPorUM[u] = (totalesPorUM[u] || 0) + c;
+  });
   const sumTotal    = _ppReqs.reduce((s,r) => s+(parseFloat(r.CantidadTotal)||0), 0);
   const sumAsignada = _ppReqs.reduce((s,r) => s+cantAsignada(r), 0);
   const sobreProg   = sumTotal > 0 && sumAsignada > sumTotal;
 
-  // ── Badge de estado por fila ──
+  // ── Badge de estado ──
   function estadoBadge(r) {
     const e = (r.Estado||'pendiente').toLowerCase().replace(' parcial','');
     const map = {
@@ -2407,9 +2422,7 @@ function renderPlanPanel() {
 
   let h = '';
 
-  // ═══════════════════════════════════════════
-  // FLAG SOBREPROGRAMACIÓN
-  // ═══════════════════════════════════════════
+  // ── Flag sobreprogramación ──
   if (sobreProg) {
     const exceso = sumAsignada - sumTotal;
     h += `<div style="display:flex;align-items:center;gap:7px;background:var(--warn2);border:0.5px solid var(--warn);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;">
@@ -2424,6 +2437,11 @@ function renderPlanPanel() {
   // ═══════════════════════════════════════════
   // SECCIÓN 1 — REQUERIMIENTO TOTAL
   // ═══════════════════════════════════════════
+  // Sumatoria por UM al pie
+  const sumaFilas = Object.entries(totalesPorUM)
+    .map(([u, tot]) => `<span style="font-family:var(--mono);font-weight:600;color:var(--text)">${tot.toLocaleString()} ${u}</span>`)
+    .join('<span style="color:var(--text3);margin:0 4px">·</span>');
+
   h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Requerimiento total</div>
   <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
@@ -2436,7 +2454,8 @@ function renderPlanPanel() {
       </tr></thead>
       <tbody>
         ${_ppReqs.map(r => `<tr style="border-top:0.5px solid var(--border);">
-          <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis" title="${r.NombreDestino||''}">${r.CodDestino||r.NombreDestino||'—'}</td>
+          <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default"
+              title="${tooltipDestino(r)}">${labelDestino(r)}</td>
           <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Producto||r.Actividad||'—'}</td>
           <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
           <td style="padding:6px 8px;text-align:right;font-family:var(--mono);font-weight:500;">${r.CantidadTotal!=null?Number(r.CantidadTotal).toLocaleString():'—'}</td>
@@ -2444,6 +2463,10 @@ function renderPlanPanel() {
         </tr>`).join('')}
       </tbody>
     </table>
+    <div style="padding:6px 8px;border-top:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:6px;">
+      <span style="font-size:10px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.04em;">Total carga:</span>
+      ${sumaFilas}
+    </div>
   </div>`;
 
   // ═══════════════════════════════════════════
@@ -2468,25 +2491,21 @@ function renderPlanPanel() {
           <th style="padding:5px 8px;"></th>
         </tr></thead>
         <tbody>
-          ${filasProg.map(({r, ri, slot, st, cant}) => {
-            const esFinal = (r.Estado||'').toLowerCase().includes('finaliz') || (r.Estado||'').toLowerCase().includes('proceso');
-            return `<tr style="border-top:0.5px solid var(--border);">
-              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis" title="${r.NombreDestino||''}">${r.CodDestino||r.NombreDestino||'—'}</td>
-              <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
-              <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
-              <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">${cant!=null?Number(cant).toLocaleString():'—'}</td>
-              <td style="padding:6px 8px;text-align:center;"><span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);background:var(--accent2);padding:2px 7px;border-radius:10px;">${st}</span></td>
-              <td style="padding:6px 8px;text-align:center;">${estadoBadge(r)}</td>
-              <td style="padding:6px 8px;text-align:right;">
-                ${!esFinal
-                  ? `<button onclick="desasociarSTGrupo('${st}','${r.ID_Req}')"
-                      style="height:22px;padding:0 8px;background:none;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);cursor:pointer;"
-                      onmouseover="this.style.color='var(--danger)';this.style.borderColor='var(--danger)'"
-                      onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">Desasociar</button>`
-                  : `<span style="font-size:10px;color:var(--text3)">—</span>`}
-              </td>
-            </tr>`;
-          }).join('')}
+          ${filasProg.map(({r, ri, slot, st, cant}) => `<tr style="border-top:0.5px solid var(--border);">
+            <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default"
+                title="${tooltipDestino(r)}">${labelDestino(r)}</td>
+            <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
+            <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
+            <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">${cant!=null?Number(cant).toLocaleString():'—'}</td>
+            <td style="padding:6px 8px;text-align:center;"><span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);background:var(--accent2);padding:2px 7px;border-radius:10px;">${st}</span></td>
+            <td style="padding:6px 8px;text-align:center;">${estadoBadge(r)}</td>
+            <td style="padding:6px 8px;text-align:right;">
+              <button onclick="desasociarSTGrupo('${st}','${r.ID_Req}')"
+                style="height:22px;padding:0 8px;background:none;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);cursor:pointer;"
+                onmouseover="this.style.color='var(--danger)';this.style.borderColor='var(--danger)'"
+                onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">Desasociar</button>
+            </td>
+          </tr>`).join('')}
         </tbody>
       </table>
     </div>`;
@@ -2529,7 +2548,8 @@ function renderPlanPanel() {
           ${filasPend.map(({r, ri}) => {
             const pend = parseFloat(r.CantidadTotal) > 0 ? cantPendienteR(r) : null;
             return `<tr id="pp-pend-row-${ri}" style="border-top:0.5px solid var(--border);">
-              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis" title="${r.NombreDestino||''}">${r.CodDestino||r.NombreDestino||'—'}</td>
+              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default"
+                  title="${tooltipDestino(r)}">${labelDestino(r)}</td>
               <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
               <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
               <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">
@@ -2615,6 +2635,14 @@ async function confirmarProgramacion() {
   if (!filas.length) {
     if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent='⚠ Ingresa al menos una ST'; }
     return;
+  }
+
+  // Validar cantidad requerida cuando el requerimiento tiene CantidadTotal
+  for (const {r, cant, st} of filas) {
+    if ((parseFloat(r.CantidadTotal) || 0) > 0 && !cant) {
+      if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent=`⚠ Ingresa la cantidad para ST ${st}`; }
+      return;
+    }
   }
 
   if (msgEl) { msgEl.style.color='var(--text2)'; msgEl.textContent='Guardando...'; }
