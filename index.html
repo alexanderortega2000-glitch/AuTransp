@@ -2363,10 +2363,10 @@ function renderPlanPanel() {
   const body = document.getElementById('pp-body');
   if (!body || !_ppReqs.length) return;
 
-  // Preservar ETD/hora si el panel ya estaba abierto
+  // ETD default: hoy+1 en hora LOCAL (no UTC)
   const etdGuardado = document.getElementById('pp-etd')?.value || (() => {
     const d = new Date(); d.setDate(d.getDate()+1);
-    return d.toISOString().slice(0,10);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
   const horaGuardada = document.getElementById('pp-hora')?.value || '04:00';
 
@@ -2423,7 +2423,7 @@ function renderPlanPanel() {
     </div>`;
   }
 
-  // ── Sección 1: Requerimiento total ──
+  // Sección 1: Requerimiento total
   const sumaFilas = Object.entries(totalesPorUM)
     .map(([u,tot]) => `<span style="font-family:var(--mono);font-weight:600;color:var(--text)">${tot.toLocaleString()} ${u}</span>`)
     .join('<span style="color:var(--text3);margin:0 4px">·</span>');
@@ -2454,7 +2454,7 @@ function renderPlanPanel() {
     </div>
   </div>`;
 
-  // ── Sección 2: Programado ──
+  // Sección 2: Programado
   const filasProg = [];
   _ppReqs.forEach((r,ri) => { stsDeR(r).forEach(s => filasProg.push({r,ri,slot:s.n,st:s.st,cant:s.cant})); });
 
@@ -2492,7 +2492,8 @@ function renderPlanPanel() {
     </div>`;
   }
 
-  // ── Sección 3: Pendiente de programar ──
+  // Sección 3: Pendiente de programar
+  // ri = índice real en _ppReqs — usado como ID de los inputs DOM
   const filasPend = _ppReqs
     .map((r,ri) => ({r,ri}))
     .filter(({r}) => {
@@ -2563,6 +2564,8 @@ function renderPlanPanel() {
     h += `<div style="text-align:center;padding:16px;font-size:11px;color:var(--text3);font-family:var(--mono);">Sin líneas pendientes.</div>`;
   }
 
+  // Guardar filasPend en el body para que confirmarProgramacion las lea
+  // usando los mismos ri como IDs de los inputs DOM
   body._filasPend = filasPend;
   body.innerHTML = h;
 }
@@ -2599,10 +2602,12 @@ async function confirmarProgramacion() {
   }
   const etd = `${fecha}T${hora}:00`;
 
+  // Leer filasPend con los ri reales (índices de _ppReqs) usados en los inputs DOM
   const filasPend = body._filasPend || [];
   const filas = filasPend
     .map(({r, ri}) => ({
       r,
+      ri,
       st:       (document.getElementById(`pp-st-${ri}`)?.value || '').trim(),
       cant:     parseFloat(document.getElementById(`pp-cant-${ri}`)?.value) || null,
       disabled: document.getElementById(`pp-st-${ri}`)?.disabled,
@@ -2634,12 +2639,14 @@ async function confirmarProgramacion() {
           actualizadoPor: sesion.nombre || sesion.usuario, forzar: false,
         }),
       });
+
       if (res.requiereConfirmacion) {
         _pendingAdvCallbacks.push(() => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant));
         mostrarModalAdv(res.advertencias);
         if (msgEl) { msgEl.style.color='var(--text2)'; msgEl.textContent=''; }
         return;
       }
+
       const slotNum = res.slot || 1;
       const stKey = slotNum === 1 ? 'ST' : `ST${slotNum}`;
       const cKey  = `CantidadST${slotNum}`;
@@ -2684,7 +2691,7 @@ async function confirmarProgramacion_forzar(idReq, st, etd, cant) {
 }
 
 async function desasociarSTGrupo(st, idReq, selectEl) {
-  const motivo = selectEl ? selectEl.value : null;
+  const motivo = selectEl?.value;
   if (!motivo) return;
   selectEl.disabled = true;
 
@@ -2705,7 +2712,6 @@ async function desasociarSTGrupo(st, idReq, selectEl) {
 
     const stKey = slot === 1 ? 'ST' : `ST${slot}`;
     const cKey  = `CantidadST${slot}`;
-
     [reqPendientes, _reqFiltrados, _ppReqs].forEach(arr => {
       const i = arr.findIndex(x => x.ID_Req === idReq);
       if (i === -1) return;
