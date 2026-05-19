@@ -2409,7 +2409,6 @@ function renderPlanPanel() {
     </div>`;
   }
 
-  // Sección 1: Requerimiento total
   const sumaLine=Object.entries(totUM)
     .map(([u,t])=>`<span style="font-family:var(--mono);font-weight:600;color:var(--text)">${t.toLocaleString()} ${u}</span>`)
     .join('<span style="color:var(--text3);margin:0 4px">·</span>');
@@ -2440,7 +2439,6 @@ function renderPlanPanel() {
     </div>
   </div>`;
 
-  // Sección 2: Programado
   const fProg=[];
   _ppReqs.forEach((r,ri)=>{stsDeR(r).forEach(s=>fProg.push({r,ri,st:s.st,cant:s.cant}));});
 
@@ -2478,7 +2476,6 @@ function renderPlanPanel() {
     </div>`;
   }
 
-  // Sección 3: Pendiente — ri=índice real en _ppReqs, usado como ID en los inputs
   const fPend=_ppReqs
     .map((r,ri)=>({r,ri}))
     .filter(({r})=>{
@@ -2583,12 +2580,13 @@ async function confirmarProgramacion() {
   }
   const etd=`${fecha}T${hora}:00`;
 
-  // Leer filas usando los ri reales — mismos IDs que tienen los inputs en el DOM
+  // Usar los ri reales almacenados en body._filasPend
+  // (no _ppReqs.map(idx) que genera índices distintos cuando hay filas ya programadas)
   const fPend=(body._filasPend||[])
     .map(({r,ri})=>({
       r, ri,
-      st:   (document.getElementById(`pp-st-${ri}`)?.value||'').trim(),
-      cantStr: document.getElementById(`pp-cant-${ri}`)?.value??'',
+      st:      (document.getElementById(`pp-st-${ri}`)?.value||'').trim(),
+      cantStr:  document.getElementById(`pp-cant-${ri}`)?.value??'',
       disabled: document.getElementById(`pp-st-${ri}`)?.disabled,
     }))
     .filter(f=>f.st&&!f.disabled);
@@ -2598,13 +2596,13 @@ async function confirmarProgramacion() {
     return;
   }
 
-  // Convertir cant: string → número; null solo si genuinamente vacío
+  // Convertir cantStr a número — null solo si el campo está genuinamente vacío
   const filas=fPend.map(f=>({
     ...f,
     cant: f.cantStr.trim()!=='' ? (parseFloat(f.cantStr)||0) : null,
   }));
 
-  // Validar cantidad requerida cuando hay CantidadTotal
+  // Validar cantidad requerida
   for(const {r,cant,st} of filas){
     if((parseFloat(r.CantidadTotal)||0)>0 && (cant==null||cant<=0)){
       if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent=`⚠ Ingresa la cantidad para ST ${st}`;}
@@ -2619,18 +2617,15 @@ async function confirmarProgramacion() {
 
   for(const {r,st,cant} of filas){
     try{
-      const _payload={ST:st, FechaEjecucion:etd, cantidad:cant, actualizadoPor:sesion.nombre||sesion.usuario, forzar:false};
-      console.log('[PP] enviando:', r.ID_Req, JSON.stringify(_payload));
       const res=await apiCall(`requerimientos/${r.ID_Req}`,{
         method:'PATCH',
-        body:JSON.stringify(_payload),
+        body:JSON.stringify({ST:st, FechaEjecucion:etd, cantidad:cant,
+          actualizadoPor:sesion.nombre||sesion.usuario, forzar:false}),
       });
-      console.log('[PP] respuesta:', JSON.stringify(res));
 
       if(res.requiereConfirmacion){
-        // Acumular — NO return, continuar con las demás filas
         res.advertencias.forEach(a=>advertencias.push({...a,_idReq:r.ID_Req,_st:st,_etd:etd,_cant:cant}));
-        continue;
+        continue; // No return — procesar las demás filas
       }
 
       const slotNum=res.slot||1;
@@ -2651,7 +2646,6 @@ async function confirmarProgramacion() {
     }
   }
 
-  // Mostrar modal UNA sola vez con todas las advertencias acumuladas
   if(advertencias.length){
     advertencias.forEach(a=>{
       _pendingAdvCallbacks.push(()=>confirmarProgramacion_forzar(a._idReq,a._st,a._etd,a._cant));
