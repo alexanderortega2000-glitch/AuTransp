@@ -2363,72 +2363,64 @@ function renderPlanPanel() {
   const body = document.getElementById('pp-body');
   if (!body || !_ppReqs.length) return;
 
-  // ETD default: hoy+1 en hora LOCAL (no UTC)
+  // ETD default: hoy+1 en hora LOCAL
   const etdGuardado = document.getElementById('pp-etd')?.value || (() => {
     const d = new Date(); d.setDate(d.getDate()+1);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
   const horaGuardada = document.getElementById('pp-hora')?.value || '04:00';
-
   const um = _ppReqs[0]?.UM || '';
 
-  function cantAsignada(r) {
+  function cantAsig(r) {
     return (parseFloat(r.CantidadST1)||0)+(parseFloat(r.CantidadST2)||0)+
            (parseFloat(r.CantidadST3)||0)+(parseFloat(r.CantidadST4)||0);
   }
-  function cantPendienteR(r) {
-    return Math.max(0, (parseFloat(r.CantidadTotal)||0) - cantAsignada(r));
+  function cantPend(r) {
+    return Math.max(0, (parseFloat(r.CantidadTotal)||0) - cantAsig(r));
   }
   function stsDeR(r) {
     return [{n:1,st:r.ST,cant:r.CantidadST1},{n:2,st:r.ST2,cant:r.CantidadST2},
             {n:3,st:r.ST3,cant:r.CantidadST3},{n:4,st:r.ST4,cant:r.CantidadST4}]
       .filter(s => s.st);
   }
-  function tooltipDestino(r) {
-    const cod = r.CodDestino||''; const nom = r.NombreDestino||'';
-    return cod && nom ? `${cod} - ${nom}` : cod||nom||'';
+  function tipDest(r) {
+    const c=r.CodDestino||'', n=r.NombreDestino||'';
+    return c&&n?`${c} - ${n}`:c||n||'';
   }
-  function labelDestino(r) { return r.CodDestino||r.NombreDestino||'—'; }
+  function labDest(r) { return r.CodDestino||r.NombreDestino||'—'; }
 
   // Totales por UM
-  const totalesPorUM = {};
-  _ppReqs.forEach(r => {
-    const u = r.UM||'—';
-    totalesPorUM[u] = (totalesPorUM[u]||0) + (parseFloat(r.CantidadTotal)||0);
-  });
-  const sumTotal    = _ppReqs.reduce((s,r) => s+(parseFloat(r.CantidadTotal)||0), 0);
-  const sumAsignada = _ppReqs.reduce((s,r) => s+cantAsignada(r), 0);
-  const sobreProg   = sumTotal > 0 && sumAsignada > sumTotal;
+  const totUM = {};
+  _ppReqs.forEach(r => { const u=r.UM||'—'; totUM[u]=(totUM[u]||0)+(parseFloat(r.CantidadTotal)||0); });
+  const sumTot = _ppReqs.reduce((s,r)=>s+(parseFloat(r.CantidadTotal)||0),0);
+  const sumAsig= _ppReqs.reduce((s,r)=>s+cantAsig(r),0);
 
-  function estadoBadge(r) {
-    const e = (r.Estado||'pendiente').toLowerCase().replace(' parcial','');
-    const map = {
-      'en_proceso':['#dbeafe','#1d4ed8'], 'finalizado':['var(--accent2)','var(--accent)'],
-      'programado':['var(--warn2)','var(--warn)'],   'cancelado':['var(--danger2)','var(--danger)'],
-      'pendiente': ['var(--bg3)','var(--text2)'],
-    };
-    const c = map[e]||map['pendiente'];
+  function eBadge(r) {
+    const e=(r.Estado||'pendiente').toLowerCase().replace(' parcial','');
+    const m={'en_proceso':['#dbeafe','#1d4ed8'],'finalizado':['var(--accent2)','var(--accent)'],
+             'programado':['var(--warn2)','var(--warn)'],'cancelado':['var(--danger2)','var(--danger)'],
+             'pendiente':['var(--bg3)','var(--text2)']};
+    const c=m[e]||m['pendiente'];
     return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${c[0]};color:${c[1]};font-weight:500;white-space:nowrap;">${r.Estado||'Pendiente'}</span>`;
   }
 
-  let h = '';
+  let h='';
 
   // Flag sobreprogramación
-  if (sobreProg) {
-    const exceso = sumAsignada - sumTotal;
-    h += `<div style="display:flex;align-items:center;gap:7px;background:var(--warn2);border:0.5px solid var(--warn);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;">
+  if (sumTot>0 && sumAsig>sumTot) {
+    h+=`<div style="display:flex;align-items:center;gap:7px;background:var(--warn2);border:0.5px solid var(--warn);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;">
       <span style="font-size:14px">⚠</span>
       <div><div style="font-size:11px;font-weight:600;color:var(--warn)">Sobreprogramado</div>
-      <div style="font-size:10px;color:var(--warn)">Programado ${sumAsignada.toLocaleString()} ${um} · Total ${sumTotal.toLocaleString()} ${um} · Exceso: +${exceso.toLocaleString()} ${um}</div></div>
+      <div style="font-size:10px;color:var(--warn)">Programado ${sumAsig.toLocaleString()} ${um} · Total ${sumTot.toLocaleString()} ${um} · Exceso: +${(sumAsig-sumTot).toLocaleString()} ${um}</div></div>
     </div>`;
   }
 
-  // Sección 1: Requerimiento total
-  const sumaFilas = Object.entries(totalesPorUM)
-    .map(([u,tot]) => `<span style="font-family:var(--mono);font-weight:600;color:var(--text)">${tot.toLocaleString()} ${u}</span>`)
+  // ── Sección 1: Requerimiento total ──
+  const sumaLine = Object.entries(totUM)
+    .map(([u,t])=>`<span style="font-family:var(--mono);font-weight:600;color:var(--text)">${t.toLocaleString()} ${u}</span>`)
     .join('<span style="color:var(--text3);margin:0 4px">·</span>');
 
-  h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Requerimiento total</div>
+  h+=`<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Requerimiento total</div>
   <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
       <thead><tr style="background:var(--bg2);">
@@ -2439,27 +2431,27 @@ function renderPlanPanel() {
         <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Estado</th>
       </tr></thead>
       <tbody>
-        ${_ppReqs.map(r => `<tr style="border-top:0.5px solid var(--border);">
-          <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tooltipDestino(r)}">${labelDestino(r)}</td>
+        ${_ppReqs.map(r=>`<tr style="border-top:0.5px solid var(--border);">
+          <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
           <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Producto||r.Actividad||'—'}</td>
           <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
           <td style="padding:6px 8px;text-align:right;font-family:var(--mono);font-weight:500;">${r.CantidadTotal!=null?Number(r.CantidadTotal).toLocaleString():'—'}</td>
-          <td style="padding:6px 8px;text-align:center;">${estadoBadge(r)}</td>
+          <td style="padding:6px 8px;text-align:center;">${eBadge(r)}</td>
         </tr>`).join('')}
       </tbody>
     </table>
     <div style="padding:6px 8px;border-top:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:6px;">
       <span style="font-size:10px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.04em;">Total carga:</span>
-      ${sumaFilas}
+      ${sumaLine}
     </div>
   </div>`;
 
-  // Sección 2: Programado
-  const filasProg = [];
-  _ppReqs.forEach((r,ri) => { stsDeR(r).forEach(s => filasProg.push({r,ri,slot:s.n,st:s.st,cant:s.cant})); });
+  // ── Sección 2: Programado ──
+  const fProg=[];
+  _ppReqs.forEach((r,ri)=>{ stsDeR(r).forEach(s=>fProg.push({r,ri,st:s.st,cant:s.cant})); });
 
-  if (filasProg.length) {
-    h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Programado</div>
+  if (fProg.length) {
+    h+=`<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Programado</div>
     <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
       <table style="width:100%;border-collapse:collapse;font-size:11px;">
         <thead><tr style="background:var(--bg2);">
@@ -2472,16 +2464,16 @@ function renderPlanPanel() {
           <th style="padding:5px 8px;"></th>
         </tr></thead>
         <tbody>
-          ${filasProg.map(({r,ri,slot,st,cant}) => `<tr style="border-top:0.5px solid var(--border);">
-            <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tooltipDestino(r)}">${labelDestino(r)}</td>
+          ${fProg.map(({r,ri,st,cant})=>`<tr style="border-top:0.5px solid var(--border);">
+            <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
             <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
             <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
             <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">${cant!=null?Number(cant).toLocaleString():'—'}</td>
             <td style="padding:6px 8px;text-align:center;"><span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);background:var(--accent2);padding:2px 7px;border-radius:10px;">${st}</span></td>
-            <td style="padding:6px 8px;text-align:center;">${estadoBadge(r)}</td>
+            <td style="padding:6px 8px;text-align:center;">${eBadge(r)}</td>
             <td style="padding:6px 8px;text-align:right;">
               <select onchange="desasociarSTGrupo('${st}','${r.ID_Req}',this)"
-                style="height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);cursor:pointer;max-width:110px;">
+                style="height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);max-width:110px;">
                 <option value="">Desasociar…</option>
                 ${MOTIVOS_DESASOC.map(m=>`<option value="${m}">${m}</option>`).join('')}
               </select>
@@ -2492,19 +2484,20 @@ function renderPlanPanel() {
     </div>`;
   }
 
-  // Sección 3: Pendiente de programar
-  // ri = índice real en _ppReqs — usado como ID de los inputs DOM
-  const filasPend = _ppReqs
-    .map((r,ri) => ({r,ri}))
-    .filter(({r}) => {
-      const est = (r.Estado||'pendiente').toLowerCase();
-      if (est === 'cancelado') return false;
-      if (est.includes('finaliz')) return false;
-      return parseFloat(r.CantidadTotal) > 0 ? cantPendienteR(r) > 0 : !r.ST;
+  // ── Sección 3: Pendiente — solo filas con cantidad pendiente > 0 o sin ST ──
+  // Usar ri (índice real en _ppReqs) como ID de los inputs DOM
+  const fPend = _ppReqs
+    .map((r,ri)=>({r,ri}))
+    .filter(({r})=>{
+      const est=(r.Estado||'pendiente').toLowerCase();
+      if(est==='cancelado') return false;
+      if(est.includes('finaliz')) return false;
+      const total=parseFloat(r.CantidadTotal)||0;
+      return total>0 ? cantPend(r)>0 : !r.ST;
     });
 
-  if (filasPend.length) {
-    h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Pendiente de programar</div>
+  if (fPend.length) {
+    h+=`<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Pendiente de programar</div>
     <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px;">
       <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;background:var(--bg2);border-bottom:0.5px solid var(--border);">
         <span style="font-size:10px;color:var(--text3);font-weight:500;">ETD</span>
@@ -2525,10 +2518,11 @@ function renderPlanPanel() {
           <th style="padding:5px 8px;"></th>
         </tr></thead>
         <tbody>
-          ${filasPend.map(({r,ri}) => {
-            const pend = parseFloat(r.CantidadTotal) > 0 ? cantPendienteR(r) : null;
+          ${fPend.map(({r,ri})=>{
+            // Pendiente = CantidadTotal - ya asignado; si no hay cantidad, dejar vacío
+            const pend=parseFloat(r.CantidadTotal)>0?cantPend(r):null;
             return `<tr id="pp-pend-row-${ri}" style="border-top:0.5px solid var(--border);">
-              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tooltipDestino(r)}">${labelDestino(r)}</td>
+              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
               <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
               <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
               <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">
@@ -2544,9 +2538,7 @@ function renderPlanPanel() {
                 <button onclick="cancelarFilaPend(${ri})"
                   style="height:22px;padding:0 8px;background:none;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);cursor:pointer;"
                   onmouseover="this.style.color='var(--danger)';this.style.borderColor='var(--danger)'"
-                  onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">
-                  Cancelar
-                </button>
+                  onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">Cancelar</button>
               </td>
             </tr>`;
           }).join('')}
@@ -2560,23 +2552,22 @@ function renderPlanPanel() {
         Confirmar programación
       </button>
     </div>`;
-  } else if (!filasProg.length) {
-    h += `<div style="text-align:center;padding:16px;font-size:11px;color:var(--text3);font-family:var(--mono);">Sin líneas pendientes.</div>`;
+  } else if (!fProg.length) {
+    h+=`<div style="text-align:center;padding:16px;font-size:11px;color:var(--text3);font-family:var(--mono);">Sin líneas pendientes.</div>`;
   }
 
-  // Guardar filasPend en el body para que confirmarProgramacion las lea
-  // usando los mismos ri como IDs de los inputs DOM
-  body._filasPend = filasPend;
-  body.innerHTML = h;
+  // Almacenar fPend con ri reales para que confirmarProgramacion los lea
+  body._filasPend = fPend;
+  body.innerHTML  = h;
 }
 
 function cancelarFilaPend(ri) {
   const row = document.getElementById(`pp-pend-row-${ri}`);
   if (!row) return;
   row.style.opacity = '0.35';
-  row.querySelectorAll('input').forEach(el => { el.disabled = true; el.value = ''; });
+  row.querySelectorAll('input').forEach(el=>{ el.disabled=true; el.value=''; });
   const btn = row.querySelector('button');
-  if (btn) { btn.textContent = 'Cancelado'; btn.disabled = true; btn.style.cursor = 'default'; }
+  if (btn) { btn.textContent='Cancelado'; btn.disabled=true; btn.style.cursor='default'; }
 }
 
 function propagarSTPPanel(input, idx) {
@@ -2602,26 +2593,30 @@ async function confirmarProgramacion() {
   }
   const etd = `${fecha}T${hora}:00`;
 
-  // Leer filasPend con los ri reales (índices de _ppReqs) usados en los inputs DOM
-  const filasPend = body._filasPend || [];
-  const filas = filasPend
-    .map(({r, ri}) => ({
-      r,
-      ri,
+  // Leer filasPend con los ri reales (= IDs de los inputs en el DOM)
+  const fPend = (body._filasPend || [])
+    .map(({r,ri}) => ({
+      r, ri,
       st:       (document.getElementById(`pp-st-${ri}`)?.value || '').trim(),
-      cant:     parseFloat(document.getElementById(`pp-cant-${ri}`)?.value) || null,
+      cant:     document.getElementById(`pp-cant-${ri}`)?.value,
       disabled: document.getElementById(`pp-st-${ri}`)?.disabled,
     }))
     .filter(f => f.st && !f.disabled);
 
-  if (!filas.length) {
+  if (!fPend.length) {
     if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent='⚠ Ingresa al menos una ST'; }
     return;
   }
 
-  // Cantidad requerida si el requerimiento tiene CantidadTotal
+  // Convertir cant a número — null solo si el campo está vacío Y no tiene CantidadTotal
+  const filas = fPend.map(f => ({
+    ...f,
+    cant: f.cant !== '' && f.cant != null ? parseFloat(f.cant) || null : null,
+  }));
+
+  // Validar cantidad requerida
   for (const {r, cant, st} of filas) {
-    if ((parseFloat(r.CantidadTotal)||0) > 0 && !cant) {
+    if ((parseFloat(r.CantidadTotal)||0) > 0 && (cant == null || cant <= 0)) {
       if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent=`⚠ Ingresa la cantidad para ST ${st}`; }
       return;
     }
@@ -2629,7 +2624,10 @@ async function confirmarProgramacion() {
 
   if (msgEl) { msgEl.style.color='var(--text2)'; msgEl.textContent='Guardando...'; }
 
+  // Intentar guardar todas las filas — acumular advertencias sin interrumpir
+  const advertencias = [];
   let guardados = 0;
+
   for (const {r, st, cant} of filas) {
     try {
       const res = await apiCall(`requerimientos/${r.ID_Req}`, {
@@ -2641,10 +2639,9 @@ async function confirmarProgramacion() {
       });
 
       if (res.requiereConfirmacion) {
-        _pendingAdvCallbacks.push(() => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant));
-        mostrarModalAdv(res.advertencias);
-        if (msgEl) { msgEl.style.color='var(--text2)'; msgEl.textContent=''; }
-        return;
+        // Acumular — NO hacer return, continuar con las demás filas
+        res.advertencias.forEach(a => advertencias.push({...a, _idReq: r.ID_Req, _st: st, _etd: etd, _cant: cant}));
+        continue;
       }
 
       const slotNum = res.slot || 1;
@@ -2663,6 +2660,17 @@ async function confirmarProgramacion() {
       if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent=`⚠ ${e.message}`; }
       return;
     }
+  }
+
+  // Si hay advertencias acumuladas, mostrar modal UNA sola vez con todas
+  if (advertencias.length) {
+    advertencias.forEach(a => {
+      _pendingAdvCallbacks.push(() => confirmarProgramacion_forzar(a._idReq, a._st, a._etd, a._cant));
+    });
+    mostrarModalAdv(advertencias);
+    if (guardados > 0 && msgEl) { msgEl.style.color='var(--accent)'; msgEl.textContent=`✓ ${guardados} guardada(s) · ${advertencias.length} con advertencia`; }
+    actualizarKpisPlan(); filtrarPlan(); renderPlanPanel();
+    return;
   }
 
   if (msgEl) { msgEl.style.color='var(--accent)'; msgEl.textContent=`✓ ${guardados} línea(s) programadas`; }
@@ -2696,13 +2704,13 @@ async function desasociarSTGrupo(st, idReq, selectEl) {
   selectEl.disabled = true;
 
   try {
-    const r = reqPendientes.find(x => x.ID_Req === idReq) ||
-              _reqFiltrados.find(x => x.ID_Req === idReq) ||
-              _ppReqs.find(x => x.ID_Req === idReq);
-    if (!r) { selectEl.disabled = false; selectEl.value = ''; return; }
+    const r = reqPendientes.find(x=>x.ID_Req===idReq) ||
+              _reqFiltrados.find(x=>x.ID_Req===idReq) ||
+              _ppReqs.find(x=>x.ID_Req===idReq);
+    if (!r) { selectEl.disabled=false; selectEl.value=''; return; }
 
-    const slot = r.ST === st ? 1 : r.ST2 === st ? 2 : r.ST3 === st ? 3 : r.ST4 === st ? 4 : null;
-    if (!slot) { selectEl.disabled = false; selectEl.value = ''; return; }
+    const slot = r.ST===st?1:r.ST2===st?2:r.ST3===st?3:r.ST4===st?4:null;
+    if (!slot) { selectEl.disabled=false; selectEl.value=''; return; }
 
     await apiCall(`requerimientos/${idReq}`, {
       method: 'PATCH',
@@ -2710,29 +2718,22 @@ async function desasociarSTGrupo(st, idReq, selectEl) {
         actualizadoPor: sesion.nombre || sesion.usuario }),
     });
 
-    const stKey = slot === 1 ? 'ST' : `ST${slot}`;
+    const stKey = slot===1?'ST':`ST${slot}`;
     const cKey  = `CantidadST${slot}`;
     [reqPendientes, _reqFiltrados, _ppReqs].forEach(arr => {
-      const i = arr.findIndex(x => x.ID_Req === idReq);
-      if (i === -1) return;
-      arr[i][stKey] = null;
-      arr[i][cKey]  = null;
-      // Recalcular estado en memoria
-      const stsRestantes = [arr[i].ST, arr[i].ST2, arr[i].ST3, arr[i].ST4].filter(Boolean);
-      arr[i].Estado = stsRestantes.length > 0 ? 'programado' : 'pendiente';
+      const i = arr.findIndex(x=>x.ID_Req===idReq);
+      if (i===-1) return;
+      arr[i][stKey]=null; arr[i][cKey]=null;
+      const stsRest = [arr[i].ST,arr[i].ST2,arr[i].ST3,arr[i].ST4].filter(Boolean);
+      arr[i].Estado = stsRest.length>0 ? 'programado' : 'pendiente';
     });
-
-  } catch (e) {
-    selectEl.disabled = false;
-    selectEl.value = '';
-    alert('Error: ' + e.message);
-    return;
+  } catch(e) {
+    selectEl.disabled=false; selectEl.value='';
+    alert('Error: '+e.message); return;
   }
 
-  actualizarKpisPlan();
-  filtrarPlan();
-  renderPlanPanel();
-  setTimeout(async () => { await recargarDatos(true); }, 2000);
+  actualizarKpisPlan(); filtrarPlan(); renderPlanPanel();
+  setTimeout(async()=>{ await recargarDatos(true); }, 2000);
 }
 
 
