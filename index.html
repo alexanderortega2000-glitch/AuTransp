@@ -2334,11 +2334,7 @@ function abrirPlanPanel(numReqExcel) {
     r.NumReqExcel == numReqExcel || r.ID_Req === String(numReqExcel)
   );
   if (!_ppReqs.length) return;
-  // Pausar auto-refresh mientras el panel está abierto
-  if (window._autoRefreshInterval) {
-    clearInterval(window._autoRefreshInterval);
-    window._autoRefreshInterval = null;
-  }
+  if (window._autoRefreshInterval) { clearInterval(window._autoRefreshInterval); window._autoRefreshInterval = null; }
   const r0 = _ppReqs[0];
   document.getElementById('pp-num').textContent    = r0.NumReqExcel || r0.ID_Req;
   document.getElementById('pp-titulo').textContent = r0.NombreDestino || r0.Actividad || '—';
@@ -2351,14 +2347,10 @@ function abrirPlanPanel(numReqExcel) {
 function cerrarPlanPanel() {
   document.getElementById('plan-panel').classList.remove('open');
   _ppReqs = [];
-  // Reanudar auto-refresh al cerrar el panel
   if (!window._autoRefreshInterval) {
     window._autoRefreshInterval = setInterval(async () => {
-      const panelAbierto = document.getElementById('edit-panel')?.classList.contains('open');
-      if (panelAbierto) return;
-      await recargarDatos();
-      renderSolicitudesGitHub();
-      calcularInfo();
+      if (document.getElementById('edit-panel')?.classList.contains('open')) return;
+      await recargarDatos(); renderSolicitudesGitHub(); calcularInfo();
     }, 2 * 60 * 1000);
   }
 }
