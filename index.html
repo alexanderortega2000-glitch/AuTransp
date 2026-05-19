@@ -2619,13 +2619,13 @@ async function confirmarProgramacion() {
 
   for(const {r,st,cant} of filas){
     try{
+      const _payload={ST:st, FechaEjecucion:etd, cantidad:cant, actualizadoPor:sesion.nombre||sesion.usuario, forzar:false};
+      console.log('[PP] enviando:', r.ID_Req, JSON.stringify(_payload));
       const res=await apiCall(`requerimientos/${r.ID_Req}`,{
         method:'PATCH',
-        body:JSON.stringify({
-          ST:st, FechaEjecucion:etd, cantidad:cant,
-          actualizadoPor:sesion.nombre||sesion.usuario, forzar:false,
-        }),
+        body:JSON.stringify(_payload),
       });
+      console.log('[PP] respuesta:', JSON.stringify(res));
 
       if(res.requiereConfirmacion){
         // Acumular — NO return, continuar con las demás filas
