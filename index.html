@@ -2370,7 +2370,6 @@ function renderPlanPanel() {
   const body = document.getElementById('pp-body');
   if (!body || !_ppReqs.length) return;
 
-  // ETD: preservar si ya estaba abierto; default hoy+1 en hora local
   const etdGuardado = document.getElementById('pp-etd')?.value || (() => {
     const d = new Date(); d.setDate(d.getDate()+1);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -2409,16 +2408,14 @@ function renderPlanPanel() {
 
   let h='';
 
-  // Flag sobreprogramación
   if(sumTot>0&&sumAsig>sumTot){
     h+=`<div style="display:flex;align-items:center;gap:7px;background:var(--warn2);border:0.5px solid var(--warn);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;">
-      <span>⚠</span>
-      <div><div style="font-size:11px;font-weight:600;color:var(--warn)">Sobreprogramado</div>
-      <div style="font-size:10px;color:var(--warn)">Programado ${sumAsig.toLocaleString()} ${um} · Total ${sumTot.toLocaleString()} ${um} · Exceso: +${(sumAsig-sumTot).toLocaleString()} ${um}</div></div>
-    </div>`;
+      <span>⚠</span><div>
+      <div style="font-size:11px;font-weight:600;color:var(--warn)">Sobreprogramado</div>
+      <div style="font-size:10px;color:var(--warn)">Programado ${sumAsig.toLocaleString()} ${um} · Total ${sumTot.toLocaleString()} ${um} · Exceso: +${(sumAsig-sumTot).toLocaleString()} ${um}</div>
+      </div></div>`;
   }
 
-  // ── Sección 1: Requerimiento total ──
   const sumaLine=Object.entries(totUM)
     .map(([u,t])=>`<span style="font-family:var(--mono);font-weight:600;color:var(--text)">${t.toLocaleString()} ${u}</span>`)
     .join('<span style="color:var(--text3);margin:0 4px">·</span>');
@@ -2449,7 +2446,6 @@ function renderPlanPanel() {
     </div>
   </div>`;
 
-  // ── Sección 2: Programado ──
   const fProg=[];
   _ppReqs.forEach((r,ri)=>{stsDeR(r).forEach(s=>fProg.push({r,ri,st:s.st,cant:s.cant}));});
 
@@ -2487,8 +2483,6 @@ function renderPlanPanel() {
     </div>`;
   }
 
-  // ── Sección 3: Pendiente de programar ──
-  // ri = índice real en _ppReqs, usado como ID en los inputs del DOM
   const fPend=_ppReqs
     .map((r,ri)=>({r,ri}))
     .filter(({r})=>{
@@ -2593,7 +2587,6 @@ async function confirmarProgramacion() {
   }
   const etd=`${fecha}T${hora}:00`;
 
-  // Usar ri reales de body._filasPend — mismos IDs que los inputs en el DOM
   const fPend=(body._filasPend||[])
     .map(({r,ri})=>({
       r, ri,
@@ -2641,10 +2634,12 @@ async function confirmarProgramacion() {
       const slotNum=res.slot||1;
       const stKey=slotNum===1?'ST':`ST${slotNum}`;
       const cKey=`CantidadST${slotNum}`;
+      // Actualizar memoria con el valor real enviado
       [reqPendientes,_reqFiltrados,_ppReqs].forEach(arr=>{
         const i=arr.findIndex(x=>x.ID_Req===r.ID_Req);
         if(i!==-1){
-          arr[i][stKey]=st; arr[i][cKey]=cant;
+          arr[i][stKey]=st;
+          arr[i][cKey]=cant;   // cant viene de cantStr — valor real del input
           arr[i].Estado=res.Estado;
           if(res.FechaEjecucion) arr[i].FechaEjecucion=res.FechaEjecucion;
         }
