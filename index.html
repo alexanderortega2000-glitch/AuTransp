@@ -2363,7 +2363,6 @@ function renderPlanPanel() {
   const body = document.getElementById('pp-body');
   if (!body || !_ppReqs.length) return;
 
-  // ETD default: hoy+1 en hora LOCAL
   const etdGuardado = document.getElementById('pp-etd')?.value || (() => {
     const d = new Date(); d.setDate(d.getDate()+1);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -2376,26 +2375,22 @@ function renderPlanPanel() {
            (parseFloat(r.CantidadST3)||0)+(parseFloat(r.CantidadST4)||0);
   }
   function cantPend(r) {
-    return Math.max(0, (parseFloat(r.CantidadTotal)||0) - cantAsig(r));
+    return Math.max(0,(parseFloat(r.CantidadTotal)||0)-cantAsig(r));
   }
   function stsDeR(r) {
     return [{n:1,st:r.ST,cant:r.CantidadST1},{n:2,st:r.ST2,cant:r.CantidadST2},
             {n:3,st:r.ST3,cant:r.CantidadST3},{n:4,st:r.ST4,cant:r.CantidadST4}]
-      .filter(s => s.st);
+      .filter(s=>s.st);
   }
-  function tipDest(r) {
-    const c=r.CodDestino||'', n=r.NombreDestino||'';
-    return c&&n?`${c} - ${n}`:c||n||'';
-  }
-  function labDest(r) { return r.CodDestino||r.NombreDestino||'—'; }
+  function tipDest(r){const c=r.CodDestino||'',n=r.NombreDestino||'';return c&&n?`${c} - ${n}`:c||n||'';}
+  function labDest(r){return r.CodDestino||r.NombreDestino||'—';}
 
-  // Totales por UM
-  const totUM = {};
-  _ppReqs.forEach(r => { const u=r.UM||'—'; totUM[u]=(totUM[u]||0)+(parseFloat(r.CantidadTotal)||0); });
-  const sumTot = _ppReqs.reduce((s,r)=>s+(parseFloat(r.CantidadTotal)||0),0);
-  const sumAsig= _ppReqs.reduce((s,r)=>s+cantAsig(r),0);
+  const totUM={};
+  _ppReqs.forEach(r=>{const u=r.UM||'—';totUM[u]=(totUM[u]||0)+(parseFloat(r.CantidadTotal)||0);});
+  const sumTot =_ppReqs.reduce((s,r)=>s+(parseFloat(r.CantidadTotal)||0),0);
+  const sumAsig=_ppReqs.reduce((s,r)=>s+cantAsig(r),0);
 
-  function eBadge(r) {
+  function eBadge(r){
     const e=(r.Estado||'pendiente').toLowerCase().replace(' parcial','');
     const m={'en_proceso':['#dbeafe','#1d4ed8'],'finalizado':['var(--accent2)','var(--accent)'],
              'programado':['var(--warn2)','var(--warn)'],'cancelado':['var(--danger2)','var(--danger)'],
@@ -2406,8 +2401,7 @@ function renderPlanPanel() {
 
   let h='';
 
-  // Flag sobreprogramación
-  if (sumTot>0 && sumAsig>sumTot) {
+  if(sumTot>0&&sumAsig>sumTot){
     h+=`<div style="display:flex;align-items:center;gap:7px;background:var(--warn2);border:0.5px solid var(--warn);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;">
       <span style="font-size:14px">⚠</span>
       <div><div style="font-size:11px;font-weight:600;color:var(--warn)">Sobreprogramado</div>
@@ -2415,8 +2409,8 @@ function renderPlanPanel() {
     </div>`;
   }
 
-  // ── Sección 1: Requerimiento total ──
-  const sumaLine = Object.entries(totUM)
+  // Sección 1: Requerimiento total
+  const sumaLine=Object.entries(totUM)
     .map(([u,t])=>`<span style="font-family:var(--mono);font-weight:600;color:var(--text)">${t.toLocaleString()} ${u}</span>`)
     .join('<span style="color:var(--text3);margin:0 4px">·</span>');
 
@@ -2446,11 +2440,11 @@ function renderPlanPanel() {
     </div>
   </div>`;
 
-  // ── Sección 2: Programado ──
+  // Sección 2: Programado
   const fProg=[];
-  _ppReqs.forEach((r,ri)=>{ stsDeR(r).forEach(s=>fProg.push({r,ri,st:s.st,cant:s.cant})); });
+  _ppReqs.forEach((r,ri)=>{stsDeR(r).forEach(s=>fProg.push({r,ri,st:s.st,cant:s.cant}));});
 
-  if (fProg.length) {
+  if(fProg.length){
     h+=`<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Programado</div>
     <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
       <table style="width:100%;border-collapse:collapse;font-size:11px;">
@@ -2484,19 +2478,17 @@ function renderPlanPanel() {
     </div>`;
   }
 
-  // ── Sección 3: Pendiente — solo filas con cantidad pendiente > 0 o sin ST ──
-  // Usar ri (índice real en _ppReqs) como ID de los inputs DOM
-  const fPend = _ppReqs
+  // Sección 3: Pendiente — ri=índice real en _ppReqs, usado como ID en los inputs
+  const fPend=_ppReqs
     .map((r,ri)=>({r,ri}))
     .filter(({r})=>{
       const est=(r.Estado||'pendiente').toLowerCase();
       if(est==='cancelado') return false;
       if(est.includes('finaliz')) return false;
-      const total=parseFloat(r.CantidadTotal)||0;
-      return total>0 ? cantPend(r)>0 : !r.ST;
+      return parseFloat(r.CantidadTotal)>0 ? cantPend(r)>0 : !r.ST;
     });
 
-  if (fPend.length) {
+  if(fPend.length){
     h+=`<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Pendiente de programar</div>
     <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px;">
       <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;background:var(--bg2);border-bottom:0.5px solid var(--border);">
@@ -2519,7 +2511,6 @@ function renderPlanPanel() {
         </tr></thead>
         <tbody>
           ${fPend.map(({r,ri})=>{
-            // Pendiente = CantidadTotal - ya asignado; si no hay cantidad, dejar vacío
             const pend=parseFloat(r.CantidadTotal)>0?cantPend(r):null;
             return `<tr id="pp-pend-row-${ri}" style="border-top:0.5px solid var(--border);">
               <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
@@ -2552,22 +2543,21 @@ function renderPlanPanel() {
         Confirmar programación
       </button>
     </div>`;
-  } else if (!fProg.length) {
+  } else if(!fProg.length){
     h+=`<div style="text-align:center;padding:16px;font-size:11px;color:var(--text3);font-family:var(--mono);">Sin líneas pendientes.</div>`;
   }
 
-  // Almacenar fPend con ri reales para que confirmarProgramacion los lea
-  body._filasPend = fPend;
-  body.innerHTML  = h;
+  body._filasPend=fPend;
+  body.innerHTML=h;
 }
 
-function cancelarFilaPend(ri) {
-  const row = document.getElementById(`pp-pend-row-${ri}`);
-  if (!row) return;
-  row.style.opacity = '0.35';
-  row.querySelectorAll('input').forEach(el=>{ el.disabled=true; el.value=''; });
-  const btn = row.querySelector('button');
-  if (btn) { btn.textContent='Cancelado'; btn.disabled=true; btn.style.cursor='default'; }
+function cancelarFilaPend(ri){
+  const row=document.getElementById(`pp-pend-row-${ri}`);
+  if(!row) return;
+  row.style.opacity='0.35';
+  row.querySelectorAll('input').forEach(el=>{el.disabled=true;el.value='';});
+  const btn=row.querySelector('button');
+  if(btn){btn.textContent='Cancelado';btn.disabled=true;btn.style.cursor='default';}
 }
 
 function propagarSTPPanel(input, idx) {
@@ -2587,97 +2577,94 @@ async function confirmarProgramacion() {
   const hora  = document.getElementById('pp-hora')?.value || '04:00';
   const msgEl = document.getElementById('pp-msg');
 
-  if (!fecha) {
-    if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent='⚠ ETD requerida'; }
+  if(!fecha){
+    if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent='⚠ ETD requerida';}
     return;
   }
-  const etd = `${fecha}T${hora}:00`;
+  const etd=`${fecha}T${hora}:00`;
 
-  // Leer filasPend con los ri reales (= IDs de los inputs en el DOM)
-  const fPend = (body._filasPend || [])
-    .map(({r,ri}) => ({
+  // Leer filas usando los ri reales — mismos IDs que tienen los inputs en el DOM
+  const fPend=(body._filasPend||[])
+    .map(({r,ri})=>({
       r, ri,
-      st:       (document.getElementById(`pp-st-${ri}`)?.value || '').trim(),
-      cant:     document.getElementById(`pp-cant-${ri}`)?.value,
+      st:   (document.getElementById(`pp-st-${ri}`)?.value||'').trim(),
+      cantStr: document.getElementById(`pp-cant-${ri}`)?.value??'',
       disabled: document.getElementById(`pp-st-${ri}`)?.disabled,
     }))
-    .filter(f => f.st && !f.disabled);
+    .filter(f=>f.st&&!f.disabled);
 
-  if (!fPend.length) {
-    if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent='⚠ Ingresa al menos una ST'; }
+  if(!fPend.length){
+    if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent='⚠ Ingresa al menos una ST';}
     return;
   }
 
-  // Convertir cant a número — null solo si el campo está vacío Y no tiene CantidadTotal
-  const filas = fPend.map(f => ({
+  // Convertir cant: string → número; null solo si genuinamente vacío
+  const filas=fPend.map(f=>({
     ...f,
-    cant: f.cant !== '' && f.cant != null ? parseFloat(f.cant) || null : null,
+    cant: f.cantStr.trim()!=='' ? (parseFloat(f.cantStr)||0) : null,
   }));
 
-  // Validar cantidad requerida
-  for (const {r, cant, st} of filas) {
-    if ((parseFloat(r.CantidadTotal)||0) > 0 && (cant == null || cant <= 0)) {
-      if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent=`⚠ Ingresa la cantidad para ST ${st}`; }
+  // Validar cantidad requerida cuando hay CantidadTotal
+  for(const {r,cant,st} of filas){
+    if((parseFloat(r.CantidadTotal)||0)>0 && (cant==null||cant<=0)){
+      if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent=`⚠ Ingresa la cantidad para ST ${st}`;}
       return;
     }
   }
 
-  if (msgEl) { msgEl.style.color='var(--text2)'; msgEl.textContent='Guardando...'; }
+  if(msgEl){msgEl.style.color='var(--text2)';msgEl.textContent='Guardando...';}
 
-  // Intentar guardar todas las filas — acumular advertencias sin interrumpir
-  const advertencias = [];
-  let guardados = 0;
+  const advertencias=[];
+  let guardados=0;
 
-  for (const {r, st, cant} of filas) {
-    try {
-      const res = await apiCall(`requerimientos/${r.ID_Req}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          ST: st, FechaEjecucion: etd, cantidad: cant,
-          actualizadoPor: sesion.nombre || sesion.usuario, forzar: false,
+  for(const {r,st,cant} of filas){
+    try{
+      const res=await apiCall(`requerimientos/${r.ID_Req}`,{
+        method:'PATCH',
+        body:JSON.stringify({
+          ST:st, FechaEjecucion:etd, cantidad:cant,
+          actualizadoPor:sesion.nombre||sesion.usuario, forzar:false,
         }),
       });
 
-      if (res.requiereConfirmacion) {
-        // Acumular — NO hacer return, continuar con las demás filas
-        res.advertencias.forEach(a => advertencias.push({...a, _idReq: r.ID_Req, _st: st, _etd: etd, _cant: cant}));
+      if(res.requiereConfirmacion){
+        // Acumular — NO return, continuar con las demás filas
+        res.advertencias.forEach(a=>advertencias.push({...a,_idReq:r.ID_Req,_st:st,_etd:etd,_cant:cant}));
         continue;
       }
 
-      const slotNum = res.slot || 1;
-      const stKey = slotNum === 1 ? 'ST' : `ST${slotNum}`;
-      const cKey  = `CantidadST${slotNum}`;
-      [reqPendientes, _reqFiltrados, _ppReqs].forEach(arr => {
-        const i = arr.findIndex(x => x.ID_Req === r.ID_Req);
-        if (i !== -1) {
-          arr[i][stKey] = st; arr[i][cKey] = cant;
-          arr[i].Estado = res.Estado;
-          if (res.FechaEjecucion) arr[i].FechaEjecucion = res.FechaEjecucion;
+      const slotNum=res.slot||1;
+      const stKey=slotNum===1?'ST':`ST${slotNum}`;
+      const cKey=`CantidadST${slotNum}`;
+      [reqPendientes,_reqFiltrados,_ppReqs].forEach(arr=>{
+        const i=arr.findIndex(x=>x.ID_Req===r.ID_Req);
+        if(i!==-1){
+          arr[i][stKey]=st; arr[i][cKey]=cant;
+          arr[i].Estado=res.Estado;
+          if(res.FechaEjecucion) arr[i].FechaEjecucion=res.FechaEjecucion;
         }
       });
       guardados++;
-    } catch (e) {
-      if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent=`⚠ ${e.message}`; }
+    }catch(e){
+      if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent=`⚠ ${e.message}`;}
       return;
     }
   }
 
-  // Si hay advertencias acumuladas, mostrar modal UNA sola vez con todas
-  if (advertencias.length) {
-    advertencias.forEach(a => {
-      _pendingAdvCallbacks.push(() => confirmarProgramacion_forzar(a._idReq, a._st, a._etd, a._cant));
+  // Mostrar modal UNA sola vez con todas las advertencias acumuladas
+  if(advertencias.length){
+    advertencias.forEach(a=>{
+      _pendingAdvCallbacks.push(()=>confirmarProgramacion_forzar(a._idReq,a._st,a._etd,a._cant));
     });
     mostrarModalAdv(advertencias);
-    if (guardados > 0 && msgEl) { msgEl.style.color='var(--accent)'; msgEl.textContent=`✓ ${guardados} guardada(s) · ${advertencias.length} con advertencia`; }
+    if(guardados>0&&msgEl){msgEl.style.color='var(--accent)';msgEl.textContent=`✓ ${guardados} guardada(s) · ${advertencias.length} con advertencia`;}
     actualizarKpisPlan(); filtrarPlan(); renderPlanPanel();
     return;
   }
 
-  if (msgEl) { msgEl.style.color='var(--accent)'; msgEl.textContent=`✓ ${guardados} línea(s) programadas`; }
-  actualizarKpisPlan();
-  filtrarPlan();
-  renderPlanPanel();
-  setTimeout(async () => { await recargarDatos(true); }, 2000);
+  if(msgEl){msgEl.style.color='var(--accent)';msgEl.textContent=`✓ ${guardados} línea(s) programadas`;}
+  actualizarKpisPlan(); filtrarPlan(); renderPlanPanel();
+  setTimeout(async()=>{await recargarDatos(true);},2000);
 }
 
 async function confirmarProgramacion_forzar(idReq, st, etd, cant) {
@@ -2699,41 +2686,30 @@ async function confirmarProgramacion_forzar(idReq, st, etd, cant) {
 }
 
 async function desasociarSTGrupo(st, idReq, selectEl) {
-  const motivo = selectEl?.value;
-  if (!motivo) return;
-  selectEl.disabled = true;
-
-  try {
-    const r = reqPendientes.find(x=>x.ID_Req===idReq) ||
-              _reqFiltrados.find(x=>x.ID_Req===idReq) ||
-              _ppReqs.find(x=>x.ID_Req===idReq);
-    if (!r) { selectEl.disabled=false; selectEl.value=''; return; }
-
-    const slot = r.ST===st?1:r.ST2===st?2:r.ST3===st?3:r.ST4===st?4:null;
-    if (!slot) { selectEl.disabled=false; selectEl.value=''; return; }
-
-    await apiCall(`requerimientos/${idReq}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ desasociarSlot: slot, MotivoCorreccion: motivo,
-        actualizadoPor: sesion.nombre || sesion.usuario }),
+  const motivo=selectEl?.value;
+  if(!motivo) return;
+  selectEl.disabled=true;
+  try{
+    const r=reqPendientes.find(x=>x.ID_Req===idReq)||_reqFiltrados.find(x=>x.ID_Req===idReq)||_ppReqs.find(x=>x.ID_Req===idReq);
+    if(!r){selectEl.disabled=false;selectEl.value='';return;}
+    const slot=r.ST===st?1:r.ST2===st?2:r.ST3===st?3:r.ST4===st?4:null;
+    if(!slot){selectEl.disabled=false;selectEl.value='';return;}
+    await apiCall(`requerimientos/${idReq}`,{
+      method:'PATCH',
+      body:JSON.stringify({desasociarSlot:slot,MotivoCorreccion:motivo,actualizadoPor:sesion.nombre||sesion.usuario}),
     });
-
-    const stKey = slot===1?'ST':`ST${slot}`;
-    const cKey  = `CantidadST${slot}`;
-    [reqPendientes, _reqFiltrados, _ppReqs].forEach(arr => {
-      const i = arr.findIndex(x=>x.ID_Req===idReq);
-      if (i===-1) return;
+    const stKey=slot===1?'ST':`ST${slot}`;
+    const cKey=`CantidadST${slot}`;
+    [reqPendientes,_reqFiltrados,_ppReqs].forEach(arr=>{
+      const i=arr.findIndex(x=>x.ID_Req===idReq);
+      if(i===-1) return;
       arr[i][stKey]=null; arr[i][cKey]=null;
-      const stsRest = [arr[i].ST,arr[i].ST2,arr[i].ST3,arr[i].ST4].filter(Boolean);
-      arr[i].Estado = stsRest.length>0 ? 'programado' : 'pendiente';
+      const rest=[arr[i].ST,arr[i].ST2,arr[i].ST3,arr[i].ST4].filter(Boolean);
+      arr[i].Estado=rest.length>0?'programado':'pendiente';
     });
-  } catch(e) {
-    selectEl.disabled=false; selectEl.value='';
-    alert('Error: '+e.message); return;
-  }
-
+  }catch(e){selectEl.disabled=false;selectEl.value='';alert('Error: '+e.message);return;}
   actualizarKpisPlan(); filtrarPlan(); renderPlanPanel();
-  setTimeout(async()=>{ await recargarDatos(true); }, 2000);
+  setTimeout(async()=>{await recargarDatos(true);},2000);
 }
 
 
