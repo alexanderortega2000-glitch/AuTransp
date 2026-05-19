@@ -2372,7 +2372,6 @@ function renderPlanPanel() {
 
   const um = _ppReqs[0]?.UM || '';
 
-  // ── Helpers de cantidad ──
   function cantAsignada(r) {
     return (parseFloat(r.CantidadST1)||0)+(parseFloat(r.CantidadST2)||0)+
            (parseFloat(r.CantidadST3)||0)+(parseFloat(r.CantidadST4)||0);
@@ -2385,61 +2384,48 @@ function renderPlanPanel() {
             {n:3,st:r.ST3,cant:r.CantidadST3},{n:4,st:r.ST4,cant:r.CantidadST4}]
       .filter(s => s.st);
   }
-  // Tooltip destino: "COD - Nombre" o solo Nombre
   function tooltipDestino(r) {
-    const cod  = r.CodDestino  || '';
-    const nom  = r.NombreDestino || '';
-    return cod && nom ? `${cod} - ${nom}` : cod || nom || '';
+    const cod = r.CodDestino||''; const nom = r.NombreDestino||'';
+    return cod && nom ? `${cod} - ${nom}` : cod||nom||'';
   }
-  function labelDestino(r) {
-    return r.CodDestino || r.NombreDestino || '—';
-  }
+  function labelDestino(r) { return r.CodDestino||r.NombreDestino||'—'; }
 
-  // ── Totales por UM para sumatoria ──
+  // Totales por UM
   const totalesPorUM = {};
   _ppReqs.forEach(r => {
-    const u = r.UM || '—';
-    const c = parseFloat(r.CantidadTotal) || 0;
-    totalesPorUM[u] = (totalesPorUM[u] || 0) + c;
+    const u = r.UM||'—';
+    totalesPorUM[u] = (totalesPorUM[u]||0) + (parseFloat(r.CantidadTotal)||0);
   });
   const sumTotal    = _ppReqs.reduce((s,r) => s+(parseFloat(r.CantidadTotal)||0), 0);
   const sumAsignada = _ppReqs.reduce((s,r) => s+cantAsignada(r), 0);
   const sobreProg   = sumTotal > 0 && sumAsignada > sumTotal;
 
-  // ── Badge de estado ──
   function estadoBadge(r) {
     const e = (r.Estado||'pendiente').toLowerCase().replace(' parcial','');
     const map = {
-      'en_proceso': ['#dbeafe','#1d4ed8'],
-      'finalizado': ['var(--accent2)','var(--accent)'],
-      'programado': ['var(--warn2)','var(--warn)'],
-      'cancelado':  ['var(--danger2)','var(--danger)'],
-      'pendiente':  ['var(--bg3)','var(--text2)'],
+      'en_proceso':['#dbeafe','#1d4ed8'], 'finalizado':['var(--accent2)','var(--accent)'],
+      'programado':['var(--warn2)','var(--warn)'],   'cancelado':['var(--danger2)','var(--danger)'],
+      'pendiente': ['var(--bg3)','var(--text2)'],
     };
-    const c = map[e] || map['pendiente'];
+    const c = map[e]||map['pendiente'];
     return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${c[0]};color:${c[1]};font-weight:500;white-space:nowrap;">${r.Estado||'Pendiente'}</span>`;
   }
 
   let h = '';
 
-  // ── Flag sobreprogramación ──
+  // Flag sobreprogramación
   if (sobreProg) {
     const exceso = sumAsignada - sumTotal;
     h += `<div style="display:flex;align-items:center;gap:7px;background:var(--warn2);border:0.5px solid var(--warn);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;">
       <span style="font-size:14px">⚠</span>
-      <div>
-        <div style="font-size:11px;font-weight:600;color:var(--warn)">Sobreprogramado</div>
-        <div style="font-size:10px;color:var(--warn)">Programado ${sumAsignada.toLocaleString()} ${um} · Total req ${sumTotal.toLocaleString()} ${um} · Exceso: +${exceso.toLocaleString()} ${um}</div>
-      </div>
+      <div><div style="font-size:11px;font-weight:600;color:var(--warn)">Sobreprogramado</div>
+      <div style="font-size:10px;color:var(--warn)">Programado ${sumAsignada.toLocaleString()} ${um} · Total ${sumTotal.toLocaleString()} ${um} · Exceso: +${exceso.toLocaleString()} ${um}</div></div>
     </div>`;
   }
 
-  // ═══════════════════════════════════════════
-  // SECCIÓN 1 — REQUERIMIENTO TOTAL
-  // ═══════════════════════════════════════════
-  // Sumatoria por UM al pie
+  // ── Sección 1: Requerimiento total ──
   const sumaFilas = Object.entries(totalesPorUM)
-    .map(([u, tot]) => `<span style="font-family:var(--mono);font-weight:600;color:var(--text)">${tot.toLocaleString()} ${u}</span>`)
+    .map(([u,tot]) => `<span style="font-family:var(--mono);font-weight:600;color:var(--text)">${tot.toLocaleString()} ${u}</span>`)
     .join('<span style="color:var(--text3);margin:0 4px">·</span>');
 
   h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Requerimiento total</div>
@@ -2454,8 +2440,7 @@ function renderPlanPanel() {
       </tr></thead>
       <tbody>
         ${_ppReqs.map(r => `<tr style="border-top:0.5px solid var(--border);">
-          <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default"
-              title="${tooltipDestino(r)}">${labelDestino(r)}</td>
+          <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tooltipDestino(r)}">${labelDestino(r)}</td>
           <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Producto||r.Actividad||'—'}</td>
           <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
           <td style="padding:6px 8px;text-align:right;font-family:var(--mono);font-weight:500;">${r.CantidadTotal!=null?Number(r.CantidadTotal).toLocaleString():'—'}</td>
@@ -2469,13 +2454,9 @@ function renderPlanPanel() {
     </div>
   </div>`;
 
-  // ═══════════════════════════════════════════
-  // SECCIÓN 2 — PROGRAMADO (un slot ST por fila)
-  // ═══════════════════════════════════════════
+  // ── Sección 2: Programado ──
   const filasProg = [];
-  _ppReqs.forEach((r, ri) => {
-    stsDeR(r).forEach(s => filasProg.push({r, ri, slot:s.n, st:s.st, cant:s.cant}));
-  });
+  _ppReqs.forEach((r,ri) => { stsDeR(r).forEach(s => filasProg.push({r,ri,slot:s.n,st:s.st,cant:s.cant})); });
 
   if (filasProg.length) {
     h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Programado</div>
@@ -2491,19 +2472,19 @@ function renderPlanPanel() {
           <th style="padding:5px 8px;"></th>
         </tr></thead>
         <tbody>
-          ${filasProg.map(({r, ri, slot, st, cant}) => `<tr style="border-top:0.5px solid var(--border);">
-            <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default"
-                title="${tooltipDestino(r)}">${labelDestino(r)}</td>
+          ${filasProg.map(({r,ri,slot,st,cant}) => `<tr style="border-top:0.5px solid var(--border);">
+            <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tooltipDestino(r)}">${labelDestino(r)}</td>
             <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
             <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
             <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">${cant!=null?Number(cant).toLocaleString():'—'}</td>
             <td style="padding:6px 8px;text-align:center;"><span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);background:var(--accent2);padding:2px 7px;border-radius:10px;">${st}</span></td>
             <td style="padding:6px 8px;text-align:center;">${estadoBadge(r)}</td>
             <td style="padding:6px 8px;text-align:right;">
-              <button onclick="desasociarSTGrupo('${st}','${r.ID_Req}')"
-                style="height:22px;padding:0 8px;background:none;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);cursor:pointer;"
-                onmouseover="this.style.color='var(--danger)';this.style.borderColor='var(--danger)'"
-                onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">Desasociar</button>
+              <select onchange="desasociarSTGrupo('${st}','${r.ID_Req}',this)"
+                style="height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);cursor:pointer;max-width:110px;">
+                <option value="">Desasociar…</option>
+                ${MOTIVOS_DESASOC.map(m=>`<option value="${m}">${m}</option>`).join('')}
+              </select>
             </td>
           </tr>`).join('')}
         </tbody>
@@ -2511,11 +2492,9 @@ function renderPlanPanel() {
     </div>`;
   }
 
-  // ═══════════════════════════════════════════
-  // SECCIÓN 3 — PENDIENTE DE PROGRAMAR
-  // ═══════════════════════════════════════════
+  // ── Sección 3: Pendiente de programar ──
   const filasPend = _ppReqs
-    .map((r, ri) => ({r, ri}))
+    .map((r,ri) => ({r,ri}))
     .filter(({r}) => {
       const est = (r.Estado||'pendiente').toLowerCase();
       if (est === 'cancelado') return false;
@@ -2545,11 +2524,10 @@ function renderPlanPanel() {
           <th style="padding:5px 8px;"></th>
         </tr></thead>
         <tbody>
-          ${filasPend.map(({r, ri}) => {
+          ${filasPend.map(({r,ri}) => {
             const pend = parseFloat(r.CantidadTotal) > 0 ? cantPendienteR(r) : null;
             return `<tr id="pp-pend-row-${ri}" style="border-top:0.5px solid var(--border);">
-              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default"
-                  title="${tooltipDestino(r)}">${labelDestino(r)}</td>
+              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tooltipDestino(r)}">${labelDestino(r)}</td>
               <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
               <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
               <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">
@@ -2589,7 +2567,6 @@ function renderPlanPanel() {
   body.innerHTML = h;
 }
 
-// Cancelar fila individual del panel (solo UI, no afecta BD)
 function cancelarFilaPend(ri) {
   const row = document.getElementById(`pp-pend-row-${ri}`);
   if (!row) return;
@@ -2637,9 +2614,9 @@ async function confirmarProgramacion() {
     return;
   }
 
-  // Validar cantidad requerida cuando el requerimiento tiene CantidadTotal
+  // Cantidad requerida si el requerimiento tiene CantidadTotal
   for (const {r, cant, st} of filas) {
-    if ((parseFloat(r.CantidadTotal) || 0) > 0 && !cant) {
+    if ((parseFloat(r.CantidadTotal)||0) > 0 && !cant) {
       if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent=`⚠ Ingresa la cantidad para ST ${st}`; }
       return;
     }
@@ -2657,22 +2634,19 @@ async function confirmarProgramacion() {
           actualizadoPor: sesion.nombre || sesion.usuario, forzar: false,
         }),
       });
-
       if (res.requiereConfirmacion) {
         _pendingAdvCallbacks.push(() => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant));
         mostrarModalAdv(res.advertencias);
         if (msgEl) { msgEl.style.color='var(--text2)'; msgEl.textContent=''; }
         return;
       }
-
       const slotNum = res.slot || 1;
-      const stKey   = slotNum === 1 ? 'ST' : `ST${slotNum}`;
-      const cKey    = `CantidadST${slotNum}`;
+      const stKey = slotNum === 1 ? 'ST' : `ST${slotNum}`;
+      const cKey  = `CantidadST${slotNum}`;
       [reqPendientes, _reqFiltrados, _ppReqs].forEach(arr => {
         const i = arr.findIndex(x => x.ID_Req === r.ID_Req);
         if (i !== -1) {
-          arr[i][stKey] = st;
-          arr[i][cKey]  = cant;
+          arr[i][stKey] = st; arr[i][cKey] = cant;
           arr[i].Estado = res.Estado;
           if (res.FechaEjecucion) arr[i].FechaEjecucion = res.FechaEjecucion;
         }
@@ -2709,29 +2683,46 @@ async function confirmarProgramacion_forzar(idReq, st, etd, cant) {
   filtrarPlan();
 }
 
-async function desasociarSTGrupo(st, idsStr) {
-  const ids = idsStr.split(',');
-  const motivo = prompt(`Desasociar ST ${st}. Ingresa el motivo:`);
+async function desasociarSTGrupo(st, idReq, selectEl) {
+  const motivo = selectEl ? selectEl.value : null;
   if (!motivo) return;
-  for (const idReq of ids) {
-    const r = reqPendientes.find(x => x.ID_Req === idReq) || _reqFiltrados.find(x => x.ID_Req === idReq);
-    if (!r) continue;
+  selectEl.disabled = true;
+
+  try {
+    const r = reqPendientes.find(x => x.ID_Req === idReq) ||
+              _reqFiltrados.find(x => x.ID_Req === idReq) ||
+              _ppReqs.find(x => x.ID_Req === idReq);
+    if (!r) { selectEl.disabled = false; selectEl.value = ''; return; }
+
     const slot = r.ST === st ? 1 : r.ST2 === st ? 2 : r.ST3 === st ? 3 : r.ST4 === st ? 4 : null;
-    if (!slot) continue;
-    try {
-      await apiCall(`requerimientos/${idReq}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ desasociarSlot: slot, MotivoCorreccion: motivo,
-          actualizadoPor: sesion.nombre || sesion.usuario }),
-      });
-      const stKey = slot === 1 ? 'ST' : `ST${slot}`;
-      const cKey  = `CantidadST${slot}`;
-      [reqPendientes, _reqFiltrados, _ppReqs].forEach(arr => {
-        const i = arr.findIndex(x => x.ID_Req === idReq);
-        if (i !== -1) { arr[i][stKey] = null; arr[i][cKey] = null; }
-      });
-    } catch (e) { alert('Error: ' + e.message); return; }
+    if (!slot) { selectEl.disabled = false; selectEl.value = ''; return; }
+
+    await apiCall(`requerimientos/${idReq}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ desasociarSlot: slot, MotivoCorreccion: motivo,
+        actualizadoPor: sesion.nombre || sesion.usuario }),
+    });
+
+    const stKey = slot === 1 ? 'ST' : `ST${slot}`;
+    const cKey  = `CantidadST${slot}`;
+
+    [reqPendientes, _reqFiltrados, _ppReqs].forEach(arr => {
+      const i = arr.findIndex(x => x.ID_Req === idReq);
+      if (i === -1) return;
+      arr[i][stKey] = null;
+      arr[i][cKey]  = null;
+      // Recalcular estado en memoria
+      const stsRestantes = [arr[i].ST, arr[i].ST2, arr[i].ST3, arr[i].ST4].filter(Boolean);
+      arr[i].Estado = stsRestantes.length > 0 ? 'programado' : 'pendiente';
+    });
+
+  } catch (e) {
+    selectEl.disabled = false;
+    selectEl.value = '';
+    alert('Error: ' + e.message);
+    return;
   }
+
   actualizarKpisPlan();
   filtrarPlan();
   renderPlanPanel();
