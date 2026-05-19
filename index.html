@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -2363,125 +2363,222 @@ function renderPlanPanel() {
   const body = document.getElementById('pp-body');
   if (!body || !_ppReqs.length) return;
 
-  // ETD default = hoy + 1 día
-  const hoy = new Date();
-  hoy.setDate(hoy.getDate() + 1);
-  const etdDefault = hoy.toISOString().slice(0, 10);
-
-  // Recoger ETD/hora del panel si ya está abierto (para no resetear al re-render)
-  const etdActual  = document.getElementById('pp-etd')?.value  || etdDefault;
-  const horaActual = document.getElementById('pp-hora')?.value || '04:00';
+  // Preservar ETD/hora si el panel ya estaba abierto
+  const etdGuardado = document.getElementById('pp-etd')?.value || (() => {
+    const d = new Date(); d.setDate(d.getDate()+1);
+    return d.toISOString().slice(0,10);
+  })();
+  const horaGuardada = document.getElementById('pp-hora')?.value || '04:00';
 
   const um = _ppReqs[0]?.UM || '';
 
-  // Calcular STs ya asignadas al grupo para mostrar resumen
-  const stMap = {};
-  _ppReqs.forEach(r => {
-    [[r.ST,'ST',r.CantidadST1],[r.ST2,'ST2',r.CantidadST2],
-     [r.ST3,'ST3',r.CantidadST3],[r.ST4,'ST4',r.CantidadST4]]
-      .filter(([st]) => st)
-      .forEach(([st, col, cant]) => {
-        if (!stMap[st]) stMap[st] = { st, cant: 0, ids: [] };
-        stMap[st].cant += parseFloat(cant) || 0;
-        stMap[st].ids.push(r.ID_Req);
-      });
-  });
-  const stList = Object.values(stMap);
-
-  // ── HTML ──────────────────────────────────────────────────
-  let h = '';
-
-  // STs ya asignadas (resumen)
-  if (stList.length) {
-    h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">STs asignadas</div>`;
-    stList.forEach(s => {
-      h += `<div class="plan-slot-card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-        <span style="font-family:var(--mono);font-size:12px;font-weight:500">${s.st}</span>
-        ${um ? `<span style="font-size:11px;color:var(--text2);font-family:var(--mono)">${s.cant} ${um}</span>` : ''}
-        <button onclick="desasociarSTGrupo('${s.st}','${s.ids.join(',')}')"
-          style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:13px;padding:0 4px;" title="Desasociar">✕</button>
-      </div>`;
-    });
-    h += `<div style="height:1px;background:var(--border);margin:8px 0;"></div>`;
+  // ── Helpers de cantidad ──
+  function cantAsignada(r) {
+    return (parseFloat(r.CantidadST1)||0)+(parseFloat(r.CantidadST2)||0)+
+           (parseFloat(r.CantidadST3)||0)+(parseFloat(r.CantidadST4)||0);
+  }
+  function cantPendienteR(r) {
+    return Math.max(0, (parseFloat(r.CantidadTotal)||0) - cantAsignada(r));
+  }
+  function stsDeR(r) {
+    return [{n:1,st:r.ST,cant:r.CantidadST1},{n:2,st:r.ST2,cant:r.CantidadST2},
+            {n:3,st:r.ST3,cant:r.CantidadST3},{n:4,st:r.ST4,cant:r.CantidadST4}]
+      .filter(s => s.st);
   }
 
-  // ETD compartido
-  h += `<div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:10px;">
-    <div>
-      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">ETD</div>
-      <input type="date" id="pp-etd" value="${etdActual}"
-        style="height:26px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);width:112px;">
-    </div>
-    <div>
-      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Hora</div>
-      <select id="pp-hora"
-        style="height:26px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);width:62px;">
-        ${opcionesHora(horaActual)}
-      </select>
-    </div>
-  </div>`;
+  // ── Flag sobreprogramación ──
+  const sumTotal    = _ppReqs.reduce((s,r) => s+(parseFloat(r.CantidadTotal)||0), 0);
+  const sumAsignada = _ppReqs.reduce((s,r) => s+cantAsignada(r), 0);
+  const sobreProg   = sumTotal > 0 && sumAsignada > sumTotal;
 
-  // Tabla de productos editable
-  h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Productos del requerimiento</div>
-  <div style="overflow-x:auto;margin-bottom:10px;">
+  // ── Badge de estado por fila ──
+  function estadoBadge(r) {
+    const e = (r.Estado||'pendiente').toLowerCase().replace(' parcial','');
+    const map = {
+      'en_proceso': ['#dbeafe','#1d4ed8'],
+      'finalizado': ['var(--accent2)','var(--accent)'],
+      'programado': ['var(--warn2)','var(--warn)'],
+      'cancelado':  ['var(--danger2)','var(--danger)'],
+      'pendiente':  ['var(--bg3)','var(--text2)'],
+    };
+    const c = map[e] || map['pendiente'];
+    return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${c[0]};color:${c[1]};font-weight:500;white-space:nowrap;">${r.Estado||'Pendiente'}</span>`;
+  }
+
+  let h = '';
+
+  // ═══════════════════════════════════════════
+  // FLAG SOBREPROGRAMACIÓN
+  // ═══════════════════════════════════════════
+  if (sobreProg) {
+    const exceso = sumAsignada - sumTotal;
+    h += `<div style="display:flex;align-items:center;gap:7px;background:var(--warn2);border:0.5px solid var(--warn);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;">
+      <span style="font-size:14px">⚠</span>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--warn)">Sobreprogramado</div>
+        <div style="font-size:10px;color:var(--warn)">Programado ${sumAsignada.toLocaleString()} ${um} · Total req ${sumTotal.toLocaleString()} ${um} · Exceso: +${exceso.toLocaleString()} ${um}</div>
+      </div>
+    </div>`;
+  }
+
+  // ═══════════════════════════════════════════
+  // SECCIÓN 1 — REQUERIMIENTO TOTAL
+  // ═══════════════════════════════════════════
+  h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Requerimiento total</div>
+  <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
-      <thead>
-        <tr style="border-bottom:0.5px solid var(--border);">
-          <th style="text-align:left;padding:3px 4px;color:var(--text3);font-weight:500;font-size:10px;white-space:nowrap">Destino</th>
-          <th style="text-align:left;padding:3px 4px;color:var(--text3);font-weight:500;font-size:10px;">Producto</th>
-          <th style="text-align:center;padding:3px 4px;color:var(--text3);font-weight:500;font-size:10px;">${um||'M'}</th>
-          <th style="text-align:right;padding:3px 4px;color:var(--text3);font-weight:500;font-size:10px;">Cant.</th>
-          <th style="text-align:center;padding:3px 4px;color:var(--text3);font-weight:500;font-size:10px;">ST</th>
-        </tr>
-      </thead>
+      <thead><tr style="background:var(--bg2);">
+        <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Destino</th>
+        <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Producto</th>
+        <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">${um||'UM'}</th>
+        <th style="text-align:right;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Cantidad</th>
+        <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Estado</th>
+      </tr></thead>
       <tbody>
-        ${_ppReqs.map((r, idx) => {
-          const stSlots = [r.ST,r.ST2,r.ST3,r.ST4].filter(Boolean);
-          const cantAsig = (parseFloat(r.CantidadST1)||0)+(parseFloat(r.CantidadST2)||0)+
-                           (parseFloat(r.CantidadST3)||0)+(parseFloat(r.CantidadST4)||0);
-          const pendiente = Math.max(0, (parseFloat(r.CantidadTotal)||0) - cantAsig);
-          const asignada  = stSlots.length > 0;
-          // Para el input de ST solo mostramos el primer slot libre; si ya tiene ST en todos los slots, read-only
-          const slotsLibres = 4 - stSlots.length;
-          return `<tr style="border-bottom:0.5px solid var(--border);background:${asignada?'color-mix(in srgb,var(--accent) 5%,transparent)':'transparent'}">
-            <td style="padding:4px;color:var(--text2);white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;font-size:10px" title="${r.NombreDestino||''}">${r.CodDestino||r.NombreDestino||'—'}</td>
-            <td style="padding:4px;color:var(--text);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Producto||r.Actividad||'—'}</td>
-            <td style="padding:4px;text-align:center;color:var(--text2);font-size:10px">${r.UM||'—'}</td>
-            <td style="padding:4px;text-align:right;font-family:var(--mono);">
-              <input type="number" id="pp-cant-${idx}" value="${pendiente||r.CantidadTotal||''}" min="0"
-                style="width:54px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);text-align:right;" onwheel="this.blur()">
-            </td>
-            <td style="padding:4px;text-align:center;min-width:75px;">
-              ${asignada
-                ? `<div style="display:flex;flex-direction:column;gap:2px;align-items:center;">
-                    ${stSlots.map(s=>`<span style="font-family:var(--mono);font-size:10px;color:var(--accent);font-weight:500">${s}</span>`).join('')}
-                    ${slotsLibres>0?`<input type="text" id="pp-st-${idx}" value="" placeholder="+ST"
-                      style="width:65px;height:20px;padding:0 4px;background:var(--bg);border:0.5px dashed var(--border2);border-radius:var(--radius);font-size:10px;font-family:var(--mono);color:var(--text);text-align:center;"
-                      onkeydown="if(event.key==='Enter'||event.key==='Tab'){propagarSTPPanel(this,${idx});event.preventDefault();}">`:
-                      `<input type="hidden" id="pp-st-${idx}" value="">`}
-                  </div>`
-                : `<input type="text" id="pp-st-${idx}" value="" placeholder="154xxx"
-                    style="width:70px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);text-align:center;"
-                    onkeydown="if(event.key==='Enter'||event.key==='Tab'){propagarSTPPanel(this,${idx});event.preventDefault();}">`
-              }
-            </td>
-          </tr>`;
-        }).join('')}
+        ${_ppReqs.map(r => `<tr style="border-top:0.5px solid var(--border);">
+          <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis" title="${r.NombreDestino||''}">${r.CodDestino||r.NombreDestino||'—'}</td>
+          <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Producto||r.Actividad||'—'}</td>
+          <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
+          <td style="padding:6px 8px;text-align:right;font-family:var(--mono);font-weight:500;">${r.CantidadTotal!=null?Number(r.CantidadTotal).toLocaleString():'—'}</td>
+          <td style="padding:6px 8px;text-align:center;">${estadoBadge(r)}</td>
+        </tr>`).join('')}
       </tbody>
     </table>
   </div>`;
 
-  // Botón confirmar
-  h += `<div id="pp-msg" style="font-size:10px;margin-bottom:6px;font-family:var(--mono);min-height:14px;"></div>
-  <button onclick="confirmarProgramacion()"
-    style="width:100%;height:32px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;letter-spacing:.02em;">
-    Confirmar programación
-  </button>`;
+  // ═══════════════════════════════════════════
+  // SECCIÓN 2 — PROGRAMADO (un slot ST por fila)
+  // ═══════════════════════════════════════════
+  const filasProg = [];
+  _ppReqs.forEach((r, ri) => {
+    stsDeR(r).forEach(s => filasProg.push({r, ri, slot:s.n, st:s.st, cant:s.cant}));
+  });
 
+  if (filasProg.length) {
+    h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Programado</div>
+    <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr style="background:var(--bg2);">
+          <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Destino</th>
+          <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Producto</th>
+          <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">${um||'UM'}</th>
+          <th style="text-align:right;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Cant.</th>
+          <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">ST</th>
+          <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Estado</th>
+          <th style="padding:5px 8px;"></th>
+        </tr></thead>
+        <tbody>
+          ${filasProg.map(({r, ri, slot, st, cant}) => {
+            const esFinal = (r.Estado||'').toLowerCase().includes('finaliz') || (r.Estado||'').toLowerCase().includes('proceso');
+            return `<tr style="border-top:0.5px solid var(--border);">
+              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis" title="${r.NombreDestino||''}">${r.CodDestino||r.NombreDestino||'—'}</td>
+              <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
+              <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
+              <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">${cant!=null?Number(cant).toLocaleString():'—'}</td>
+              <td style="padding:6px 8px;text-align:center;"><span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);background:var(--accent2);padding:2px 7px;border-radius:10px;">${st}</span></td>
+              <td style="padding:6px 8px;text-align:center;">${estadoBadge(r)}</td>
+              <td style="padding:6px 8px;text-align:right;">
+                ${!esFinal
+                  ? `<button onclick="desasociarSTGrupo('${st}','${r.ID_Req}')"
+                      style="height:22px;padding:0 8px;background:none;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);cursor:pointer;"
+                      onmouseover="this.style.color='var(--danger)';this.style.borderColor='var(--danger)'"
+                      onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">Desasociar</button>`
+                  : `<span style="font-size:10px;color:var(--text3)">—</span>`}
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  // ═══════════════════════════════════════════
+  // SECCIÓN 3 — PENDIENTE DE PROGRAMAR
+  // ═══════════════════════════════════════════
+  const filasPend = _ppReqs
+    .map((r, ri) => ({r, ri}))
+    .filter(({r}) => {
+      const est = (r.Estado||'pendiente').toLowerCase();
+      if (est === 'cancelado') return false;
+      if (est.includes('finaliz')) return false;
+      return parseFloat(r.CantidadTotal) > 0 ? cantPendienteR(r) > 0 : !r.ST;
+    });
+
+  if (filasPend.length) {
+    h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Pendiente de programar</div>
+    <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;background:var(--bg2);border-bottom:0.5px solid var(--border);">
+        <span style="font-size:10px;color:var(--text3);font-weight:500;">ETD</span>
+        <input type="date" id="pp-etd" value="${etdGuardado}"
+          style="height:24px;padding:0 5px;background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);">
+        <select id="pp-hora"
+          style="height:24px;padding:0 3px;background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);width:62px;">
+          ${opcionesHora(horaGuardada)}
+        </select>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr style="background:var(--bg2);">
+          <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Destino</th>
+          <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Producto</th>
+          <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">${um||'UM'}</th>
+          <th style="text-align:right;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Pendiente</th>
+          <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Asignar ST</th>
+          <th style="padding:5px 8px;"></th>
+        </tr></thead>
+        <tbody>
+          ${filasPend.map(({r, ri}) => {
+            const pend = parseFloat(r.CantidadTotal) > 0 ? cantPendienteR(r) : null;
+            return `<tr id="pp-pend-row-${ri}" style="border-top:0.5px solid var(--border);">
+              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis" title="${r.NombreDestino||''}">${r.CodDestino||r.NombreDestino||'—'}</td>
+              <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
+              <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
+              <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">
+                <input type="number" id="pp-cant-${ri}" value="${pend!=null?pend:''}" min="0" placeholder="${um}"
+                  style="width:60px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);text-align:right;-moz-appearance:textfield;" onwheel="this.blur()">
+              </td>
+              <td style="padding:6px 8px;text-align:center;">
+                <input type="text" id="pp-st-${ri}" value="" placeholder="154xxx"
+                  style="width:72px;height:22px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);text-align:center;"
+                  onkeydown="if(event.key==='Enter'||event.key==='Tab'){propagarSTPPanel(this,${ri});event.preventDefault();}">
+              </td>
+              <td style="padding:6px 8px;text-align:right;">
+                <button onclick="cancelarFilaPend(${ri})"
+                  style="height:22px;padding:0 8px;background:none;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);cursor:pointer;"
+                  onmouseover="this.style.color='var(--danger)';this.style.borderColor='var(--danger)'"
+                  onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">
+                  Cancelar
+                </button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;">
+      <div id="pp-msg" style="font-size:10px;font-family:var(--mono);color:var(--text2);min-height:14px;"></div>
+      <button onclick="confirmarProgramacion()"
+        style="height:30px;padding:0 16px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+        Confirmar programación
+      </button>
+    </div>`;
+  } else if (!filasProg.length) {
+    h += `<div style="text-align:center;padding:16px;font-size:11px;color:var(--text3);font-family:var(--mono);">Sin líneas pendientes.</div>`;
+  }
+
+  body._filasPend = filasPend;
   body.innerHTML = h;
 }
 
-// Propagar ST hacia abajo al presionar Enter/Tab en la celda ST
+// Cancelar fila individual del panel (solo UI, no afecta BD)
+function cancelarFilaPend(ri) {
+  const row = document.getElementById(`pp-pend-row-${ri}`);
+  if (!row) return;
+  row.style.opacity = '0.35';
+  row.querySelectorAll('input').forEach(el => { el.disabled = true; el.value = ''; });
+  const btn = row.querySelector('button');
+  if (btn) { btn.textContent = 'Cancelado'; btn.disabled = true; btn.style.cursor = 'default'; }
+}
+
 function propagarSTPPanel(input, idx) {
   const val = input.value.trim();
   if (!val) return;
@@ -2494,6 +2591,7 @@ function propagarSTPPanel(input, idx) {
 }
 
 async function confirmarProgramacion() {
+  const body  = document.getElementById('pp-body');
   const fecha = document.getElementById('pp-etd')?.value || '';
   const hora  = document.getElementById('pp-hora')?.value || '04:00';
   const msgEl = document.getElementById('pp-msg');
@@ -2504,22 +2602,25 @@ async function confirmarProgramacion() {
   }
   const etd = `${fecha}T${hora}:00`;
 
-  // Recoger filas con ST ingresada
-  const filas = _ppReqs.map((r, idx) => ({
-    r,
-    st:   (document.getElementById(`pp-st-${idx}`)?.value  || '').trim(),
-    cant: parseFloat(document.getElementById(`pp-cant-${idx}`)?.value) || null,
-  })).filter(f => f.st);
+  const filasPend = body._filasPend || [];
+  const filas = filasPend
+    .map(({r, ri}) => ({
+      r,
+      st:       (document.getElementById(`pp-st-${ri}`)?.value || '').trim(),
+      cant:     parseFloat(document.getElementById(`pp-cant-${ri}`)?.value) || null,
+      disabled: document.getElementById(`pp-st-${ri}`)?.disabled,
+    }))
+    .filter(f => f.st && !f.disabled);
 
   if (!filas.length) {
     if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent='⚠ Ingresa al menos una ST'; }
     return;
   }
 
-  if (msgEl) { msgEl.style.color='var(--text3)'; msgEl.textContent='Guardando...'; }
+  if (msgEl) { msgEl.style.color='var(--text2)'; msgEl.textContent='Guardando...'; }
 
   let guardados = 0;
-  for (const { r, st, cant } of filas) {
+  for (const {r, st, cant} of filas) {
     try {
       const res = await apiCall(`requerimientos/${r.ID_Req}`, {
         method: 'PATCH',
@@ -2532,16 +2633,21 @@ async function confirmarProgramacion() {
       if (res.requiereConfirmacion) {
         _pendingAdvCallbacks.push(() => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant));
         mostrarModalAdv(res.advertencias);
-        if (msgEl) { msgEl.style.color='var(--text3)'; msgEl.textContent=''; }
+        if (msgEl) { msgEl.style.color='var(--text2)'; msgEl.textContent=''; }
         return;
       }
 
       const slotNum = res.slot || 1;
-      const stKey = slotNum === 1 ? 'ST' : `ST${slotNum}`;
-      const cKey  = `CantidadST${slotNum}`;
+      const stKey   = slotNum === 1 ? 'ST' : `ST${slotNum}`;
+      const cKey    = `CantidadST${slotNum}`;
       [reqPendientes, _reqFiltrados, _ppReqs].forEach(arr => {
         const i = arr.findIndex(x => x.ID_Req === r.ID_Req);
-        if (i !== -1) { arr[i][stKey] = st; arr[i][cKey] = cant; arr[i].Estado = res.Estado; }
+        if (i !== -1) {
+          arr[i][stKey] = st;
+          arr[i][cKey]  = cant;
+          arr[i].Estado = res.Estado;
+          if (res.FechaEjecucion) arr[i].FechaEjecucion = res.FechaEjecucion;
+        }
       });
       guardados++;
     } catch (e) {
@@ -2550,7 +2656,7 @@ async function confirmarProgramacion() {
     }
   }
 
-  if (msgEl) { msgEl.style.color='var(--accent)'; msgEl.textContent=`✓ ${guardados} fila(s) programadas`; }
+  if (msgEl) { msgEl.style.color='var(--accent)'; msgEl.textContent=`✓ ${guardados} línea(s) programadas`; }
   actualizarKpisPlan();
   filtrarPlan();
   renderPlanPanel();
