@@ -2512,16 +2512,26 @@ async function confirmarProgramacion() {
   const etd = `${fecha}T${hora}:00`;
 
   // Recoger filas con ST ingresada
-  const filas = _ppReqs.map((r, idx) => ({
-    r,
-    st:   (document.getElementById(`pp-st-${idx}`)?.value  || '').trim(),
-    cant: parseFloat(document.getElementById(`pp-cant-${idx}`)?.value) || null,
-  })).filter(f => f.st);
-
-  if (!filas.length) {
-    if (msgEl) { msgEl.style.color='var(--danger)'; msgEl.textContent='⚠ Ingresa al menos una ST'; }
+  const fPend=(body._filasPend||[])
+    .map(({r,ri})=>({
+      r, ri,
+      st:      (document.getElementById(`pp-st-${ri}`)?.value||'').trim(),
+      cantStr:  document.getElementById(`pp-cant-${ri}`)?.value??'',
+      disabled: document.getElementById(`pp-st-${ri}`)?.disabled,
+    }))
+    .filter(f=>f.st&&!f.disabled);
+  if(!fPend.length){
+    if(msgEl){msgEl.style.color='var(--danger)';msgEl.textContent='⚠ Ingresa al menos una ST';}
     return;
   }
+  const filas=fPend.map(f=>({...f, cant: f.cantStr.trim()!==''?(parseFloat(f.cantStr)||0):null}));
+
+  if (res.requiereConfirmacion) {
+        _pendingAdvCallbacks.push(() => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant));
+        mostrarModalAdv(res.advertencias);
+        if (msgEl) { msgEl.style.color='var(--text3)'; msgEl.textContent=''; }
+        return;
+      }
 
   if (msgEl) { msgEl.style.color='var(--text3)'; msgEl.textContent='Guardando...'; }
 
@@ -2537,10 +2547,10 @@ async function confirmarProgramacion() {
       });
 
       if (res.requiereConfirmacion) {
-        _pendingAdvCallbacks.push(() => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant));
+        res.advertencias.forEach(a=>_pendingAdvCallbacks.push(()=>confirmarProgramacion_forzar(r.ID_Req, st, etd, cant)));
         mostrarModalAdv(res.advertencias);
         if (msgEl) { msgEl.style.color='var(--text3)'; msgEl.textContent=''; }
-        return;
+        continue;
       }
 
       const slotNum = res.slot || 1;
