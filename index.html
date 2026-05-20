@@ -2398,12 +2398,26 @@ function renderPlanPanel() {
   const sumAsig=_ppReqs.reduce((s,r)=>s+cantAsig(r),0);
 
   function eBadge(r){
-    const e=(r.Estado||'pendiente').toLowerCase().replace(' parcial','');
-    const m={'en_proceso':['#dbeafe','#1d4ed8'],'finalizado':['var(--accent2)','var(--accent)'],
-             'programado':['var(--warn2)','var(--warn)'],'cancelado':['var(--danger2)','var(--danger)'],
-             'pendiente':['var(--bg3)','var(--text2)']};
-    const c=m[e]||m['pendiente'];
-    return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${c[0]};color:${c[1]};font-weight:500;white-space:nowrap;">${r.Estado||'Pendiente'}</span>`;
+    const est = r.Estado||'pendiente';
+    const e   = est.toLowerCase();
+    const parcial = e.includes('parcial');
+    const base    = e.replace(' parcial','');
+    // Colores alineados con las clases CSS de la tabla principal
+    let bg, color;
+    if(parcial){
+      bg='#fef9c3'; color='#854d0e';          // b-parcial (amarillo)
+    } else if(base==='en_proceso'){
+      bg='#dbeafe'; color='#1d4ed8';           // b-proceso
+    } else if(base==='finalizado'){
+      bg='var(--accent2)'; color='var(--accent)'; // b-finalizado
+    } else if(base==='programado'){
+      bg='var(--warn2)'; color='var(--warn)';  // b-prog
+    } else if(base==='cancelado'){
+      bg='var(--danger2)'; color='var(--danger)'; // b-cancelado
+    } else {
+      bg='var(--bg3)'; color='var(--text2)';   // b-pendiente
+    }
+    return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${bg};color:${color};font-weight:500;white-space:nowrap;">${est}</span>`;
   }
 
   let h='';
