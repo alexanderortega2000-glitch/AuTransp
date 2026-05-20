@@ -376,7 +376,7 @@ tr.clickable { cursor: pointer; }
 
 /* ── PANEL PLANIFICACIÓN LATERAL ────────────────────────── */
 #plan-panel {
-  position: fixed; right: 0; top: 48px; bottom: 0; width: 480px;
+  position: fixed; right: 0; top: 48px; bottom: 0; width: 580px;
   background: var(--surface); border-left: 0.5px solid var(--border2);
   transform: translateX(100%); transition: transform .2s ease;
   z-index: 55; display: flex; flex-direction: column;
@@ -2416,7 +2416,7 @@ function renderPlanPanel() {
       </div></div>`;
   }
 
-  // ── Sección 1: Requerimiento total ──
+  // Sección 1: Requerimiento total
   const sumaLine=Object.entries(totUM)
     .map(([u,t])=>`<span style="font-family:var(--mono);font-weight:600;color:var(--text)">${t.toLocaleString()} ${u}</span>`)
     .join('<span style="color:var(--text3);margin:0 4px">·</span>');
@@ -2433,8 +2433,8 @@ function renderPlanPanel() {
       </tr></thead>
       <tbody>
         ${_ppReqs.map(r=>`<tr style="border-top:0.5px solid var(--border);">
-          <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
-          <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Producto||r.Actividad||'—'}</td>
+          <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
+          <td style="padding:6px 8px;color:var(--text);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Producto||r.Actividad||'—'}</td>
           <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
           <td style="padding:6px 8px;text-align:right;font-family:var(--mono);font-weight:500;">${r.CantidadTotal!=null?Number(r.CantidadTotal).toLocaleString():'—'}</td>
           <td style="padding:6px 8px;text-align:center;">${eBadge(r)}</td>
@@ -2447,7 +2447,7 @@ function renderPlanPanel() {
     </div>
   </div>`;
 
-  // ── Sección 2: Programado ──
+  // Sección 2: Programado
   const fProg=[];
   _ppReqs.forEach((r,ri)=>{stsDeR(r).forEach(s=>fProg.push({r,ri,st:s.st,cant:s.cant}));});
 
@@ -2466,13 +2466,13 @@ function renderPlanPanel() {
         </tr></thead>
         <tbody>
           ${fProg.map(({r,ri,st,cant})=>`<tr style="border-top:0.5px solid var(--border);">
-            <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
-            <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
+            <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
+            <td style="padding:6px 8px;color:var(--text);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
             <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
             <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">${cant!=null?Number(cant).toLocaleString():'—'}</td>
             <td style="padding:6px 8px;text-align:center;"><span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);background:var(--accent2);padding:2px 7px;border-radius:10px;">${st}</span></td>
             <td style="padding:6px 8px;text-align:center;">${eBadge(r)}</td>
-            <td style="padding:6px 8px;text-align:right;">
+            <td style="padding:6px 8px;text-align:right;white-space:nowrap;">
               <select onchange="desasociarSTGrupo('${st}','${r.ID_Req}',this)"
                 style="height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);max-width:110px;">
                 <option value="">Desasociar…</option>
@@ -2485,13 +2485,19 @@ function renderPlanPanel() {
     </div>`;
   }
 
-  // ── Sección 3: Pendiente de programar ──
+  // Sección 3: Pendiente de programar
+  // Incluye filas "parciales" — estado finalizado/en_proceso/programado PARCIAL
+  // tienen cantPend > 0 porque cantAsig < CantidadTotal
   const fPend=_ppReqs
     .map((r,ri)=>({r,ri}))
     .filter(({r})=>{
       const est=(r.Estado||'pendiente').toLowerCase();
       if(est==='cancelado') return false;
-      if(est.includes('finaliz')) return false;
+      // Solo excluir si es finalizado SIN parcial (completo)
+      if(est==='finalizado') return false;
+      if(est==='en_proceso') return false;
+      if(est==='programado') return false;
+      // Para estados parciales y pendiente: mostrar si hay cantidad pendiente
       return parseFloat(r.CantidadTotal)>0 ? cantPend(r)>0 : !r.ST;
     });
 
@@ -2520,8 +2526,8 @@ function renderPlanPanel() {
           ${fPend.map(({r,ri})=>{
             const pend=parseFloat(r.CantidadTotal)>0?cantPend(r):null;
             return `<tr id="pp-pend-row-${ri}" style="border-top:0.5px solid var(--border);">
-              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
-              <td style="padding:6px 8px;color:var(--text);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
+              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
+              <td style="padding:6px 8px;color:var(--text);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
               <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
               <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">
                 <input type="number" id="pp-cant-${ri}" value="${pend!=null?pend:''}" min="0" placeholder="${um}"
