@@ -2689,33 +2689,33 @@ async function confirmarProgramacion_forzar(idReq, st, etd, cant) {
   filtrarPlan();
 }
 
-async function desasociarSTGrupo(st, idsStr) {
-  const ids = idsStr.split(',');
-  const motivo = prompt(`Desasociar ST ${st}. Ingresa el motivo:`);
-  if (!motivo) return;
-  for (const idReq of ids) {
-    const r = reqPendientes.find(x => x.ID_Req === idReq) || _reqFiltrados.find(x => x.ID_Req === idReq);
-    if (!r) continue;
-    const slot = r.ST === st ? 1 : r.ST2 === st ? 2 : r.ST3 === st ? 3 : r.ST4 === st ? 4 : null;
-    if (!slot) continue;
-    try {
-      await apiCall(`requerimientos/${idReq}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ desasociarSlot: slot, MotivoCorreccion: motivo,
-          actualizadoPor: sesion.nombre || sesion.usuario }),
-      });
-      const stKey = slot === 1 ? 'ST' : `ST${slot}`;
-      const cKey  = `CantidadST${slot}`;
-      [reqPendientes, _reqFiltrados, _ppReqs].forEach(arr => {
-        const i = arr.findIndex(x => x.ID_Req === idReq);
-        if (i !== -1) { arr[i][stKey] = null; arr[i][cKey] = null; }
-      });
-    } catch (e) { alert('Error: ' + e.message); return; }
-  }
-  actualizarKpisPlan();
-  filtrarPlan();
-  renderPlanPanel();
-  setTimeout(async () => { await recargarDatos(true); }, 2000);
+async function desasociarSTGrupo(st, idReq, selectEl) {
+  const motivo=selectEl?.value;
+  if(!motivo) return;
+  selectEl.disabled=true;
+  try{
+    const r=reqPendientes.find(x=>x.ID_Req===idReq)||_reqFiltrados.find(x=>x.ID_Req===idReq)||_ppReqs.find(x=>x.ID_Req===idReq);
+    if(!r){selectEl.disabled=false;selectEl.value='';return;}
+    const slot=r.ST===st?1:r.ST2===st?2:r.ST3===st?3:r.ST4===st?4:null;
+    if(!slot){selectEl.disabled=false;selectEl.value='';return;}
+    const res=await apiCall(`requerimientos/${idReq}`,{
+      method:'PATCH',
+      body:JSON.stringify({desasociarSlot:slot,MotivoCorreccion:motivo,
+        actualizadoPor:sesion.nombre||sesion.usuario}),
+    });
+    const stKey=slot===1?'ST':`ST${slot}`;
+    const cKey=`CantidadST${slot}`;
+    const nuevoEstado=res.Estado||'pendiente';
+    [reqPendientes,_reqFiltrados,_ppReqs].forEach(arr=>{
+      const i=arr.findIndex(x=>x.ID_Req===idReq);
+      if(i===-1) return;
+      arr[i][stKey]=null;
+      arr[i][cKey]=null;
+      arr[i].Estado=nuevoEstado;
+    });
+  }catch(e){selectEl.disabled=false;selectEl.value='';alert('Error: '+e.message);return;}
+  actualizarKpisPlan(); filtrarPlan(); renderPlanPanel();
+  setTimeout(async()=>{await recargarDatos(true);},2000);
 }
 
 
