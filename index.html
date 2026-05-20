@@ -2406,6 +2406,14 @@ function renderPlanPanel() {
     return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${c[0]};color:${c[1]};font-weight:500;white-space:nowrap;">${r.Estado||'Pendiente'}</span>`;
   }
 
+  // Badge de estado para una ST individual (desde viajes en memoria)
+  function eBadgeST(st){
+    const v = viajes.find(x=>x.st===st||x.ID_ST===st);
+    const e = v?.estadoViaje||v?.Estado||'';
+    const fake = {Estado: e||'programado'};
+    return eBadge(fake);
+  }
+
   let h='';
 
   if(sumTot>0&&sumAsig>sumTot){
@@ -2447,7 +2455,7 @@ function renderPlanPanel() {
     </div>
   </div>`;
 
-  // Sección 2: Programado
+  // Sección 2: Programado — estado real desde viajes en memoria
   const fProg=[];
   _ppReqs.forEach((r,ri)=>{stsDeR(r).forEach(s=>fProg.push({r,ri,st:s.st,cant:s.cant}));});
 
@@ -2471,7 +2479,7 @@ function renderPlanPanel() {
             <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
             <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">${cant!=null?Number(cant).toLocaleString():'—'}</td>
             <td style="padding:6px 8px;text-align:center;"><span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);background:var(--accent2);padding:2px 7px;border-radius:10px;">${st}</span></td>
-            <td style="padding:6px 8px;text-align:center;">${eBadge(r)}</td>
+            <td style="padding:6px 8px;text-align:center;">${eBadgeST(st)}</td>
             <td style="padding:6px 8px;text-align:right;white-space:nowrap;">
               <select onchange="desasociarSTGrupo('${st}','${r.ID_Req}',this)"
                 style="height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);max-width:110px;">
@@ -2485,19 +2493,15 @@ function renderPlanPanel() {
     </div>`;
   }
 
-  // Sección 3: Pendiente de programar
-  // Incluye filas "parciales" — estado finalizado/en_proceso/programado PARCIAL
-  // tienen cantPend > 0 porque cantAsig < CantidadTotal
+  // Sección 3: Pendiente — incluye estados parciales con cantidad pendiente
   const fPend=_ppReqs
     .map((r,ri)=>({r,ri}))
     .filter(({r})=>{
       const est=(r.Estado||'pendiente').toLowerCase();
       if(est==='cancelado') return false;
-      // Solo excluir si es finalizado SIN parcial (completo)
       if(est==='finalizado') return false;
       if(est==='en_proceso') return false;
       if(est==='programado') return false;
-      // Para estados parciales y pendiente: mostrar si hay cantidad pendiente
       return parseFloat(r.CantidadTotal)>0 ? cantPend(r)>0 : !r.ST;
     });
 
@@ -2636,7 +2640,9 @@ async function confirmarProgramacion() {
       });
 
       if (res.requiereConfirmacion) {
-        _pendingAdvCallbacks.push(() => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant));
+        res.advertencias.forEach(a => _pendingAdvCallbacks.push(
+          () => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant)
+        ));
         mostrarModalAdv(res.advertencias);
         if (msgEl) { msgEl.style.color='var(--text3)'; msgEl.textContent=''; }
         continue;
@@ -2692,20 +2698,43 @@ async function desasociarSTGrupo(st, idReq, selectEl) {
     if(!r){selectEl.disabled=false;selectEl.value='';return;}
     const slot=r.ST===st?1:r.ST2===st?2:r.ST3===st?3:r.ST4===st?4:null;
     if(!slot){selectEl.disabled=false;selectEl.value='';return;}
+
     await apiCall(`requerimientos/${idReq}`,{
       method:'PATCH',
       body:JSON.stringify({desasociarSlot:slot,MotivoCorreccion:motivo,
         actualizadoPor:sesion.nombre||sesion.usuario}),
     });
+
     const stKey=slot===1?'ST':`ST${slot}`;
     const cKey=`CantidadST${slot}`;
+
     [reqPendientes,_reqFiltrados,_ppReqs].forEach(arr=>{
       const i=arr.findIndex(x=>x.ID_Req===idReq);
       if(i===-1) return;
+      // Limpiar slot desasociado
       arr[i][stKey]=null; arr[i][cKey]=null;
-      const rest=[arr[i].ST,arr[i].ST2,arr[i].ST3,arr[i].ST4].filter(Boolean);
-      arr[i].Estado=rest.length>0?'programado':'pendiente';
+      // Recalcular estado desde el estado real de las STs restantes en `viajes`
+      const stsRest=[arr[i].ST,arr[i].ST2,arr[i].ST3,arr[i].ST4].filter(Boolean);
+      if(!stsRest.length){
+        arr[i].Estado='pendiente';
+        return;
+      }
+      // Buscar el estado de cada ST restante en viajes
+      const estadosST=stsRest.map(s=>{
+        const v=viajes.find(x=>x.st===s||x.ID_ST===s);
+        return v?.estadoViaje||v?.Estado||'programado';
+      });
+      const todasFin  = estadosST.every(e=>(e||'').toLowerCase().includes('finaliz'));
+      const algunaEP  = estadosST.some(e=>(e||'').toLowerCase().includes('proceso'));
+      const cantTotal = parseFloat(arr[i].CantidadTotal)||0;
+      const cantAsig  = [arr[i].CantidadST1,arr[i].CantidadST2,arr[i].CantidadST3,arr[i].CantidadST4]
+        .reduce((s,c)=>s+(parseFloat(c)||0),0);
+      const parcial   = cantTotal>0 && cantAsig<cantTotal;
+      if(todasFin) arr[i].Estado=parcial?'finalizado parcial':'finalizado';
+      else if(algunaEP) arr[i].Estado=parcial?'en proceso parcial':'en_proceso';
+      else arr[i].Estado=parcial?'programado parcial':'programado';
     });
+
   }catch(e){selectEl.disabled=false;selectEl.value='';alert('Error: '+e.message);return;}
   actualizarKpisPlan(); filtrarPlan(); renderPlanPanel();
   setTimeout(async()=>{await recargarDatos(true);},2000);
