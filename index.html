@@ -1870,7 +1870,7 @@ function renderPlan() {
       </td>
       <td>
         <div style="font-family:var(--mono);font-size:11px;">
-          ${[r.ST,r.ST2,r.ST3,r.ST4].filter(Boolean).map(s=>`<div style="font-weight:500">${s}</div>`).join('')||'<span style="color:var(--text3)">—</span>'}
+          ${[...new Set([r.ST,r.ST2,r.ST3,r.ST4].filter(Boolean))].map(s=>`<div style="font-weight:500">${s}</div>`).join('')||'<span style="color:var(--text3)">—</span>'}
         </div>
       </td>
       <td>${estadoBadge}</td>
@@ -2457,8 +2457,21 @@ function renderPlanPanel() {
     </div>
   </div>`;
 
-  const fProg=[];
-  _ppReqs.forEach((r,ri)=>{stsDeR(r).forEach(s=>fProg.push({r,ri,st:s.st,cant:s.cant}));});
+  // Sección 2: Programado — consolidar filas con mismo destino+producto+ST
+  const progMap = new Map();
+  _ppReqs.forEach((r,ri)=>{
+    stsDeR(r).forEach(s=>{
+      const key = `${labDest(r)}|${r.Producto||r.Actividad||''}|${s.st}`;
+      if(!progMap.has(key)){
+        progMap.set(key,{r,ri,st:s.st,cant:parseFloat(s.cant)||0,ids:[r.ID_Req]});
+      } else {
+        const ex=progMap.get(key);
+        ex.cant+=(parseFloat(s.cant)||0);
+        if(!ex.ids.includes(r.ID_Req)) ex.ids.push(r.ID_Req);
+      }
+    });
+  });
+  const fProg=[...progMap.values()];
 
   if(fProg.length){
     h+=`<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Programado</div>
@@ -2478,7 +2491,7 @@ function renderPlanPanel() {
             <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
             <td style="padding:6px 8px;color:var(--text);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
             <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
-            <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">${cant!=null?Number(cant).toLocaleString():'—'}</td>
+            <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">${cant>0?cant.toLocaleString():'—'}</td>
             <td style="padding:6px 8px;text-align:center;"><span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);background:var(--accent2);padding:2px 7px;border-radius:10px;">${st}</span></td>
             <td style="padding:6px 8px;text-align:center;">${eBadge(r)}</td>
             <td style="padding:6px 8px;text-align:right;white-space:nowrap;">
@@ -2494,6 +2507,7 @@ function renderPlanPanel() {
     </div>`;
   }
 
+  // Sección 3: Pendiente
   const fPend=_ppReqs
     .map((r,ri)=>({r,ri}))
     .filter(({r})=>{
@@ -2543,10 +2557,12 @@ function renderPlanPanel() {
                   onkeydown="if(event.key==='Enter'||event.key==='Tab'){propagarSTPPanel(this,${ri});event.preventDefault();}">
               </td>
               <td style="padding:6px 8px;text-align:right;">
-                <button onclick="cancelarFilaPend(${ri})"
-                  style="height:22px;padding:0 8px;background:none;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);cursor:pointer;"
-                  onmouseover="this.style.color='var(--danger)';this.style.borderColor='var(--danger)'"
-                  onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">Cancelar</button>
+                <select onchange="cancelarFilaPend(${ri},this)"
+                  id="pp-cancel-${ri}"
+                  style="height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);max-width:110px;">
+                  <option value="">Cancelar…</option>
+                  ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
+                </select>
               </td>
             </tr>`;
           }).join('')}
@@ -2555,7 +2571,7 @@ function renderPlanPanel() {
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;">
       <div id="pp-msg" style="font-size:10px;font-family:var(--mono);color:var(--text2);min-height:14px;"></div>
-      <button onclick="confirmarProgramacion()"
+      <button id="pp-btn-confirmar" onclick="confirmarProgramacion()"
         style="height:30px;padding:0 16px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;">
         Confirmar programación
       </button>
@@ -2568,13 +2584,26 @@ function renderPlanPanel() {
   body.innerHTML=h;
 }
 
-function cancelarFilaPend(ri){
-  const row=document.getElementById(`pp-pend-row-${ri}`);
+function cancelarFilaPend(ri, selectEl){
+  const motivo = selectEl?.value;
+  if(!motivo) return;
+  const row = document.getElementById(`pp-pend-row-${ri}`);
   if(!row) return;
+  // Deshabilitar fila
   row.style.opacity='0.35';
-  row.querySelectorAll('input').forEach(el=>{el.disabled=true;el.value='';});
-  const btn=row.querySelector('button');
-  if(btn){btn.textContent='Cancelado';btn.disabled=true;btn.style.cursor='default';}
+  row.querySelectorAll('input').forEach(el=>{el.disabled=true; el.value='';});
+  selectEl.disabled=true;
+  // Verificar si todas las filas pendientes están canceladas
+  const body = document.getElementById('pp-body');
+  const fPend = body._filasPend||[];
+  const todasCanceladas = fPend.every(({ri:r2})=>{
+    const s = document.getElementById(`pp-cancel-${r2}`);
+    return s?.disabled;
+  });
+  if(todasCanceladas){
+    const btn = document.getElementById('pp-btn-confirmar');
+    if(btn){ btn.disabled=true; btn.style.opacity='0.4'; btn.style.cursor='default'; }
+  }
 }
 
 function propagarSTPPanel(input, idx) {
@@ -2709,9 +2738,7 @@ async function desasociarSTGrupo(st, idReq, selectEl) {
     [reqPendientes,_reqFiltrados,_ppReqs].forEach(arr=>{
       const i=arr.findIndex(x=>x.ID_Req===idReq);
       if(i===-1) return;
-      arr[i][stKey]=null;
-      arr[i][cKey]=null;
-      arr[i].Estado=nuevoEstado;
+      arr[i][stKey]=null; arr[i][cKey]=null; arr[i].Estado=nuevoEstado;
     });
   }catch(e){selectEl.disabled=false;selectEl.value='';alert('Error: '+e.message);return;}
   actualizarKpisPlan(); filtrarPlan(); renderPlanPanel();
