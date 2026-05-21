@@ -13,7 +13,8 @@ const config = {
     database: 'autransp-db',
     encrypt: true,
     trustServerCertificate: false,
-    connectTimeout: 30000
+    connectTimeout: 30000,
+    requestTimeout: 120000
   }
 };
 
