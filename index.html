@@ -376,7 +376,7 @@ tr.clickable { cursor: pointer; }
 
 /* ── PANEL PLANIFICACIÓN LATERAL ────────────────────────── */
 #plan-panel {
-  position: fixed; right: 0; top: 48px; bottom: 0; width: 480px;
+  position: fixed; right: 0; top: 48px; bottom: 0; width: 580px;
   background: var(--surface); border-left: 0.5px solid var(--border2);
   transform: translateX(100%); transition: transform .2s ease;
   z-index: 55; display: flex; flex-direction: column;
@@ -763,16 +763,18 @@ tr.clickable { cursor: pointer; }
               <thead>
                 <tr>
                   <th class="th-main" style="width:4px;padding:0;"></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">ID</span><button class="th-btn" onclick="sortReq('ID_Req')" id="rsrt-ID_Req">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-id')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-id" placeholder="Buscar ID, zona..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main" style="width:36px"><div class="th-wrap"><span class="th-label">Tipo</span></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">ID</span><button class="th-btn" onclick="sortReq('ID_Req')" id="rsrt-ID_Req">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-id')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-id" placeholder="Buscar ID..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Tipo</span></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">N° / OS</span><button class="th-btn" onclick="sortReq('NumReqExcel')" id="rsrt-NumReqExcel">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-os')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-os" placeholder="Buscar OS..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Destino · Actividad</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-destino" placeholder="Buscar destino..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main" style="width:62px"><div class="th-wrap"><span class="th-label">Cant.</span></div></th>
-                  <th class="th-main" style="width:110px"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-st')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-st" placeholder="Buscar ST..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main" style="width:90px"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ETD</span></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Zona</span><button class="th-btn" onclick="sortReq('Zona')" id="rsrt-Zona">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-zona-col')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-zona-col" placeholder="Buscar zona..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Origen</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-origen')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-origen" placeholder="Buscar origen..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Destino</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-destino" placeholder="Buscar destino..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Actividad / Producto</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-actividad')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-actividad" placeholder="Buscar..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Cliente</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-cliente')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-cliente" placeholder="Buscar cliente..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ETD</span></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-st')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-st" placeholder="Buscar ST..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Estado</span><button class="th-btn" onclick="sortReq('Estado')" id="rsrt-Estado">↕</button></div></th>
-                  <th class="th-main" style="width:130px"><span class="th-label">Acción transporte</span></th>
-                  <th class="th-main" style="width:130px"><span class="th-label">Acción planificación</span></th>
+                  <th class="th-main">Acciones</th>
                 </tr>
               </thead>
               <tbody id="sol-pendientes-tbody">
@@ -1653,13 +1655,11 @@ function filtrarPlan() {
     }
     return true;
   });
-
   _reqFiltrados.sort((a, b) => {
     const va = String(a[_reqSortCol] ?? '').toLowerCase();
     const vb = String(b[_reqSortCol] ?? '').toLowerCase();
     return va < vb ? -_reqSortDir : va > vb ? _reqSortDir : 0;
   });
-
   renderPlan();
 }
 
@@ -1755,117 +1755,64 @@ function renderPlan() {
   const tbody   = document.getElementById('sol-pendientes-tbody');
   const countEl = document.getElementById('sol-pendientes-count');
   if(!tbody) return;
-
   if(countEl) {
-    const tot = _reqFiltrados.length;
-    const all = reqPendientes.length;
-    countEl.textContent = tot === all
-      ? `${tot} requerimientos`
-      : `${tot} de ${all} requerimientos (filtrados)`;
+    const tot = _reqFiltrados.length, all = reqPendientes.length;
+    countEl.textContent = tot===all?`${tot} requerimientos`:`${tot} de ${all} requerimientos (filtrados)`;
   }
-
   if(!_reqFiltrados.length) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Sin resultados</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Sin resultados</td></tr>`;
     return;
   }
-
   tbody.innerHTML = _reqFiltrados.map((r, i) => {
     const grupoKey  = `${r.NumReqExcel||r.ID_Req}`;
     const grupColor = r.NumReqExcel ? colorGrupo(grupoKey) : 'var(--border)';
     const est       = (r.Estado||'pendiente').toLowerCase();
-    const rowOp     = est === 'cancelado' ? 'opacity:0.5;' : '';
-
-    const tipoBadge = r.Tipo === 'programa'
+    const rowOp     = est==='cancelado' ? 'opacity:0.5;' : '';
+    const tipoBadge = r.Tipo==='programa'
       ? `<span class="badge b-prog" style="padding:1px 7px;font-size:11px">P</span>`
       : `<span class="badge b-demanda" style="padding:1px 7px;font-size:11px">D</span>`;
-
     const estadoMap = {
-      'pendiente':          ['b-pendiente', 'Pendiente'],
-      'programado':         ['b-prog',      'Programado'],
-      'programado parcial': ['b-parcial',   'Prog. parcial'],
-      'en_proceso':         ['b-proceso',   'En proceso'],
-      'en proceso parcial': ['b-parcial',   'Proc. parcial'],
+      'pendiente':          ['b-pendiente','Pendiente'],
+      'programado':         ['b-prog',     'Programado'],
+      'programado parcial': ['b-parcial',  'Prog. parcial'],
+      'en_proceso':         ['b-proceso',  'En proceso'],
+      'en proceso parcial': ['b-parcial',  'Proc. parcial'],
       'finalizado':         ['b-finalizado','Finalizado'],
-      'finalizado parcial': ['b-parcial',   'Fin. parcial'],
-      'cancelado':          ['b-cancelado', 'Cancelado'],
+      'finalizado parcial': ['b-parcial',  'Fin. parcial'],
+      'cancelado':          ['b-cancelado','Cancelado'],
     };
-    const [cls, label] = estadoMap[est] || ['b-pendiente', r.Estado||'Pendiente'];
-    const estadoBadge  = `<span class="badge ${cls}" id="req-estado-${i}">${label}</span>`;
-
-    const destinoDisp = r.CodDestino
-      ? `${r.CodDestino} – ${r.NombreDestino||''}`
-      : (r.NombreDestino||'—');
-
-    // ST pills — columna separada
+    const [cls,label] = estadoMap[est]||['b-pendiente',r.Estado||'Pendiente'];
+    const estadoBadge = `<span class="badge ${cls}" id="req-estado-${i}">${label}</span>`;
+    const destinoDisp = r.CodDestino?`${r.CodDestino} – ${r.NombreDestino||''}`:(r.NombreDestino||'—');
     const stPills = [...new Set([r.ST,r.ST2,r.ST3,r.ST4].filter(Boolean))]
       .map(s=>`<span style="display:inline-block;background:var(--accent2);color:var(--accent);font-family:var(--mono);font-size:10px;font-weight:500;padding:1px 6px;border-radius:10px;margin-bottom:2px;white-space:nowrap">${s}</span>`)
       .join('');
-
-    // ETD — columna separada
-    const etdStr = r.FechaEjecucion ? (() => {
-      const d = new Date(r.FechaEjecucion);
-      const dia = String(d.getDate()).padStart(2,'0');
-      const mes = String(d.getMonth()+1).padStart(2,'0');
-      const h   = String(d.getHours()).padStart(2,'0');
-      const m   = String(d.getMinutes()).padStart(2,'0');
-      return `${dia}/${mes} ${h}:${m}`;
+    const etdStr = r.FechaEjecucion ? (()=>{
+      const d=new Date(r.FechaEjecucion);
+      return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
     })() : null;
-
-    const cantDisp = r.CantidadTotal != null
-      ? `<div style="font-family:var(--mono);font-size:11px;text-align:right">${Number(r.CantidadTotal).toLocaleString()}</div>
-         <div style="font-size:10px;color:var(--text3);text-align:right">${r.UM||''}</div>`
+    const cantDisp = r.CantidadTotal!=null
+      ? `<div style="font-family:var(--mono);font-size:11px;text-align:right">${Number(r.CantidadTotal).toLocaleString()}</div><div style="font-size:10px;color:var(--text3);text-align:right">${r.UM||''}</div>`
       : `<span style="color:var(--text3)">—</span>`;
-
-    const esProg = ['programado','programado parcial','en_proceso','en proceso parcial','finalizado','finalizado parcial'].includes(est);
-
-    // Acción transporte: Gestionar STs si tiene ST, Programar si pendiente
-    const accionTransporte = est === 'cancelado'
+    const esProg=['programado','programado parcial','en_proceso','en proceso parcial','finalizado','finalizado parcial'].includes(est);
+    const accionTransporte = est==='cancelado'
       ? `<span style="color:var(--text3);font-size:11px">—</span>`
       : esProg
-      ? `<button onclick="abrirPlanPanel(${r.NumReqExcel||"'"+r.ID_Req+"'"})"
-           style="height:24px;padding:0 8px;background:var(--bg);color:var(--text);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;cursor:pointer;">
-           Gestionar STs
-         </button>`
-      : `<button onclick="abrirPlanPanel(${r.NumReqExcel||"'"+r.ID_Req+"'"})"
-           style="height:24px;padding:0 8px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:11px;cursor:pointer;font-weight:500;">
-           Programar
-         </button>`;
-
-    // Acción planificación: Cancelar si pendiente, motivo si cancelado, — si programado
-    const accionPlan = est === 'cancelado'
+      ? `<button onclick="abrirPlanPanel(${r.NumReqExcel||"'"+r.ID_Req+"'"})" style="height:24px;padding:0 8px;background:var(--bg);color:var(--text);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;cursor:pointer;">Gestionar STs</button>`
+      : `<button onclick="abrirPlanPanel(${r.NumReqExcel||"'"+r.ID_Req+"'"})" style="height:24px;padding:0 8px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:11px;cursor:pointer;font-weight:500;">Programar</button>`;
+    const accionPlan = est==='cancelado'
       ? `<span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||'Cancelado'}</span>`
-      : esProg
-      ? `<span style="color:var(--text3);font-size:11px">—</span>`
-      : `<select onchange="cancelarReq('${r.ID_Req}', this)"
-           style="height:24px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text2);max-width:120px;">
-           <option value="">Cancelar…</option>
-           ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
-         </select>`;
-
+      : esProg ? `<span style="color:var(--text3);font-size:11px">—</span>`
+      : `<select onchange="cancelarReq('${r.ID_Req}',this)" style="height:24px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text2);max-width:120px;"><option value="">Cancelar…</option>${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}</select>`;
     return `<tr style="${rowOp}border-bottom:0.5px solid var(--border)">
       <td style="padding:0;width:4px;background:${grupColor};"></td>
-      <td style="padding:6px 8px">
-        <div style="font-family:var(--mono);font-size:10px;color:var(--text2)">${r.ID_Req}</div>
-        <div style="font-size:10px;color:var(--text3)">${r.Zona||''}</div>
-      </td>
+      <td style="padding:6px 8px"><div style="font-family:var(--mono);font-size:10px;color:var(--text2)">${r.ID_Req}</div><div style="font-size:10px;color:var(--text3)">${r.Zona||''}</div></td>
       <td style="padding:6px 8px">${tipoBadge}</td>
-      <td style="padding:6px 8px">
-        <div style="font-family:var(--mono);font-size:11px;font-weight:500">${r.NumReqExcel?`#${r.NumReqExcel}`:''}</div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--text3)">${r.OS||''}</div>
-      </td>
-      <td style="padding:6px 8px;max-width:200px">
-        <div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${destinoDisp}">${destinoDisp}</div>
-        <div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Actividad||''}">${r.Actividad||'—'}</div>
-      </td>
+      <td style="padding:6px 8px"><div style="font-family:var(--mono);font-size:11px;font-weight:500">${r.NumReqExcel?`#${r.NumReqExcel}`:''}</div><div style="font-family:var(--mono);font-size:10px;color:var(--text3)">${r.OS||''}</div></td>
+      <td style="padding:6px 8px;max-width:200px"><div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${destinoDisp}">${destinoDisp}</div><div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Actividad||''}">${r.Actividad||'—'}</div></td>
       <td style="padding:6px 8px">${cantDisp}</td>
-      <td style="padding:6px 8px;vertical-align:middle">
-        <div style="display:flex;gap:3px;flex-wrap:wrap">${stPills||`<span style="color:var(--text3);font-size:11px">—</span>`}</div>
-      </td>
-      <td style="padding:6px 8px;vertical-align:middle">
-        ${etdStr
-          ? `<div style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:nowrap">${etdStr}</div>`
-          : `<span style="color:var(--text3);font-size:11px">—</span>`}
-      </td>
+      <td style="padding:6px 8px;vertical-align:middle"><div style="display:flex;gap:3px;flex-wrap:wrap">${stPills||`<span style="color:var(--text3);font-size:11px">—</span>`}</div></td>
+      <td style="padding:6px 8px;vertical-align:middle">${etdStr?`<div style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:nowrap">${etdStr}</div>`:`<span style="color:var(--text3);font-size:11px">—</span>`}</td>
       <td style="padding:6px 8px">${estadoBadge}</td>
       <td style="padding:6px 8px">${accionTransporte}</td>
       <td style="padding:6px 8px">${accionPlan}</td>
@@ -2034,10 +1981,15 @@ function cerrarModalAdv() {
 }
 
 async function confirmarConAdvertencias() {
-  const cbs = [..._pendingAdvCallbacks];
+  const seen = new Set();
+  const cbs = [];
+  for (const cb of _pendingAdvCallbacks) {
+    const key = cb._idReq;
+    if (!key || !seen.has(key)) { if (key) seen.add(key); cbs.push(cb); }
+  }
   _pendingAdvCallbacks = [];
   cerrarModalAdv();
-  if(cbs.length) await Promise.all(cbs.map(cb => cb()));
+  for (const cb of cbs) { await cb(); }
 }
 
 // ── Desasociar ST ──────────────────────────────────────────
@@ -2365,125 +2317,237 @@ function renderPlanPanel() {
   const body = document.getElementById('pp-body');
   if (!body || !_ppReqs.length) return;
 
-  // ETD default = hoy + 1 día
-  const hoy = new Date();
-  hoy.setDate(hoy.getDate() + 1);
-  const etdDefault = hoy.toISOString().slice(0, 10);
-
-  // Recoger ETD/hora del panel si ya está abierto (para no resetear al re-render)
-  const etdActual  = document.getElementById('pp-etd')?.value  || etdDefault;
-  const horaActual = document.getElementById('pp-hora')?.value || '04:00';
-
+  const etdGuardado = document.getElementById('pp-etd')?.value || (() => {
+    const d = new Date(); d.setDate(d.getDate()+1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
+  const horaGuardada = document.getElementById('pp-hora')?.value || '04:00';
   const um = _ppReqs[0]?.UM || '';
 
-  // Calcular STs ya asignadas al grupo para mostrar resumen
-  const stMap = {};
-  _ppReqs.forEach(r => {
-    [[r.ST,'ST',r.CantidadST1],[r.ST2,'ST2',r.CantidadST2],
-     [r.ST3,'ST3',r.CantidadST3],[r.ST4,'ST4',r.CantidadST4]]
-      .filter(([st]) => st)
-      .forEach(([st, col, cant]) => {
-        if (!stMap[st]) stMap[st] = { st, cant: 0, ids: [] };
-        stMap[st].cant += parseFloat(cant) || 0;
-        stMap[st].ids.push(r.ID_Req);
-      });
-  });
-  const stList = Object.values(stMap);
+  function cantAsig(r) {
+    return (parseFloat(r.CantidadST1)||0)+(parseFloat(r.CantidadST2)||0)+
+           (parseFloat(r.CantidadST3)||0)+(parseFloat(r.CantidadST4)||0);
+  }
+  function cantPend(r) {
+    return Math.max(0,(parseFloat(r.CantidadTotal)||0)-cantAsig(r));
+  }
+  function stsDeR(r) {
+    return [{n:1,st:r.ST,cant:r.CantidadST1},{n:2,st:r.ST2,cant:r.CantidadST2},
+            {n:3,st:r.ST3,cant:r.CantidadST3},{n:4,st:r.ST4,cant:r.CantidadST4}]
+      .filter(s=>s.st);
+  }
+  function tipDest(r){const c=r.CodDestino||'',n=r.NombreDestino||'';return c&&n?`${c} - ${n}`:c||n||'';}
+  function labDest(r){return r.CodDestino||r.NombreDestino||'—';}
 
-  // ── HTML ──────────────────────────────────────────────────
-  let h = '';
+  const totUM={};
+  _ppReqs.forEach(r=>{const u=r.UM||'—';totUM[u]=(totUM[u]||0)+(parseFloat(r.CantidadTotal)||0);});
+  const sumTot =_ppReqs.reduce((s,r)=>s+(parseFloat(r.CantidadTotal)||0),0);
+  const sumAsig=_ppReqs.reduce((s,r)=>s+cantAsig(r),0);
 
-  // STs ya asignadas (resumen)
-  if (stList.length) {
-    h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">STs asignadas</div>`;
-    stList.forEach(s => {
-      h += `<div class="plan-slot-card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-        <span style="font-family:var(--mono);font-size:12px;font-weight:500">${s.st}</span>
-        ${um ? `<span style="font-size:11px;color:var(--text2);font-family:var(--mono)">${s.cant} ${um}</span>` : ''}
-        <button onclick="desasociarSTGrupo('${s.st}','${s.ids.join(',')}')"
-          style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:13px;padding:0 4px;" title="Desasociar">✕</button>
-      </div>`;
-    });
-    h += `<div style="height:1px;background:var(--border);margin:8px 0;"></div>`;
+  function eBadge(r){
+    const est=r.Estado||'pendiente';
+    const e=est.toLowerCase();
+    const parcial=e.includes('parcial');
+    const base=e.replace(' parcial','');
+    let bg,color;
+    if(parcial){bg='#fef9c3';color='#854d0e';}
+    else if(base==='en_proceso'){bg='#dbeafe';color='#1d4ed8';}
+    else if(base==='finalizado'){bg='var(--accent2)';color='var(--accent)';}
+    else if(base==='programado'){bg='var(--warn2)';color='var(--warn)';}
+    else if(base==='cancelado'){bg='var(--danger2)';color='var(--danger)';}
+    else{bg='var(--bg3)';color='var(--text2)';}
+    return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${bg};color:${color};font-weight:500;white-space:nowrap;">${est}</span>`;
   }
 
-  // ETD compartido
-  h += `<div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:10px;">
-    <div>
-      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">ETD</div>
-      <input type="date" id="pp-etd" value="${etdActual}"
-        style="height:26px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);width:112px;">
-    </div>
-    <div>
-      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Hora</div>
-      <select id="pp-hora"
-        style="height:26px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);width:62px;">
-        ${opcionesHora(horaActual)}
-      </select>
-    </div>
-  </div>`;
+  let h='';
 
-  // Tabla de productos editable
-  h += `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Productos del requerimiento</div>
-  <div style="overflow-x:auto;margin-bottom:10px;">
+  if(sumTot>0&&sumAsig>sumTot){
+    h+=`<div style="display:flex;align-items:center;gap:7px;background:var(--warn2);border:0.5px solid var(--warn);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px;">
+      <span>⚠</span><div>
+      <div style="font-size:11px;font-weight:600;color:var(--warn)">Sobreprogramado</div>
+      <div style="font-size:10px;color:var(--warn)">Programado ${sumAsig.toLocaleString()} ${um} · Total ${sumTot.toLocaleString()} ${um} · Exceso: +${(sumAsig-sumTot).toLocaleString()} ${um}</div>
+      </div></div>`;
+  }
+
+  // ── Sección 1: Requerimiento total ────────────────────────
+  const sumaLine=Object.entries(totUM)
+    .map(([u,t])=>`<span style="font-family:var(--mono);font-weight:600;color:var(--text)">${t.toLocaleString()} ${u}</span>`)
+    .join('<span style="color:var(--text3);margin:0 4px">·</span>');
+
+  h+=`<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Requerimiento total</div>
+  <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
-      <thead>
-        <tr style="border-bottom:0.5px solid var(--border);">
-          <th style="text-align:left;padding:3px 4px;color:var(--text3);font-weight:500;font-size:10px;white-space:nowrap">Destino</th>
-          <th style="text-align:left;padding:3px 4px;color:var(--text3);font-weight:500;font-size:10px;">Producto</th>
-          <th style="text-align:center;padding:3px 4px;color:var(--text3);font-weight:500;font-size:10px;">${um||'M'}</th>
-          <th style="text-align:right;padding:3px 4px;color:var(--text3);font-weight:500;font-size:10px;">Cant.</th>
-          <th style="text-align:center;padding:3px 4px;color:var(--text3);font-weight:500;font-size:10px;">ST</th>
-        </tr>
-      </thead>
+      <thead><tr style="background:var(--bg2);">
+        <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Destino</th>
+        <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Producto</th>
+        <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">${um||'UM'}</th>
+        <th style="text-align:right;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Cantidad</th>
+        <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Estado</th>
+      </tr></thead>
       <tbody>
-        ${_ppReqs.map((r, idx) => {
-          const stSlots = [r.ST,r.ST2,r.ST3,r.ST4].filter(Boolean);
-          const cantAsig = (parseFloat(r.CantidadST1)||0)+(parseFloat(r.CantidadST2)||0)+
-                           (parseFloat(r.CantidadST3)||0)+(parseFloat(r.CantidadST4)||0);
-          const pendiente = Math.max(0, (parseFloat(r.CantidadTotal)||0) - cantAsig);
-          const asignada  = stSlots.length > 0;
-          // Para el input de ST solo mostramos el primer slot libre; si ya tiene ST en todos los slots, read-only
-          const slotsLibres = 4 - stSlots.length;
-          return `<tr style="border-bottom:0.5px solid var(--border);background:${asignada?'color-mix(in srgb,var(--accent) 5%,transparent)':'transparent'}">
-            <td style="padding:4px;color:var(--text2);white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;font-size:10px" title="${r.NombreDestino||''}">${r.CodDestino||r.NombreDestino||'—'}</td>
-            <td style="padding:4px;color:var(--text);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Producto||r.Actividad||'—'}</td>
-            <td style="padding:4px;text-align:center;color:var(--text2);font-size:10px">${r.UM||'—'}</td>
-            <td style="padding:4px;text-align:right;font-family:var(--mono);">
-              <input type="number" id="pp-cant-${idx}" value="${pendiente||r.CantidadTotal||''}" min="0"
-                style="width:54px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);text-align:right;" onwheel="this.blur()">
-            </td>
-            <td style="padding:4px;text-align:center;min-width:75px;">
-              ${asignada
-                ? `<div style="display:flex;flex-direction:column;gap:2px;align-items:center;">
-                    ${stSlots.map(s=>`<span style="font-family:var(--mono);font-size:10px;color:var(--accent);font-weight:500">${s}</span>`).join('')}
-                    ${slotsLibres>0?`<input type="text" id="pp-st-${idx}" value="" placeholder="+ST"
-                      style="width:65px;height:20px;padding:0 4px;background:var(--bg);border:0.5px dashed var(--border2);border-radius:var(--radius);font-size:10px;font-family:var(--mono);color:var(--text);text-align:center;"
-                      onkeydown="if(event.key==='Enter'||event.key==='Tab'){propagarSTPPanel(this,${idx});event.preventDefault();}">`:
-                      `<input type="hidden" id="pp-st-${idx}" value="">`}
-                  </div>`
-                : `<input type="text" id="pp-st-${idx}" value="" placeholder="154xxx"
-                    style="width:70px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);text-align:center;"
-                    onkeydown="if(event.key==='Enter'||event.key==='Tab'){propagarSTPPanel(this,${idx});event.preventDefault();}">`
-              }
-            </td>
-          </tr>`;
-        }).join('')}
+        ${_ppReqs.map(r=>`<tr style="border-top:0.5px solid var(--border);">
+          <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
+          <td style="padding:6px 8px;color:var(--text);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Producto||r.Actividad||'—'}</td>
+          <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
+          <td style="padding:6px 8px;text-align:right;font-family:var(--mono);font-weight:500;">${r.CantidadTotal!=null?Number(r.CantidadTotal).toLocaleString():'—'}</td>
+          <td style="padding:6px 8px;text-align:center;">${eBadge(r)}</td>
+        </tr>`).join('')}
       </tbody>
     </table>
+    <div style="padding:6px 8px;border-top:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:6px;">
+      <span style="font-size:10px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.04em;">Total carga:</span>
+      ${sumaLine}
+    </div>
   </div>`;
 
-  // Botón confirmar
-  h += `<div id="pp-msg" style="font-size:10px;margin-bottom:6px;font-family:var(--mono);min-height:14px;"></div>
-  <button onclick="confirmarProgramacion()"
-    style="width:100%;height:32px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;letter-spacing:.02em;">
-    Confirmar programación
-  </button>`;
+  // ── Sección 2: Programado — consolidar por destino+producto+ST ──
+  const progMap = new Map();
+  _ppReqs.forEach((r,ri)=>{
+    stsDeR(r).forEach(s=>{
+      const key=`${labDest(r)}|${r.Producto||r.Actividad||''}|${s.st}`;
+      if(!progMap.has(key)) progMap.set(key,{r,ri,st:s.st,cant:parseFloat(s.cant)||0});
+      else progMap.get(key).cant+=(parseFloat(s.cant)||0);
+    });
+  });
+  const fProg=[...progMap.values()];
+  const totalProgCant=fProg.reduce((s,f)=>s+f.cant,0);
 
-  body.innerHTML = h;
+  if(fProg.length){
+    h+=`<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Programado</div>
+    <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr style="background:var(--bg2);">
+          <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Destino</th>
+          <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Producto</th>
+          <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">${um||'UM'}</th>
+          <th style="text-align:right;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Cant.</th>
+          <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">ST</th>
+          <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Estado</th>
+          <th style="padding:5px 8px;"></th>
+        </tr></thead>
+        <tbody>
+          ${fProg.map(({r,ri,st,cant})=>`<tr style="border-top:0.5px solid var(--border);">
+            <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
+            <td style="padding:6px 8px;color:var(--text);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
+            <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
+            <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">${cant>0?cant.toLocaleString():'—'}</td>
+            <td style="padding:6px 8px;text-align:center;"><span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);background:var(--accent2);padding:2px 7px;border-radius:10px;">${st}</span></td>
+            <td style="padding:6px 8px;text-align:center;">${eBadge(r)}</td>
+            <td style="padding:6px 8px;text-align:right;white-space:nowrap;">
+              <select onchange="desasociarSTGrupo('${st}','${r.ID_Req}',this)"
+                style="height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);max-width:110px;">
+                <option value="">Desasociar…</option>
+                ${MOTIVOS_DESASOC.map(m=>`<option value="${m}">${m}</option>`).join('')}
+              </select>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      ${totalProgCant>0?`<div style="padding:6px 8px;border-top:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:6px;">
+        <span style="font-size:10px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.04em;">Total programado:</span>
+        <span style="font-family:var(--mono);font-weight:600;color:var(--text)">${totalProgCant.toLocaleString()} ${um}</span>
+      </div>`:''}
+    </div>`;
+  }
+
+  // ── Sección 3: Pendiente de programar ──────────────────────
+  const fPend=_ppReqs
+    .map((r,ri)=>({r,ri}))
+    .filter(({r})=>{
+      const est=(r.Estado||'pendiente').toLowerCase();
+      if(est==='cancelado') return false;
+      if(est==='finalizado') return false;
+      if(est==='en_proceso') return false;
+      if(est==='programado') return false;
+      return parseFloat(r.CantidadTotal)>0 ? cantPend(r)>0 : !r.ST;
+    });
+  const totalPendCant=fPend.reduce((s,{r})=>s+cantPend(r),0);
+
+  if(fPend.length){
+    h+=`<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">Pendiente de programar</div>
+    <div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;background:var(--bg2);border-bottom:0.5px solid var(--border);">
+        <span style="font-size:10px;color:var(--text3);font-weight:500;">ETD</span>
+        <input type="date" id="pp-etd" value="${etdGuardado}"
+          style="height:24px;padding:0 5px;background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);">
+        <select id="pp-hora"
+          style="height:24px;padding:0 3px;background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);width:62px;">
+          ${opcionesHora(horaGuardada)}
+        </select>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr style="background:var(--bg2);">
+          <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Destino</th>
+          <th style="text-align:left;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Producto</th>
+          <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">${um||'UM'}</th>
+          <th style="text-align:right;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Pendiente</th>
+          <th style="text-align:center;padding:5px 8px;color:var(--text3);font-weight:500;font-size:10px;">Asignar ST</th>
+          <th style="padding:5px 8px;"></th>
+        </tr></thead>
+        <tbody>
+          ${fPend.map(({r,ri})=>{
+            const pend=parseFloat(r.CantidadTotal)>0?cantPend(r):null;
+            return `<tr id="pp-pend-row-${ri}" style="border-top:0.5px solid var(--border);">
+              <td style="padding:6px 8px;color:var(--text2);font-size:10px;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;cursor:default" title="${tipDest(r)}">${labDest(r)}</td>
+              <td style="padding:6px 8px;color:var(--text);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Producto||r.Actividad||'—'}</td>
+              <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
+              <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">
+                <input type="number" id="pp-cant-${ri}" value="${pend!=null?pend:''}" min="0" placeholder="${um}"
+                  style="width:60px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);text-align:right;-moz-appearance:textfield;" onwheel="this.blur()">
+              </td>
+              <td style="padding:6px 8px;text-align:center;">
+                <input type="text" id="pp-st-${ri}" value="" placeholder="154xxx"
+                  style="width:72px;height:22px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);text-align:center;"
+                  onkeydown="if(event.key==='Enter'||event.key==='Tab'){propagarSTPPanel(this,${ri});event.preventDefault();}">
+              </td>
+              <td style="padding:6px 8px;text-align:right;">
+                <select onchange="cancelarFilaPend(${ri},this)" id="pp-cancel-${ri}"
+                  style="height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text2);max-width:110px;">
+                  <option value="">Cancelar…</option>
+                  ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
+                </select>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      ${totalPendCant>0?`<div style="padding:6px 8px;border-top:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:6px;">
+        <span style="font-size:10px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.04em;">Total pendiente:</span>
+        <span style="font-family:var(--mono);font-weight:600;color:var(--warn)">${totalPendCant.toLocaleString()} ${um}</span>
+      </div>`:''}
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;">
+      <div id="pp-msg" style="font-size:10px;font-family:var(--mono);color:var(--text2);min-height:14px;"></div>
+      <button id="pp-btn-confirmar" onclick="confirmarProgramacion()"
+        style="height:30px;padding:0 16px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+        Confirmar programación
+      </button>
+    </div>`;
+  } else if(!fProg.length){
+    h+=`<div style="text-align:center;padding:16px;font-size:11px;color:var(--text3);font-family:var(--mono);">Sin líneas pendientes.</div>`;
+  }
+
+  body._filasPend=fPend;
+  body.innerHTML=h;
 }
 
-// Propagar ST hacia abajo al presionar Enter/Tab en la celda ST
+function cancelarFilaPend(ri, selectEl){
+  const motivo=selectEl?.value;
+  if(!motivo) return;
+  const row=document.getElementById(`pp-pend-row-${ri}`);
+  if(!row) return;
+  row.style.opacity='0.35';
+  row.querySelectorAll('input').forEach(el=>{el.disabled=true;el.value='';});
+  selectEl.disabled=true;
+  const body=document.getElementById('pp-body');
+  const fPend=body._filasPend||[];
+  const todasCanceladas=fPend.every(({ri:r2})=>document.getElementById(`pp-cancel-${r2}`)?.disabled);
+  if(todasCanceladas){
+    const btn=document.getElementById('pp-btn-confirmar');
+    if(btn){btn.disabled=true;btn.style.opacity='0.4';btn.style.cursor='default';}
+  }
+}
+
 function propagarSTPPanel(input, idx) {
   const val = input.value.trim();
   if (!val) return;
@@ -2547,9 +2611,9 @@ async function confirmarProgramacion() {
       });
 
       if (res.requiereConfirmacion) {
-        res.advertencias.forEach(a => _pendingAdvCallbacks.push(
-          () => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant)
-        ));
+        const _cbAdv = () => confirmarProgramacion_forzar(r.ID_Req, st, etd, cant);
+        _cbAdv._idReq = r.ID_Req;
+        _pendingAdvCallbacks.push(_cbAdv);
         mostrarModalAdv(res.advertencias);
         if (msgEl) { msgEl.style.color='var(--text3)'; msgEl.textContent=''; }
         continue;
@@ -2596,33 +2660,31 @@ async function confirmarProgramacion_forzar(idReq, st, etd, cant) {
   filtrarPlan();
 }
 
-async function desasociarSTGrupo(st, idsStr) {
-  const ids = idsStr.split(',');
-  const motivo = prompt(`Desasociar ST ${st}. Ingresa el motivo:`);
-  if (!motivo) return;
-  for (const idReq of ids) {
-    const r = reqPendientes.find(x => x.ID_Req === idReq) || _reqFiltrados.find(x => x.ID_Req === idReq);
-    if (!r) continue;
-    const slot = r.ST === st ? 1 : r.ST2 === st ? 2 : r.ST3 === st ? 3 : r.ST4 === st ? 4 : null;
-    if (!slot) continue;
-    try {
-      await apiCall(`requerimientos/${idReq}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ desasociarSlot: slot, MotivoCorreccion: motivo,
-          actualizadoPor: sesion.nombre || sesion.usuario }),
-      });
-      const stKey = slot === 1 ? 'ST' : `ST${slot}`;
-      const cKey  = `CantidadST${slot}`;
-      [reqPendientes, _reqFiltrados, _ppReqs].forEach(arr => {
-        const i = arr.findIndex(x => x.ID_Req === idReq);
-        if (i !== -1) { arr[i][stKey] = null; arr[i][cKey] = null; }
-      });
-    } catch (e) { alert('Error: ' + e.message); return; }
-  }
-  actualizarKpisPlan();
-  filtrarPlan();
-  renderPlanPanel();
-  setTimeout(async () => { await recargarDatos(true); }, 2000);
+async function desasociarSTGrupo(st, idReq, selectEl) {
+  const motivo=selectEl?.value;
+  if(!motivo) return;
+  selectEl.disabled=true;
+  try{
+    const r=reqPendientes.find(x=>x.ID_Req===idReq)||_reqFiltrados.find(x=>x.ID_Req===idReq)||_ppReqs.find(x=>x.ID_Req===idReq);
+    if(!r){selectEl.disabled=false;selectEl.value='';return;}
+    const slot=r.ST===st?1:r.ST2===st?2:r.ST3===st?3:r.ST4===st?4:null;
+    if(!slot){selectEl.disabled=false;selectEl.value='';return;}
+    const res=await apiCall(`requerimientos/${idReq}`,{
+      method:'PATCH',
+      body:JSON.stringify({desasociarSlot:slot,MotivoCorreccion:motivo,
+        actualizadoPor:sesion.nombre||sesion.usuario}),
+    });
+    const stKey=slot===1?'ST':`ST${slot}`;
+    const cKey=`CantidadST${slot}`;
+    const nuevoEstado=res.Estado||'pendiente';
+    [reqPendientes,_reqFiltrados,_ppReqs].forEach(arr=>{
+      const i=arr.findIndex(x=>x.ID_Req===idReq);
+      if(i===-1) return;
+      arr[i][stKey]=null; arr[i][cKey]=null; arr[i].Estado=nuevoEstado;
+    });
+  }catch(e){selectEl.disabled=false;selectEl.value='';alert('Error: '+e.message);return;}
+  actualizarKpisPlan(); filtrarPlan(); renderPlanPanel();
+  setTimeout(async()=>{await recargarDatos(true);},2000);
 }
 
 
