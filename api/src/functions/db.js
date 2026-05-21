@@ -6,22 +6,21 @@ const config = {
     type: 'default',
     options: {
       userName: 'autransp_admin',
-      password: process.env.SQL_PASSWORD,
-    },
+      password: process.env.SQL_PASSWORD
+    }
   },
   options: {
-    database:               'autransp-db',
-    encrypt:                true,
+    database: 'autransp-db',
+    encrypt: true,
     trustServerCertificate: false,
-    connectTimeout:         30000,
-    requestTimeout:         30000,
-  },
+    connectTimeout: 30000
+  }
 };
 
 function getConnection() {
   return new Promise((resolve, reject) => {
     const conn = new Connection(config);
-    conn.on('connect', err => (err ? reject(err) : resolve(conn)));
+    conn.on('connect', err => err ? reject(err) : resolve(conn));
     conn.connect();
   });
 }
@@ -31,7 +30,7 @@ function query(sql, params = []) {
     try {
       const conn = await getConnection();
       const rows = [];
-      const req  = new Request(sql, (err) => {
+      const req = new Request(sql, (err) => {
         conn.close();
         if (err) reject(err);
         else resolve(rows);
@@ -39,13 +38,12 @@ function query(sql, params = []) {
       params.forEach(p => req.addParameter(p.name, p.type, p.value));
       req.on('row', cols => {
         const row = {};
-        cols.forEach(c => (row[c.metadata.colName] = c.value));
+        cols.forEach(c => row[c.metadata.colName] = c.value);
         rows.push(row);
       });
       conn.execSql(req);
-    } catch (e) {
-      reject(e);
-    }
+    } catch(e) { reject(e); }
   });
 }
+
 module.exports = { query, TYPES };
