@@ -1,5 +1,5 @@
-// Punto de entrada — importa todas las funciones
-require('./viajes');
-require('./requerimientos');
-require('./usuarios');
-require('./seguimiento');
+require('./src/functions/viajes');
+require('./src/functions/requerimientos');
+require('./src/functions/usuarios');
+require('./src/functions/seguimiento');
+require('./src/functions/programacion');
