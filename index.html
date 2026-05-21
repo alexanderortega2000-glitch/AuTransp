@@ -764,15 +764,11 @@ tr.clickable { cursor: pointer; }
                 <tr>
                   <th class="th-main" style="width:4px;padding:0;"></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">ID</span><button class="th-btn" onclick="sortReq('ID_Req')" id="rsrt-ID_Req">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-id')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-id" placeholder="Buscar ID..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Tipo</span></div></th>
+                  <th class="th-main" style="width:36px"><div class="th-wrap"><span class="th-label">Tipo</span></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">N° / OS</span><button class="th-btn" onclick="sortReq('NumReqExcel')" id="rsrt-NumReqExcel">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-os')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-os" placeholder="Buscar OS..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Zona</span><button class="th-btn" onclick="sortReq('Zona')" id="rsrt-Zona">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-zona-col')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-zona-col" placeholder="Buscar zona..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Origen</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-origen')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-origen" placeholder="Buscar origen..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Destino</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-destino" placeholder="Buscar destino..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Actividad / Producto</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-actividad')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-actividad" placeholder="Buscar..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label">Cliente</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-cliente')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-cliente" placeholder="Buscar cliente..." oninput="filtrarPlan()"></div></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ETD</span></div></th>
-                  <th class="th-main"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-st')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-st" placeholder="Buscar ST..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main"><div class="th-wrap"><span class="th-label">Destino · Actividad</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-destino" placeholder="Buscar destino..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main" style="width:60px"><div class="th-wrap"><span class="th-label">Cant.</span></div></th>
+                  <th class="th-main" style="width:120px"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST · ETD</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-st')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-st" placeholder="Buscar ST..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Estado</span><button class="th-btn" onclick="sortReq('Estado')" id="rsrt-Estado">↕</button></div></th>
                   <th class="th-main">Acciones</th>
                 </tr>
@@ -1582,22 +1578,11 @@ function poblarFiltroZona() {
 }
 
 function actualizarKpisPlan() {
-  const tieneST   = r => r.ST || r.ST2 || r.ST3 || r.ST4;
-  const cancel    = reqPendientes.filter(r => r.Estado === 'cancelado').length;
-  const total     = reqPendientes.filter(r => r.Estado !== 'cancelado').length;
-  // Pendiente = sin ninguna ST asignada
-  const pend      = reqPendientes.filter(r => r.Estado !== 'cancelado' && !tieneST(r)).length;
-  // Programado = tiene al menos una ST (incluye parciales)
-  const prog      = reqPendientes.filter(r => r.Estado !== 'cancelado' &&  tieneST(r)).length;
-  // % avance híbrido: cantidad asignada / cantidad total por fila
-  let sumaProgreso = 0;
-  reqPendientes.filter(r => r.Estado !== 'cancelado').forEach(r => {
-    const cantTot  = parseFloat(r.CantidadTotal) || 0;
-    const cantAsig = (parseFloat(r.CantidadST1)||0)+(parseFloat(r.CantidadST2)||0)+
-                     (parseFloat(r.CantidadST3)||0)+(parseFloat(r.CantidadST4)||0);
-    sumaProgreso  += cantTot > 0 ? Math.min(cantAsig / cantTot, 1) : (tieneST(r) ? 1 : 0);
-  });
-  const pct = total > 0 ? Math.round(sumaProgreso / total * 100) : 0;
+  const total   = reqPendientes.filter(r => r.Estado !== 'cancelado').length;
+  const pend    = reqPendientes.filter(r => r.Estado === 'pendiente').length;
+  const prog    = reqPendientes.filter(r => r.Estado === 'programado').length;
+  const cancel  = reqPendientes.filter(r => r.Estado === 'cancelado').length;
+  const pct     = total > 0 ? Math.round(prog / total * 100) : 0;
   const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
   set('pk-total',  (total + cancel).toLocaleString());
   set('pk-pend',   pend.toLocaleString());
@@ -1782,113 +1767,109 @@ function renderPlan() {
   }
 
   if(!_reqFiltrados.length) {
-    tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Sin resultados</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Sin resultados</td></tr>`;
     return;
   }
 
   tbody.innerHTML = _reqFiltrados.map((r, i) => {
-    const grupoKey   = `${r.NumReqExcel||r.ID_Req}`;
-    const grupColor  = r.NumReqExcel ? colorGrupo(grupoKey) : 'var(--border)';
-    const cancelado   = r.Estado === 'cancelado';
-    const programado  = r.Estado === 'programado';
-    const finalizado  = r.Estado === 'finalizado';
-    const enProceso   = r.Estado === 'en_proceso';
-    const rowOp       = cancelado ? 'opacity:0.5;' : '';
+    const grupoKey = `${r.NumReqExcel||r.ID_Req}`;
+    const grupColor = r.NumReqExcel ? colorGrupo(grupoKey) : 'var(--border)';
+    const est = (r.Estado||'pendiente').toLowerCase();
+    const rowOp = est === 'cancelado' ? 'opacity:0.5;' : '';
 
+    // Tipo P / D
     const tipoBadge = r.Tipo === 'programa'
-      ? `<span class="badge b-prog">Prog</span>`
-      : `<span class="badge b-demanda">Dem</span>`;
+      ? `<span class="badge b-prog" style="padding:1px 6px;font-size:11px">P</span>`
+      : `<span class="badge b-demanda" style="padding:1px 6px;font-size:11px">D</span>`;
 
-    const finParcial = r.Estado === 'finalizado parcial';
-    const enProcParcial = r.Estado === 'en proceso parcial';
-    const progParcial = r.Estado === 'programado parcial';
-    const estadoBadge = finalizado
-      ? `<span class="badge b-finalizado" id="req-estado-${i}">Finalizado</span>`
-      : finParcial
-      ? `<span class="badge b-parcial" id="req-estado-${i}">Finalizado parcial</span>`
-      : enProceso
-      ? `<span class="badge b-proceso" id="req-estado-${i}">En proceso</span>`
-      : enProcParcial
-      ? `<span class="badge b-parcial" id="req-estado-${i}">En proceso parcial</span>`
-      : programado
-      ? `<span class="badge b-prog" id="req-estado-${i}">Programado</span>`
-      : progParcial
-      ? `<span class="badge b-parcial" id="req-estado-${i}">Programado parcial</span>`
-      : cancelado
-      ? `<span class="badge b-cancelado" id="req-estado-${i}">Cancelado</span>`
-      : `<span class="badge b-pendiente" id="req-estado-${i}">Pendiente</span>`;
+    // Estados abreviados alineados con colores CSS existentes
+    const estadoMap = {
+      'pendiente':          ['b-pendiente', 'Pendiente'],
+      'programado':         ['b-prog',      'Programado'],
+      'programado parcial': ['b-parcial',   'Prog. parcial'],
+      'en_proceso':         ['b-proceso',   'En proceso'],
+      'en proceso parcial': ['b-parcial',   'Proc. parcial'],
+      'finalizado':         ['b-finalizado','Finalizado'],
+      'finalizado parcial': ['b-parcial',   'Fin. parcial'],
+      'cancelado':          ['b-cancelado', 'Cancelado'],
+    };
+    const [cls, label] = estadoMap[est] || ['b-pendiente', r.Estado||'Pendiente'];
+    const estadoBadge = `<span class="badge ${cls}" id="req-estado-${i}">${label}</span>`;
 
-    const origenDisp  = r.CodOrigen  ? `${r.CodOrigen} - ${r.NombreOrigen||''}` : (r.NombreOrigen||'—');
-    const destinoDisp = r.CodDestino ? `${r.CodDestino} - ${r.NombreDestino||''}` : (r.NombreDestino||'—');
+    const destinoDisp = r.CodDestino ? `${r.CodDestino} – ${r.NombreDestino||''}` : (r.NombreDestino||'—');
 
-    const etdVal = r.FechaEjecucion ? r.FechaEjecucion.slice(0,16) : etdDefault();
-    const etdFecha = etdVal.slice(0,10);
-    const etdHora  = etdVal.slice(11,16) || '04:00';
+    // ETD legible
+    const etdStr = r.FechaEjecucion
+      ? (() => {
+          const d = new Date(r.FechaEjecucion);
+          const dia = String(d.getDate()).padStart(2,'0');
+          const mes = String(d.getMonth()+1).padStart(2,'0');
+          const h   = String(d.getHours()).padStart(2,'0');
+          const m   = String(d.getMinutes()).padStart(2,'0');
+          return `${dia}/${mes} ${h}:${m}`;
+        })()
+      : null;
 
-    const esProgramadoOSimilar = programado || progParcial || enProceso || enProcParcial || finalizado || finParcial;
-    const acciones = cancelado ? `
-      <span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||''}</span>
-    ` : esProgramadoOSimilar ? `
-      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
-        <button onclick="abrirPlanPanel(${r.NumReqExcel||'\'' + r.ID_Req + '\''})"
-          style="height:24px;padding:0 8px;background:var(--bg);color:var(--text);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;cursor:pointer;">
-          Gestionar STs
-        </button>
-        ${!finalizado && !finParcial ? `
-        <select onchange="cancelarReq('${r.ID_Req}', this)"
-          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
-          <option value="">Cancelar…</option>
-          ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
-        </select>` : ''}
-      </div>
-      <div id="req-msg-${i}" style="font-size:10px;margin-top:2px;font-family:var(--mono);"></div>
-    ` : `
-      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
-        <button onclick="abrirPlanPanel(${r.NumReqExcel||'\'' + r.ID_Req + '\''})"
-          id="req-btn-${i}"
-          style="height:24px;padding:0 8px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:11px;cursor:pointer;white-space:nowrap;">
-          Programar
-        </button>
-        <select onchange="cancelarReq('${r.ID_Req}', this)"
-          style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text3);">
-          <option value="">Cancelar…</option>
-          ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
-        </select>
-      </div>
-      <div id="req-msg-${i}" style="font-size:10px;margin-top:2px;font-family:var(--mono);"></div>
-    `;
+    // STs deduplicadas como pills
+    const stPills = [...new Set([r.ST,r.ST2,r.ST3,r.ST4].filter(Boolean))]
+      .map(s=>`<span style="display:inline-block;background:var(--accent2);color:var(--accent);font-family:var(--mono);font-size:10px;font-weight:500;padding:1px 6px;border-radius:10px;margin-bottom:2px;white-space:nowrap">${s}</span>`)
+      .join('');
 
-    return `<tr style="${rowOp}">
+    // Cantidad total
+    const cantDisp = r.CantidadTotal != null
+      ? `<div style="font-family:var(--mono);font-size:11px">${Number(r.CantidadTotal).toLocaleString()}</div>
+         <div style="font-size:10px;color:var(--text3)">${r.UM||''}</div>`
+      : `<span style="color:var(--text3)">—</span>`;
+
+    // Acciones
+    const esProg = ['programado','programado parcial','en_proceso','en proceso parcial','finalizado','finalizado parcial'].includes(est);
+    const acciones = est === 'cancelado'
+      ? `<span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||''}</span>`
+      : esProg
+      ? `<button onclick="abrirPlanPanel(${r.NumReqExcel||"'"+r.ID_Req+"'"})"
+           style="height:24px;padding:0 8px;background:var(--bg);color:var(--text);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;cursor:pointer;">
+           Gestionar STs
+         </button>`
+      : `<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+           <button onclick="abrirPlanPanel(${r.NumReqExcel||"'"+r.ID_Req+"'"})"
+             style="height:24px;padding:0 8px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:11px;cursor:pointer;font-weight:500;">
+             Programar
+           </button>
+           <select onchange="cancelarReq('${r.ID_Req}', this)"
+             style="height:24px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text2);max-width:110px;">
+             <option value="">Cancelar…</option>
+             ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
+           </select>
+         </div>`;
+
+    return `<tr style="${rowOp}border-bottom:0.5px solid var(--border)">
       <td style="padding:0;width:4px;background:${grupColor};"></td>
-      <td style="font-family:var(--mono);font-size:10px;font-weight:500;white-space:nowrap">${r.ID_Req}</td>
-      <td>${tipoBadge}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:nowrap">${r.NumReqExcel?`#${r.NumReqExcel} `:''}<span style="color:var(--text3)">${r.OS||''}</span></td>
-      <td style="font-size:11px;color:var(--text2)">${r.Zona||'—'}</td>
-      <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${origenDisp}">${origenDisp}</td>
-      <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${destinoDisp}">${destinoDisp}${r.Lote?` <span style="color:var(--text3);font-size:10px">L${r.Lote}</span>`:''}</td>
-      <td style="font-size:11px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Producto||''}">${r.Actividad||'—'}<br><span style="font-size:10px;color:var(--text3)">${r.Producto||''}</span></td>
-      <td style="font-size:11px;color:var(--text2);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis" title="${r.RespProd||''}">${r.RespProd||'—'}</td>
-      <td style="white-space:nowrap">
-        ${(cancelado || programado || finalizado || enProceso) ? `<span style="font-size:11px;color:var(--text2);font-family:var(--mono)">${r.FechaEjecucion?r.FechaEjecucion.slice(0,16).replace('T',' '):'—'}</span>` : `
-        <div style="display:flex;gap:2px;">
-          <input type="date" id="req-etd-fecha-${i}" value="${etdFecha}"
-            style="height:24px;padding:0 3px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text);font-family:var(--mono);width:105px;">
-          <select id="req-etd-hora-${i}"
-            style="height:24px;padding:0 2px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:10px;color:var(--text);font-family:var(--mono);width:55px;">
-            ${opcionesHora(etdHora)}
-          </select>
-        </div>`}
+      <td style="padding:6px 8px">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text2)">${r.ID_Req}</div>
+        <div style="font-size:10px;color:var(--text3)">${r.Zona||''}</div>
       </td>
-      <td>
-        <div style="font-family:var(--mono);font-size:11px;">
-          ${[r.ST,r.ST2,r.ST3,r.ST4].filter(Boolean).map(s=>`<div style="font-weight:500">${s}</div>`).join('')||'<span style="color:var(--text3)">—</span>'}
-        </div>
+      <td style="padding:6px 8px">${tipoBadge}</td>
+      <td style="padding:6px 8px">
+        <div style="font-family:var(--mono);font-size:11px;font-weight:500">${r.NumReqExcel?`#${r.NumReqExcel}`:''}</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3)">${r.OS||''}</div>
       </td>
-      <td>${estadoBadge}</td>
-      <td style="min-width:160px">${acciones}</td>
+      <td style="padding:6px 8px;max-width:190px">
+        <div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${destinoDisp}">${destinoDisp}</div>
+        <div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Actividad||''}">${r.Actividad||'—'}</div>
+      </td>
+      <td style="padding:6px 8px;text-align:right">${cantDisp}</td>
+      <td style="padding:6px 8px">
+        <div style="display:flex;gap:3px;flex-wrap:wrap">${stPills||`<span style="color:var(--text3);font-size:11px">—</span>`}</div>
+        ${etdStr
+          ? `<div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px">${etdStr}</div>`
+          : `<div style="font-size:10px;color:var(--text3);margin-top:3px">Sin programar</div>`}
+      </td>
+      <td style="padding:6px 8px">${estadoBadge}</td>
+      <td style="padding:6px 8px;min-width:140px">${acciones}</td>
     </tr>`;
   }).join('');
 }
+
 
 // ── Propagar ST mientras escribe (oninput) ────────────────
 function propagarSTInput(inputEl, grupoKey, idxOrigen) {
