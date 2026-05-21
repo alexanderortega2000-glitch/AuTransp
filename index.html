@@ -768,7 +768,8 @@ tr.clickable { cursor: pointer; }
                   <th class="th-main"><div class="th-wrap"><span class="th-label">N° / OS</span><button class="th-btn" onclick="sortReq('NumReqExcel')" id="rsrt-NumReqExcel">↕</button><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-os')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-os" placeholder="Buscar OS..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Destino · Actividad</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-destino')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-destino" placeholder="Buscar destino..." oninput="filtrarPlan()"></div></div></th>
                   <th class="th-main" style="width:62px"><div class="th-wrap"><span class="th-label">Cant.</span></div></th>
-                  <th class="th-main" style="width:120px"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST · ETD</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-st')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-st" placeholder="Buscar ST..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main" style="width:110px"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ST</span><div class="th-search-wrap"><button class="th-btn" onclick="toggleReqSearch('rtf-st')" title="Buscar">⌕</button><input class="th-search-input" id="rtf-st" placeholder="Buscar ST..." oninput="filtrarPlan()"></div></div></th>
+                  <th class="th-main" style="width:90px"><div class="th-wrap"><span class="th-label" style="color:var(--accent)">ETD</span></div></th>
                   <th class="th-main"><div class="th-wrap"><span class="th-label">Estado</span><button class="th-btn" onclick="sortReq('Estado')" id="rsrt-Estado">↕</button></div></th>
                   <th class="th-main" style="width:130px"><span class="th-label">Acción transporte</span></th>
                   <th class="th-main" style="width:130px"><span class="th-label">Acción planificación</span></th>
@@ -1636,9 +1637,8 @@ function filtrarPlan() {
   _reqFiltrados = reqPendientes.filter(r => {
     if(!verCancel && r.Estado === 'cancelado') return false;
     if(tipo   && r.Tipo   !== tipo)   return false;
-    if(estado && r.Estado !== estado && !r.Estado?.startsWith(estado)) return false;
+    if(estado && r.Estado !== estado) return false;
     if(zona   && r.Zona   !== zona)   return false;
-    // rtf-id busca en ID_Req Y Zona (ya que Zona aparece en esa celda)
     if(tfId   && ![r.ID_Req, r.Zona].filter(Boolean).join(' ').toLowerCase().includes(tfId)) return false;
     if(tfOs   && !String(r.OS||'').toLowerCase().includes(tfOs) &&
                  !String(r.NumReqExcel||'').toString().includes(tfOs)) return false;
@@ -1765,7 +1765,7 @@ function renderPlan() {
   }
 
   if(!_reqFiltrados.length) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Sin resultados</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:2rem;font-family:var(--mono)">Sin resultados</td></tr>`;
     return;
   }
 
@@ -1796,45 +1796,51 @@ function renderPlan() {
       ? `${r.CodDestino} – ${r.NombreDestino||''}`
       : (r.NombreDestino||'—');
 
-    const etdStr = r.FechaEjecucion ? (() => {
-      const d = new Date(r.FechaEjecucion);
-      return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    })() : null;
-
+    // ST pills — columna separada
     const stPills = [...new Set([r.ST,r.ST2,r.ST3,r.ST4].filter(Boolean))]
       .map(s=>`<span style="display:inline-block;background:var(--accent2);color:var(--accent);font-family:var(--mono);font-size:10px;font-weight:500;padding:1px 6px;border-radius:10px;margin-bottom:2px;white-space:nowrap">${s}</span>`)
       .join('');
 
+    // ETD — columna separada
+    const etdStr = r.FechaEjecucion ? (() => {
+      const d = new Date(r.FechaEjecucion);
+      const dia = String(d.getDate()).padStart(2,'0');
+      const mes = String(d.getMonth()+1).padStart(2,'0');
+      const h   = String(d.getHours()).padStart(2,'0');
+      const m   = String(d.getMinutes()).padStart(2,'0');
+      return `${dia}/${mes} ${h}:${m}`;
+    })() : null;
+
     const cantDisp = r.CantidadTotal != null
-      ? `<div style="font-family:var(--mono);font-size:11px;text-align:right">${Number(r.CantidadTotal).toLocaleString()}</div><div style="font-size:10px;color:var(--text3);text-align:right">${r.UM||''}</div>`
+      ? `<div style="font-family:var(--mono);font-size:11px;text-align:right">${Number(r.CantidadTotal).toLocaleString()}</div>
+         <div style="font-size:10px;color:var(--text3);text-align:right">${r.UM||''}</div>`
       : `<span style="color:var(--text3)">—</span>`;
 
     const esProg = ['programado','programado parcial','en_proceso','en proceso parcial','finalizado','finalizado parcial'].includes(est);
 
-    // Acción transporte — Gestionar STs (siempre si tiene ST, si no vacío)
-    const accionTransporte = esProg
+    // Acción transporte: Gestionar STs si tiene ST, Programar si pendiente
+    const accionTransporte = est === 'cancelado'
+      ? `<span style="color:var(--text3);font-size:11px">—</span>`
+      : esProg
       ? `<button onclick="abrirPlanPanel(${r.NumReqExcel||"'"+r.ID_Req+"'"})"
            style="height:24px;padding:0 8px;background:var(--bg);color:var(--text);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;cursor:pointer;">
            Gestionar STs
          </button>`
-      : `<span style="color:var(--text3);font-size:11px">—</span>`;
+      : `<button onclick="abrirPlanPanel(${r.NumReqExcel||"'"+r.ID_Req+"'"})"
+           style="height:24px;padding:0 8px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:11px;cursor:pointer;font-weight:500;">
+           Programar
+         </button>`;
 
-    // Acción planificación — Programar / Cancelar / motivo cancelación
+    // Acción planificación: Cancelar si pendiente, motivo si cancelado, — si programado
     const accionPlan = est === 'cancelado'
       ? `<span style="font-size:10px;color:var(--text3)" title="${r.MotivoCancel||''}">${r.MotivoCancel||'Cancelado'}</span>`
       : esProg
       ? `<span style="color:var(--text3);font-size:11px">—</span>`
-      : `<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
-           <button onclick="abrirPlanPanel(${r.NumReqExcel||"'"+r.ID_Req+"'"})"
-             style="height:24px;padding:0 8px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:11px;cursor:pointer;font-weight:500;">
-             Programar
-           </button>
-           <select onchange="cancelarReq('${r.ID_Req}', this)"
-             style="height:24px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text2);max-width:110px;">
-             <option value="">Cancelar…</option>
-             ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
-           </select>
-         </div>`;
+      : `<select onchange="cancelarReq('${r.ID_Req}', this)"
+           style="height:24px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text2);max-width:120px;">
+           <option value="">Cancelar…</option>
+           ${MOTIVOS_CANCEL.map(m=>`<option value="${m}">${m}</option>`).join('')}
+         </select>`;
 
     return `<tr style="${rowOp}border-bottom:0.5px solid var(--border)">
       <td style="padding:0;width:4px;background:${grupColor};"></td>
@@ -1852,11 +1858,13 @@ function renderPlan() {
         <div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.Actividad||''}">${r.Actividad||'—'}</div>
       </td>
       <td style="padding:6px 8px">${cantDisp}</td>
-      <td style="padding:6px 8px">
+      <td style="padding:6px 8px;vertical-align:middle">
         <div style="display:flex;gap:3px;flex-wrap:wrap">${stPills||`<span style="color:var(--text3);font-size:11px">—</span>`}</div>
+      </td>
+      <td style="padding:6px 8px;vertical-align:middle">
         ${etdStr
-          ? `<div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px">${etdStr}</div>`
-          : `<div style="font-size:10px;color:var(--text3);margin-top:3px">Sin programar</div>`}
+          ? `<div style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:nowrap">${etdStr}</div>`
+          : `<span style="color:var(--text3);font-size:11px">—</span>`}
       </td>
       <td style="padding:6px 8px">${estadoBadge}</td>
       <td style="padding:6px 8px">${accionTransporte}</td>
