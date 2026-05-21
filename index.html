@@ -2493,35 +2493,12 @@ function renderPlanPanel() {
               <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
               <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">
                 <input type="number" id="pp-cant-${ri}" value="${pend!=null?pend:''}" min="0" placeholder="${um}"
-                  style="width:60px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);text-align:right;-moz-appearance:textfield;" onwheel="this.blur()" onkeydown="(function(e,ri){
-  if(e.key==='Tab'&&!e.shiftKey){
-    e.preventDefault();
-    const st=document.getElementById('pp-st-'+ri);
-    if(st&&!st.disabled){st.focus();st.select();}
-  } else if(e.key==='Tab'&&e.shiftKey){
-    e.preventDefault();
-    const body=document.getElementById('pp-body');
-    const fPend=body._filasPend||[];
-    const idx=fPend.findIndex(f=>f.ri===ri);
-    const prev=fPend[idx-1];
-    if(prev){const ps=document.getElementById('pp-st-'+prev.ri);if(ps&&!ps.disabled){ps.focus();ps.select();}}
-  }
-})(event,${ri})">
+                  style="width:60px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);text-align:right;-moz-appearance:textfield;" onwheel="this.blur()" onkeydown="(function(e,ri){if(e.key==='Tab'&&!e.shiftKey){e.preventDefault();const st=document.getElementById('pp-st-'+ri);if(st&&!st.disabled){st.focus();st.select();}}else if(e.key==='Tab'&&e.shiftKey){e.preventDefault();const body=document.getElementById('pp-body');const fPend=body._filasPend||[];const idx=fPend.findIndex(f=>f.ri===ri);const prev=fPend[idx-1];if(prev){const ps=document.getElementById('pp-st-'+prev.ri);if(ps&&!ps.disabled){ps.focus();ps.select();}}}})(event,${ri})">
               </td>
               <td style="padding:6px 8px;text-align:center;">
                 <input type="text" id="pp-st-${ri}" value="" placeholder="154xxx"
                   style="width:72px;height:22px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);text-align:center;"
-                  onkeydown="(function(e,el,i){
-  if(e.key==='Enter'){propagarSTPPanel(el,i);e.preventDefault();}
-  else if(e.key==='Tab'&&!e.shiftKey){
-    e.preventDefault();
-    const body=document.getElementById('pp-body');
-    const fPend=body._filasPend||[];
-    const idx=fPend.findIndex(f=>f.ri===i);
-    const next=fPend[idx+1];
-    if(next){const nc=document.getElementById('pp-cant-'+next.ri);if(nc&&!nc.disabled){nc.focus();nc.select();}}
-  }
-})(event,this,${ri})">
+                  onkeydown="(function(e,el,i){if(e.key==='Enter'){propagarSTPPanel(el,i);e.preventDefault();}else if(e.key==='Tab'&&!e.shiftKey){e.preventDefault();const body=document.getElementById('pp-body');const fPend=body._filasPend||[];const idx=fPend.findIndex(f=>f.ri===i);const next=fPend[idx+1];if(next){const nc=document.getElementById('pp-cant-'+next.ri);if(nc&&!nc.disabled){nc.focus();nc.select();}}}})(event,this,${ri})"  >
               </td>
               <td style="padding:6px 8px;text-align:right;">
                 <select onchange="cancelarFilaPend(${ri},this)" id="pp-cancel-${ri}"
