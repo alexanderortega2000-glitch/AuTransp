@@ -305,6 +305,12 @@ app.http('requerimientos-patch', {
 
       // ── Asignar ST a slot ─────────────────────────────────
       if (ST !== undefined && ST !== null) {
+        // V0: ST duplicada en el mismo requerimiento
+        const slotsActuales = [req.STActual, req.ST2, req.ST3, req.ST4].filter(Boolean);
+        if (slotsActuales.includes(ST)) {
+          return err(422, `La ST ${ST} ya está asignada a este requerimiento.`, { codigo: 'ST_DUPLICADA_MISMO_REQ' });
+        }
+
         const slotNum = slot || (() => {
           if (!req.STActual) return 1;
           if (!req.ST2)      return 2;
