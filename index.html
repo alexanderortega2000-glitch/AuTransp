@@ -4758,7 +4758,7 @@ const almFmt = (n, dec=3) => {
 // Inventario: agrupado por descripcion(norm)+almacen(nombre norm)
 // Requerimientos: Producto(norm) + NombreOrigen(norm)
 function almActualizarCruce() {
-  const reqs = typeof requerimientos !== 'undefined' ? requerimientos : [];
+  const reqs = reqPendientes || [];
 
   // Índice inventario: desc_norm|alm_norm → fila
   const invMap = {};
