@@ -4682,7 +4682,7 @@ function almCargarInventario(input) {
         const stock  = parseEU(r['Stock disponible'] || r['Stock'] || 0);
         if(!mat || !codAlm) return;
         const key = codAlm + '|' + mat;
-        if(!agg[key]) agg[key] = { codAlm, almacen: almMap[codAlm] || codAlm, sku: mat, descripcion: desc, um, cantidad: 0 };
+        if(!agg[key]) agg[key] = { codAlm, almacen: almMap[codAlm] || ALM_CAT[codAlm] || codAlm, sku: mat, descripcion: desc, um, cantidad: 0 };
         agg[key].cantidad += stock;
       });
 
@@ -4722,6 +4722,12 @@ function almPoblarFiltroAlmacen() {
 const _almNorm = s => String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
 
 // ── Zona por código de almacén ───────────────────────────────
+// Catálogo de almacenes: código → nombre (fuente: tabla almacenes_cat en BD)
+const ALM_CAT = {
+  A01:'COPAL', A02:'DIAMANTE', A03:'PARAÍSAL', A04:'TIHUILOCOTYO',
+  A05:'CANTOR', A06:'SAN CLEMENTE', A07:'SAN MIGUEL', A08:'FINCONA',
+  A14:'AGUA SANTA', A15:'PAJARAL'
+};
 const ALM_ZONA = { A07:'Oriente', A01:'Oriente', A15:'Oriente', A04:'Paracentral', A14:'Paracentral', A02:'Occidente', A03:'Occidente', A05:'Occidente', A06:'Occidente', A08:'Occidente' };
 
 // ── Toggle th-search-input (mismo patrón que toggleSearch) ───
