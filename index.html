@@ -458,6 +458,7 @@ tr.clickable { cursor: pointer; }
         <button class="topbar-tab active" onclick="setPage('resumen')">Resumen</button>
         <button class="topbar-tab" onclick="setPage('detalle')">Detalle</button>
         <button class="topbar-tab" id="tab-sol" onclick="setPage('solicitudes')" style="display:none">Planificación</button>
+        <button class="topbar-tab" id="tab-alm" onclick="setPage('almacen')" style="display:none">Almacén</button>
         <button class="topbar-tab" id="tab-info" onclick="setPage('info')" style="display:none">Info</button>
       </div>
     </div>
@@ -850,6 +851,253 @@ tr.clickable { cursor: pointer; }
       </div>
     </div>
 
+    <!-- ALMACÉN -->
+    <div id="page-almacen" class="page">
+      <div style="max-width:1400px;">
+
+        <!-- Sub-tabs -->
+        <div style="display:flex;gap:6px;margin-bottom:16px;">
+          <button class="btn-sm" id="alm-subtab-cruce" onclick="almSetSubtab('cruce')"
+            style="border-radius:20px;padding:4px 16px;">Cruce Inventario</button>
+          <button class="btn-sm" id="alm-subtab-despacho" onclick="almSetSubtab('despacho')"
+            style="border-radius:20px;padding:4px 16px;">Despacho</button>
+        </div>
+
+        <!-- ── SUB-TAB: CRUCE INVENTARIO ── -->
+        <div id="alm-page-cruce">
+
+          <!-- Toolbar carga -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+            <label style="display:inline-flex;align-items:center;gap:6px;padding:5px 13px;
+              background:var(--accent);color:var(--bg);border-radius:var(--radius);
+              cursor:pointer;font-size:12px;font-weight:600;">
+              ↑ Cargar inventario Excel
+              <input type="file" id="alm-file-input" accept=".xlsx,.xls"
+                onchange="almCargarInventario(this)" style="display:none;">
+            </label>
+            <span id="alm-carga-meta" style="font-size:11px;color:var(--text3);font-family:var(--mono);">
+              Sin carga · use el botón para importar el Excel de inventario
+            </span>
+            <button class="btn-sm" onclick="almActualizarCruce()" style="margin-left:auto;">↻ Actualizar cruce</button>
+          </div>
+
+          <!-- Banner alertas -->
+          <div id="alm-banner" style="display:none;background:var(--warn2);border:0.5px solid var(--warn);
+            border-radius:var(--radius);padding:8px 14px;margin-bottom:12px;
+            font-size:12px;color:var(--warn);"></div>
+
+          <!-- Selector de vista -->
+          <div style="display:flex;gap:3px;margin-bottom:14px;background:var(--bg2);
+            padding:3px;border-radius:var(--radius-lg);width:fit-content;">
+            <button class="btn-sm" id="alm-v-productos" onclick="almSetVista('productos')"
+              style="border-radius:6px;">Resumen por producto</button>
+            <button class="btn-sm" id="alm-v-almacen" onclick="almSetVista('almacen')"
+              style="border-radius:6px;">Por almacén</button>
+            <button class="btn-sm" id="alm-v-detalle" onclick="almSetVista('detalle')"
+              style="border-radius:6px;">Detalle</button>
+            <button class="btn-sm" id="alm-v-reqs" onclick="almSetVista('reqs')"
+              style="border-radius:6px;">Requerimientos</button>
+          </div>
+
+          <!-- ── VISTA: Resumen por producto ── -->
+          <div id="alm-vista-productos">
+            <div style="background:var(--surface);border:0.5px solid var(--border);
+              border-radius:var(--radius-lg);overflow:hidden;">
+              <div style="padding:10px 14px;border-bottom:0.5px solid var(--border);">
+                <div style="font-size:11px;font-weight:600;letter-spacing:.06em;
+                  text-transform:uppercase;color:var(--text2);">Resumen por producto</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:2px;">
+                  Stock consolidado (todos los almacenes) vs total requerido en planificación
+                </div>
+              </div>
+              <div style="overflow-x:auto;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Producto</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-rp-prod', almRenderResumen)" title="Buscar">⌕</button><input class="th-search-input" id="af-rp-prod" placeholder="Buscar producto..." oninput="almOnInput(this, almRenderResumen)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">UM</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Stock total</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Plan total</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Diferencia</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Cobertura</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-rp-cob', almRenderResumen)" title="Buscar">⌕</button><input class="th-search-input" id="af-rp-cob" placeholder="ruptura · alerta · ok" oninput="almOnInput(this, almRenderResumen)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Nota</span></div></th>
+                    </tr>
+                  </thead>
+                  <tbody id="alm-resumen-tbody">
+                    <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:2rem;
+                      font-family:var(--mono);">Cargue el Excel de inventario para ver el resumen</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── VISTA: Por almacén ── -->
+          <div id="alm-vista-almacen" style="display:none;">
+            <div style="background:var(--surface);border:0.5px solid var(--border);
+              border-radius:var(--radius-lg);overflow:hidden;">
+              <div style="padding:10px 14px;border-bottom:0.5px solid var(--border);">
+                <div style="font-size:11px;font-weight:600;letter-spacing:.06em;
+                  text-transform:uppercase;color:var(--text2);">Resumen por almacén</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:2px;">
+                  Estado de cobertura agrupado por almacén. Haz clic en un almacén para ver el detalle.
+                </div>
+              </div>
+              <div style="overflow-x:auto;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Almacén</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-pa-nom', almRenderPorAlmacen)" title="Buscar">⌕</button><input class="th-search-input" id="af-pa-nom" placeholder="Buscar almacén..." oninput="almOnInput(this, almRenderPorAlmacen)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Zona</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-pa-zona', almRenderPorAlmacen)" title="Buscar">⌕</button><input class="th-search-input" id="af-pa-zona" placeholder="Oriente · Occidente..." oninput="almOnInput(this, almRenderPorAlmacen)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Productos</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">🔴 Ruptura</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">🟡 Alerta</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">✅ Cubierto</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">% Cobertura</span></div></th>
+                    </tr>
+                  </thead>
+                  <tbody id="alm-poralm-tbody">
+                    <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:2rem;
+                      font-family:var(--mono);">Cargue el Excel de inventario</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── VISTA: Detalle SKU × Almacén ── -->
+          <div id="alm-vista-detalle" style="display:none;">
+            <div style="background:var(--surface);border:0.5px solid var(--border);
+              border-radius:var(--radius-lg);overflow:hidden;">
+              <div style="padding:10px 14px;border-bottom:0.5px solid var(--border);">
+                <div style="font-size:11px;font-weight:600;letter-spacing:.06em;
+                  text-transform:uppercase;color:var(--text2);">Detalle SKU × Almacén</div>
+              </div>
+              <div style="overflow-x:auto;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">SKU</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-d-sku', almFiltrarCruce)" title="Buscar">⌕</button><input class="th-search-input" id="af-d-sku" placeholder="Buscar SKU..." oninput="almOnInput(this, almFiltrarCruce)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Descripción</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-d-desc', almFiltrarCruce)" title="Buscar">⌕</button><input class="th-search-input" id="af-d-desc" placeholder="Buscar descripción..." oninput="almOnInput(this, almFiltrarCruce)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Almacén</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-d-alm', almFiltrarCruce)" title="Buscar">⌕</button><input class="th-search-input" id="af-d-alm" placeholder="Buscar almacén..." oninput="almOnInput(this, almFiltrarCruce)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Zona</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-d-zona', almFiltrarCruce)" title="Buscar">⌕</button><input class="th-search-input" id="af-d-zona" placeholder="Oriente · Occidente..." oninput="almOnInput(this, almFiltrarCruce)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">UM</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Stock</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Req. plan.</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Diferencia</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Estado</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-d-cob', almFiltrarCruce)" title="Buscar">⌕</button><input class="th-search-input" id="af-d-cob" placeholder="ruptura · alerta · ok" oninput="almOnInput(this, almFiltrarCruce)"></div></div></th>
+                    </tr>
+                  </thead>
+                  <tbody id="alm-cruce-tbody">
+                    <tr><td colspan="9" style="text-align:center;color:var(--text3);padding:2rem;
+                      font-family:var(--mono);">Cargue el Excel de inventario para ver el detalle</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── VISTA: Requerimientos ── -->
+          <div id="alm-vista-reqs" style="display:none;">
+            <div style="background:var(--surface);border:0.5px solid var(--border);
+              border-radius:var(--radius-lg);overflow:hidden;">
+              <div style="padding:10px 14px;border-bottom:0.5px solid var(--border);">
+                <div style="font-size:11px;font-weight:600;letter-spacing:.06em;
+                  text-transform:uppercase;color:var(--text2);">Requerimientos</div>
+              </div>
+              <div style="overflow-x:auto;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">ID Req.</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-r-id', almFiltrarReqs)" title="Buscar">⌕</button><input class="th-search-input" id="af-r-id" placeholder="Buscar ID..." oninput="almOnInput(this, almFiltrarReqs)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Zona / Destino</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-r-dest', almFiltrarReqs)" title="Buscar">⌕</button><input class="th-search-input" id="af-r-dest" placeholder="Buscar zona/destino..." oninput="almOnInput(this, almFiltrarReqs)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Actividad</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-r-act', almFiltrarReqs)" title="Buscar">⌕</button><input class="th-search-input" id="af-r-act" placeholder="Buscar actividad..." oninput="almOnInput(this, almFiltrarReqs)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Producto</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-r-prod', almFiltrarReqs)" title="Buscar">⌕</button><input class="th-search-input" id="af-r-prod" placeholder="Buscar producto..." oninput="almOnInput(this, almFiltrarReqs)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Cant.</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">UM</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">ST</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-r-st', almFiltrarReqs)" title="Buscar">⌕</button><input class="th-search-input" id="af-r-st" placeholder="Buscar ST..." oninput="almOnInput(this, almFiltrarReqs)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">ETD</span></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Estado</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-r-est', almFiltrarReqs)" title="Buscar">⌕</button><input class="th-search-input" id="af-r-est" placeholder="Pendiente · Programado..." oninput="almOnInput(this, almFiltrarReqs)"></div></div></th>
+                      <th class="th-main"><div class="th-wrap"><span class="th-label">Stock</span><div class="th-search-wrap"><button class="th-btn" onclick="almToggleSearch('af-r-stk', almFiltrarReqs)" title="Buscar">⌕</button><input class="th-search-input" id="af-r-stk" placeholder="ruptura · alerta · ok" oninput="almOnInput(this, almFiltrarReqs)"></div></div></th>
+                    </tr>
+                  </thead>
+                  <tbody id="alm-reqs-tbody">
+                    <tr><td colspan="10" style="text-align:center;color:var(--text3);padding:2rem;
+                      font-family:var(--mono);">Cargando requerimientos...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /alm-page-cruce -->
+
+        <!-- ── SUB-TAB: DESPACHO ── -->
+        <div id="alm-page-despacho" style="display:none;">
+
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+            <select id="alm-d-almacen"
+              style="height:28px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);
+              border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+              <option value="">Todos los almacenes</option>
+            </select>
+            <select id="alm-d-estado" onchange="almRenderDespacho()"
+              style="height:28px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);
+              border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+              <option value="pendiente">Pendiente despacho</option>
+              <option value="despachado">Despachado</option>
+              <option value="">Todos</option>
+            </select>
+            <span id="alm-d-meta" style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-left:auto;"></span>
+          </div>
+
+          <div id="alm-despacho-body"></div>
+
+        </div><!-- /alm-page-despacho -->
+
+      </div>
+    </div><!-- /page-almacen -->
+
+  </div>
+</div>
+
+<!-- MODAL DESPACHO -->
+<div id="modal-despacho" style="display:none;position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius-lg);
+    width:460px;max-width:95vw;padding:24px;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div style="font-size:15px;font-weight:600;">Confirmar Despacho</div>
+      <button onclick="almCerrarModal()"
+        style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:20px;padding:0;">×</button>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:5px;">ID Despacho</div>
+      <input id="alm-modal-id" type="text"
+        style="width:100%;padding:8px 12px;background:var(--bg);border:0.5px solid var(--accent);
+        border-radius:var(--radius);font-family:var(--mono);font-size:14px;font-weight:600;
+        color:var(--text);text-align:center;letter-spacing:2px;">
+    </div>
+
+    <div id="alm-modal-items"></div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:5px;">
+        Observación <span style="color:var(--text3)">(requerida si modifica cantidades)</span>
+      </div>
+      <input id="alm-modal-obs" type="text" placeholder="Motivo del cambio…"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:0.5px solid var(--border2);
+        border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+    </div>
+
+    <div id="alm-modal-info" style="background:var(--bg2);border-radius:var(--radius);
+      padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:16px;"></div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn-sm" onclick="almCerrarModal()">Cancelar</button>
+      <button class="btn-sm primary" onclick="almConfirmarDespacho()">Confirmar despacho</button>
+    </div>
   </div>
 </div>
 
@@ -2491,12 +2739,12 @@ function renderPlanPanel() {
               <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
               <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">
                 <input type="number" id="pp-cant-${ri}" value="${pend!=null?pend:''}" min="0" placeholder="${um}"
-                  style="width:60px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);text-align:right;-moz-appearance:textfield;" onwheel="this.blur()">
+                  style="width:60px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);text-align:right;-moz-appearance:textfield;" onwheel="this.blur()" onkeydown="(function(e,ri){if(e.key==='Tab'&&!e.shiftKey){e.preventDefault();const st=document.getElementById('pp-st-'+ri);if(st&&!st.disabled){st.focus();st.select();}}else if(e.key==='Tab'&&e.shiftKey){e.preventDefault();const body=document.getElementById('pp-body');const fPend=body._filasPend||[];const idx=fPend.findIndex(f=>f.ri===ri);const prev=fPend[idx-1];if(prev){const ps=document.getElementById('pp-st-'+prev.ri);if(ps&&!ps.disabled){ps.focus();ps.select();}}}})(event,${ri})"">
               </td>
               <td style="padding:6px 8px;text-align:center;">
                 <input type="text" id="pp-st-${ri}" value="" placeholder="154xxx"
                   style="width:72px;height:22px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);text-align:center;"
-                  onkeydown="if(event.key==='Enter'||event.key==='Tab'){propagarSTPPanel(this,${ri});event.preventDefault();}">
+                  onkeydown="(function(e,el,i){if(e.key==='Enter'){propagarSTPPanel(el,i);e.preventDefault();}else if(e.key==='Tab'&&!e.shiftKey){e.preventDefault();const body=document.getElementById('pp-body');const fPend=body._filasPend||[];const idx=fPend.findIndex(f=>f.ri===i);const next=fPend[idx+1];if(next){const nc=document.getElementById('pp-cant-'+next.ri);if(nc&&!nc.disabled){nc.focus();nc.select();}}}})(event,this,${ri})" >
               </td>
               <td style="padding:6px 8px;text-align:right;">
                 <select onchange="cancelarFilaPend(${ri},this)" id="pp-cancel-${ri}"
@@ -2543,6 +2791,10 @@ function cancelarFilaPend(ri, selectEl){
   if(todasCanceladas){
     const btn=document.getElementById('pp-btn-confirmar');
     if(btn){btn.disabled=true;btn.style.opacity='0.4';btn.style.cursor='default';}
+    const etd=document.getElementById('pp-etd');
+    const hora=document.getElementById('pp-hora');
+    if(etd){etd.disabled=true;etd.style.opacity='0.4';}
+    if(hora){hora.disabled=true;hora.style.opacity='0.4';}
   }
 }
 
@@ -2788,6 +3040,9 @@ async function intentarLogin() {
   // Mostrar tab Info solo para admin
   const tabInfo = document.getElementById('tab-info');
   if(tabInfo && sesion.rol === 'admin') tabInfo.style.display = '';
+  // Mostrar tab Almacén para admin y coordinador
+  const tabAlm = document.getElementById('tab-alm');
+  if(tabAlm && ['admin','coordinador'].includes(sesion.rol)) tabAlm.style.display = '';
   errEl.style.display = 'none';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('user-display').textContent = u.usuario + ' · ' + u.rol;
@@ -4004,11 +4259,12 @@ function formatHora(dt) {
 // ============================================================
 function setPage(p) {
   document.querySelectorAll('.topbar-tab').forEach((t,i)=>{
-    t.classList.toggle('active', ['resumen','detalle','solicitudes'][i]===p);
+    t.classList.toggle('active', ['resumen','detalle','solicitudes','almacen','info'][i]===p);
   });
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   if(p === 'solicitudes') cargarRequerimientosBD();
+  if(p === 'almacen') almInit();
 }
 
 // ============================================================
@@ -4343,6 +4599,674 @@ document.getElementById('modal-solicitud').addEventListener('click', function(e)
   if(e.target === this) cerrarModalSolicitud();
 });
 //PruebaDEV
+
+// ============================================================
+// MÓDULO ALMACÉN
+// ============================================================
+const ALM = {
+  inventario: [],   // filas del Excel cargado: {almacen,sku,descripcion,um,cantidad}
+  despachos:  [],   // despachos registrados (en memoria hasta tener API)
+  modalItems: [],   // items del modal de despacho activo
+};
+
+function almInit() {
+  almActualizarCruce();
+  almRenderDespacho();
+  almSetSubtab('cruce');
+  almSetVista('productos');
+}
+
+function almSetVista(v) {
+  ['productos','almacen','detalle','reqs'].forEach(id => {
+    const el  = document.getElementById('alm-vista-'+id);
+    const btn = document.getElementById('alm-v-'+id);
+    if(el)  el.style.display  = v === id ? '' : 'none';
+    if(btn) btn.classList.toggle('primary', v === id);
+  });
+  if(v === 'almacen') almRenderPorAlmacen();
+  if(v === 'reqs')    almFiltrarReqs();
+}
+
+function almSetSubtab(sub) {
+  ['cruce','despacho'].forEach(s => {
+    document.getElementById('alm-page-'+s).style.display = sub === s ? '' : 'none';
+    const btn = document.getElementById('alm-subtab-'+s);
+    if(btn) btn.classList.toggle('primary', sub === s);
+  });
+}
+
+// ── Carga Excel de inventario (formato SAP export) ──────────
+// Hoja 1: Tipo almacén|Ubicación|Material|Descripción del material|Unidad medida base|Stock disponible|...
+// Hoja 2 (almacenes): CODIGO|NOMBRE  → A07→SAN MIGUEL, etc.
+function almCargarInventario(input) {
+  if(!input.files.length) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: false });
+
+      // Leer catálogo de almacenes (hoja 2)
+      const almMap = {};
+      if(wb.SheetNames.length > 1) {
+        const wsAlm = wb.Sheets[wb.SheetNames[1]];
+        XLSX.utils.sheet_to_json(wsAlm, { defval: '' }).forEach(r => {
+          const cod  = String(r['CODIGO'] || r['Codigo'] || r['codigo'] || '').trim();
+          const nom  = String(r['NOMBRE'] || r['Nombre'] || r['nombre'] || '').trim();
+          if(cod) almMap[cod] = nom || cod;
+        });
+      }
+
+      // Parsear número: acepta JS number, string europea "1.234,56", o string "2.000"
+      const parseEU = v => {
+        if(typeof v === 'number') return v;
+        const s = String(v).replace(/\s/g,'');
+        if(!s || s === '-') return 0;
+        // formato europeo con coma decimal: "1.234,56" o "1,56"
+        if(/,\d+$/.test(s)) return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+        // solo puntos como separador de miles: "2.000" → 2000
+        if(/^\d{1,3}(\.\d{3})+$/.test(s)) return parseFloat(s.replace(/\./g,'')) || 0;
+        return parseFloat(s) || 0;
+      };
+
+      // Leer hoja de inventario (hoja 1) y agrupar por Material + Tipo almacén
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      const agg = {};  // clave: codAlm|material
+      rows.forEach(r => {
+        const codAlm = String(r['Tipo almacén'] || r['Tipo almacen'] || r['tipo almacén'] || '').trim();
+        const mat    = String(r['Material']    || '').trim();
+        const desc   = String(r['Descripción del material'] || r['Descripcion del material'] || r['Descripción'] || '').trim();
+        const um     = String(r['Unidad medida base'] || r['UM'] || '').trim();
+        const stock  = parseEU(r['Stock disponible'] || r['Stock'] || 0);
+        if(!mat || !codAlm) return;
+        const key = codAlm + '|' + mat;
+        if(!agg[key]) agg[key] = { codAlm, almacen: almMap[codAlm] || codAlm, sku: mat, descripcion: desc, um, cantidad: 0 };
+        agg[key].cantidad += stock;
+      });
+
+      ALM.inventario  = Object.values(agg);
+      ALM.almacenMap  = almMap;
+
+      const almCount  = new Set(ALM.inventario.map(r => r.codAlm)).size;
+      const skuCount  = ALM.inventario.length;
+      const now = new Date();
+      document.getElementById('alm-carga-meta').textContent =
+        `Última carga: ${now.toLocaleDateString('es-SV')} ${now.toLocaleTimeString('es-SV',{hour:'2-digit',minute:'2-digit'})} · ${file.name} · ${skuCount} SKUs · ${almCount} almacenes`;
+
+      almActualizarCruce();
+      almPoblarFiltroAlmacen();
+    } catch(err) {
+      console.error('[ALM] Error leyendo Excel:', err);
+      document.getElementById('alm-carga-meta').textContent = '⚠ Error leyendo el archivo: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Poblar selects de almacén ────────────────────────────────
+function almPoblarFiltroAlmacen() {
+  const almacenes = [...new Set(ALM.inventario.map(r => r.almacen).filter(Boolean))].sort();
+  ['alm-d-almacen'].forEach(id => {
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Todos los almacenes</option>' +
+      almacenes.map(a => `<option value="${a}">${a}</option>`).join('');
+    sel.value = cur;
+  });
+}
+
+// ── Normalizar texto para match loose ───────────────────────
+const _almNorm = s => String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+
+// ── Zona por código de almacén ───────────────────────────────
+const ALM_ZONA = { A07:'Oriente', A01:'Oriente', A15:'Oriente', A04:'Paracentral', A14:'Paracentral', A02:'Occidente', A03:'Occidente', A05:'Occidente', A06:'Occidente', A08:'Occidente' };
+
+// ── Toggle th-search-input (mismo patrón que toggleSearch) ───
+function almToggleSearch(id, filterFn) {
+  const inp = document.getElementById(id);
+  if(!inp) return;
+  inp.classList.toggle('open');
+  if(inp.classList.contains('open')) {
+    inp.focus();
+  } else {
+    inp.value = '';
+    inp.classList.remove('has-value');
+    const btn = inp.closest('.th-search-wrap') && inp.closest('.th-search-wrap').querySelector('.th-btn');
+    if(btn) btn.classList.remove('filter-active');
+    if(filterFn) filterFn();
+  }
+}
+function almOnInput(inp, filterFn) {
+  inp.classList.toggle('has-value', inp.value.length > 0);
+  const btn = inp.closest('.th-search-wrap') && inp.closest('.th-search-wrap').querySelector('.th-btn');
+  if(btn) btn.classList.toggle('filter-active', inp.value.length > 0);
+  filterFn();
+}
+
+// ── Formato numérico: miles=coma, decimales=punto ────────────
+const almFmt = (n, dec=3) => {
+  if(n === null || n === undefined) return '—';
+  const num = typeof n === 'number' ? n : parseFloat(n);
+  if(isNaN(num)) return String(n);
+  return num.toLocaleString('en-US', { maximumFractionDigits: dec });
+};
+
+// ── Cruce inventario vs. requerimientos ─────────────────────
+// Inventario: agrupado por descripcion(norm)+almacen(nombre norm)
+// Requerimientos: Producto(norm) + NombreOrigen(norm)
+function almActualizarCruce() {
+  const reqs = typeof requerimientos !== 'undefined' ? requerimientos : [];
+
+  // Índice inventario: desc_norm|alm_norm → fila
+  const invMap = {};
+  ALM.inventario.forEach(r => {
+    const key = _almNorm(r.descripcion) + '|' + _almNorm(r.almacen);
+    if(!invMap[key]) invMap[key] = { ...r, cantidad: 0, _desc: r.descripcion, _alm: r.almacen };
+    invMap[key].cantidad += r.cantidad;
+  });
+
+  // Índice requerimientos: producto_norm|origen_norm → {cantidad, um}
+  const reqMap = {};
+  reqs.forEach(r => {
+    const prod = _almNorm(r.Producto || r.ReqProducto || '');
+    const orig = _almNorm(r.NombreOrigen || '');
+    if(!prod) return;
+    const key = prod + '|' + orig;
+    if(!reqMap[key]) reqMap[key] = { prod: r.Producto||r.ReqProducto||'', orig: r.NombreOrigen||'', cantidad: 0, um: r.UM||r.UnidadMedida||'' };
+    reqMap[key].cantidad += parseFloat(r.CantidadTotal || r.CantidadAsignada || 0) || 0;
+  });
+
+  // Unión
+  const claves = new Set([...Object.keys(invMap), ...Object.keys(reqMap)]);
+  const filas = [];
+  claves.forEach(key => {
+    const inv     = invMap[key];
+    const req     = reqMap[key];
+    const stock   = inv ? inv.cantidad   : 0;
+    const reqCant = req ? req.cantidad   : 0;
+    const diff    = stock - reqCant;
+    const estado  = reqCant === 0 ? 'ok' : diff >= 0 ? (diff < reqCant * 0.1 ? 'alerta' : 'ok') : 'ruptura';
+    const codAlm = inv ? (inv.codAlm || '') : '';
+    filas.push({
+      sku:         inv ? inv.sku        : '—',
+      descripcion: inv ? inv._desc      : (req ? req.prod : key.split('|')[0]),
+      almacen:     inv ? inv._alm       : (req ? req.orig : key.split('|')[1]),
+      codAlm,
+      zona:        ALM_ZONA[codAlm] || 'No definido',
+      um:          inv ? inv.um         : (req ? req.um   : ''),
+      stock, reqCant, diff, estado
+    });
+  });
+
+  // Ordenar: rupturas primero, luego alertas, luego ok
+  filas.sort((a,b) => {
+    const o = {ruptura:0,alerta:1,ok:2};
+    return (o[a.estado]||3) - (o[b.estado]||3);
+  });
+
+  ALM._cruce = filas;
+  almFiltrarCruce();
+  almFiltrarReqs();
+  almActualizarBanner(filas);
+  almRenderResumen();
+}
+
+// ── Vista: Por almacén ───────────────────────────────────────
+function almRenderPorAlmacen() {
+  const filtNom  = ((document.getElementById('af-pa-nom') ||{}).value || '').toLowerCase();
+  const filtZona = ((document.getElementById('af-pa-zona')||{}).value || '').toLowerCase();
+  const cruce    = ALM._cruce || [];
+
+  // Agrupar por almacén
+  const grupos = {};
+  cruce.forEach(f => {
+    const a = f.almacen || '—';
+    const z = f.zona    || 'No definido';
+    if(filtNom  && !a.toLowerCase().includes(filtNom))  return;
+    if(filtZona && !z.toLowerCase().includes(filtZona)) return;
+    if(!grupos[a]) grupos[a] = { almacen: a, zona: z, total: 0, ruptura: 0, alerta: 0, ok: 0 };
+    grupos[a].total++;
+    grupos[a][f.estado]++;
+  });
+
+  const rows = Object.values(grupos).sort((a,b) => b.ruptura - a.ruptura || b.alerta - a.alerta || a.almacen.localeCompare(b.almacen));
+  const tbody = document.getElementById('alm-poralm-tbody');
+  if(!tbody) return;
+
+  if(!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:2rem;
+      font-family:var(--mono);">${ALM.inventario.length ? 'Sin resultados' : 'Cargue el Excel de inventario'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const pct = r.total ? Math.round((r.ok / r.total) * 100) : 0;
+    const barColor = r.ruptura > 0 ? 'var(--danger)' : r.alerta > 0 ? 'var(--warn)' : 'var(--accent)';
+    const zonaColor = r.zona === 'No definido' ? 'color:var(--text3)' : '';
+    return `<tr style="cursor:pointer" onclick="almDrillAlmacen('${r.almacen}')" title="Ver detalle de ${r.almacen}">
+      <td style="font-weight:500">${r.almacen}</td>
+      <td style="font-size:11px;${zonaColor}">${r.zona}</td>
+      <td style="text-align:right;font-family:var(--mono)">${r.total}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--danger)">${r.ruptura||'—'}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--warn)">${r.alerta||'—'}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--accent)">${r.ok}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="flex:1;height:6px;background:var(--border2);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;"></div>
+          </div>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--text2);min-width:30px">${pct}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function almDrillAlmacen(nombre) {
+  almSetVista('detalle');
+  const inp = document.getElementById('af-d-alm');
+  if(inp) {
+    inp.value = nombre;
+    inp.classList.add('open', 'has-value');
+    const btn = inp.closest('.th-search-wrap') && inp.closest('.th-search-wrap').querySelector('.th-btn');
+    if(btn) btn.classList.add('filter-active');
+    almFiltrarCruce();
+  }
+}
+
+// ── Resumen consolidado por producto (sin dimensión almacén) ─
+function almRenderResumen() {
+  const reqs = typeof requerimientos !== 'undefined' ? requerimientos : [];
+  const filtCob  = ((document.getElementById('af-rp-cob') ||{}).value || '').toLowerCase();
+  const filtProd = ((document.getElementById('af-rp-prod')||{}).value || '').toLowerCase();
+
+  // Inventario: agrupar por descripcion normalizada → suma de stock todos los almacenes
+  const invByProd = {};
+  ALM.inventario.forEach(r => {
+    const key = _almNorm(r.descripcion);
+    if(!invByProd[key]) invByProd[key] = { desc: r.descripcion, um: r.um, stock: 0 };
+    invByProd[key].stock += r.cantidad;
+  });
+
+  // Plan: agrupar por producto normalizado → suma de cantidades de todos los reqs activos
+  const reqByProd = {};
+  reqs.forEach(r => {
+    const prod = (r.Producto || r.ReqProducto || '').trim();
+    if(!prod) return;
+    const key = _almNorm(prod);
+    if(!reqByProd[key]) reqByProd[key] = { desc: prod, um: r.UM || r.UnidadMedida || '', cantidad: 0 };
+    reqByProd[key].cantidad += parseFloat(r.CantidadTotal || r.CantidadAsignada || 0) || 0;
+  });
+
+  const allKeys = new Set([...Object.keys(invByProd), ...Object.keys(reqByProd)]);
+  let rows = [];
+  allKeys.forEach(key => {
+    const inv  = invByProd[key];
+    const req  = reqByProd[key];
+    const stock  = inv ? inv.stock    : 0;
+    const plan   = req ? req.cantidad : 0;
+    const diff   = stock - plan;
+    const estado = plan === 0 ? 'ok' : diff >= 0 ? (diff < plan * 0.1 ? 'alerta' : 'ok') : 'ruptura';
+    rows.push({
+      desc: inv ? inv.desc : (req ? req.desc : ''),
+      um:   inv ? inv.um   : (req ? req.um   : ''),
+      stock, plan, diff, estado,
+      soloInv: !!inv && !req,
+      soloPlan: !inv && !!req,
+    });
+  });
+
+  rows.sort((a,b) => ({'ruptura':0,'alerta':1,'ok':2}[a.estado]||3) - ({'ruptura':0,'alerta':1,'ok':2}[b.estado]||3));
+  if(filtCob)  rows = rows.filter(r => r.estado.toLowerCase().includes(filtCob));
+  if(filtProd) rows = rows.filter(r => r.desc.toLowerCase().includes(filtProd));
+
+  const tbody = document.getElementById('alm-resumen-tbody');
+  if(!tbody) return;
+
+  if(!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);
+      padding:2rem;font-family:var(--mono);">${ALM.inventario.length ? 'Sin resultados' : 'Cargue el Excel de inventario'}</td></tr>`;
+    return;
+  }
+
+  const colD = d => d > 0 ? 'color:var(--accent)' : d < 0 ? 'color:var(--danger)' : 'color:var(--text3)';
+  const badge = e => e==='ok'
+    ? 'background:var(--accent2);color:var(--accent)'
+    : e==='alerta' ? 'background:var(--warn2);color:var(--warn)'
+    : 'background:var(--danger2);color:var(--danger)';
+  const label = e => e==='ok' ? '✅ Cubierto' : e==='alerta' ? '⚠ Alerta' : '🔴 Ruptura';
+
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td>${r.desc}</td>
+    <td>${r.um}</td>
+    <td style="text-align:right;font-family:var(--mono)">${almFmt(r.stock)}</td>
+    <td style="text-align:right;font-family:var(--mono)">${r.soloPlan||r.plan>0 ? almFmt(r.plan) : '<span style="color:var(--text3)">—</span>'}</td>
+    <td style="text-align:right;font-family:var(--mono);${colD(r.diff)}">${r.plan>0 ? (r.diff>0?'+':'')+almFmt(r.diff) : '<span style="color:var(--text3)">—</span>'}</td>
+    <td><span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${badge(r.estado)}">${label(r.estado)}</span></td>
+    <td style="font-size:11px;color:var(--text3)">${r.soloInv ? 'Sin req. de plan' : r.soloPlan ? '⚠ Sin stock en inv.' : ''}</td>
+  </tr>`).join('');
+}
+
+function almActualizarBanner(filas) {
+  const rupturas = filas.filter(f => f.estado === 'ruptura').length;
+  const alertas  = filas.filter(f => f.estado === 'alerta').length;
+  const banner   = document.getElementById('alm-banner');
+  if(!banner) return;
+  if(rupturas || alertas) {
+    banner.style.display = '';
+    banner.innerHTML = `⚠ <strong>${rupturas} ruptura${rupturas!==1?'s':''} · ${alertas} alerta${alertas!==1?'s':''}</strong> — revise el cruce antes de despachar`;
+  } else if(ALM.inventario.length) {
+    banner.style.display = '';
+    banner.style.background = 'var(--accent2)';
+    banner.style.borderColor = 'var(--accent)';
+    banner.style.color = 'var(--accent)';
+    banner.innerHTML = '✓ Inventario suficiente para todos los requerimientos del día';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function almFiltrarCruce() {
+  const filtSku  = ((document.getElementById('af-d-sku') ||{}).value || '').toLowerCase();
+  const filtDesc = ((document.getElementById('af-d-desc')||{}).value || '').toLowerCase();
+  const filtAlm  = ((document.getElementById('af-d-alm') ||{}).value || '').toLowerCase();
+  const filtZona = ((document.getElementById('af-d-zona')||{}).value || '').toLowerCase();
+  const filtCob  = ((document.getElementById('af-d-cob') ||{}).value || '').toLowerCase();
+  const filas    = (ALM._cruce || []).filter(f =>
+    (!filtSku  || f.sku.toLowerCase().includes(filtSku)) &&
+    (!filtDesc || f.descripcion.toLowerCase().includes(filtDesc)) &&
+    (!filtAlm  || f.almacen.toLowerCase().includes(filtAlm)) &&
+    (!filtZona || (f.zona||'').toLowerCase().includes(filtZona)) &&
+    (!filtCob  || f.estado.toLowerCase().includes(filtCob))
+  );
+  const colDiff  = d => d > 0 ? `color:var(--accent)` : d < 0 ? `color:var(--danger)` : `color:var(--text3)`;
+  const badgeEst = e => e==='ok' ? `background:var(--accent2);color:var(--accent)` :
+                        e==='alerta' ? `background:var(--warn2);color:var(--warn)` :
+                        `background:var(--danger2);color:var(--danger)`;
+  const labelEst = e => e==='ok' ? '✅ OK' : e==='alerta' ? '⚠ Alerta' : '🔴 Ruptura';
+  const tbody = document.getElementById('alm-cruce-tbody');
+  if(!tbody) return;
+  if(!filas.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text3);
+      padding:2rem;font-family:var(--mono);">${ALM.inventario.length ? 'Sin resultados' : 'Cargue el Excel de inventario'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filas.map(f => `<tr>
+    <td style="font-family:var(--mono);font-size:12px">${f.sku}</td>
+    <td>${f.descripcion}</td>
+    <td>${f.almacen}</td>
+    <td style="font-size:11px;${f.zona==='No definido'?'color:var(--text3)':''}">${f.zona||'No definido'}</td>
+    <td>${f.um}</td>
+    <td style="text-align:right;font-family:var(--mono)">${almFmt(f.stock)}</td>
+    <td style="text-align:right;font-family:var(--mono)">${almFmt(f.reqCant)}</td>
+    <td style="text-align:right;font-family:var(--mono);${colDiff(f.diff)}">${f.diff > 0 ? '+' : ''}${almFmt(f.diff)}</td>
+    <td><span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${badgeEst(f.estado)}">${labelEst(f.estado)}</span></td>
+  </tr>`).join('');
+}
+
+function almFiltrarReqs() {
+  const reqs     = typeof requerimientos !== 'undefined' ? requerimientos : [];
+  const filtId   = ((document.getElementById('af-r-id')  ||{}).value || '').toLowerCase();
+  const filtZona = ((document.getElementById('af-r-dest') ||{}).value || '').toLowerCase();
+  const filtAct  = ((document.getElementById('af-r-act')  ||{}).value || '').toLowerCase();
+  const filtProd = ((document.getElementById('af-r-prod') ||{}).value || '').toLowerCase();
+  const filtST   = ((document.getElementById('af-r-st')   ||{}).value || '').toLowerCase();
+  const filtEst  = ((document.getElementById('af-r-est')  ||{}).value || '').toLowerCase();
+  const filtStk  = ((document.getElementById('af-r-stk')  ||{}).value || '').toLowerCase();
+
+  // Determinar estado legible de cada req
+  const estadoReq = r => {
+    if(r.Estado && r.Estado.toLowerCase().includes('cancel')) return 'Cancelado';
+    if(r.ST || r.STActual) {
+      if(r.Estado && r.Estado.toLowerCase().includes('proceso')) return 'En proceso';
+      if(r.Estado && r.Estado.toLowerCase().includes('final')) return 'Finalizado';
+      return 'Programado';
+    }
+    return 'Pendiente';
+  };
+
+  // Stock del producto cruzado (match por descripcion normalizada)
+  const invMap = {};
+  ALM.inventario.forEach(r => { invMap[_almNorm(r.descripcion)] = r; });
+
+  const badgeReq = e => {
+    if(e==='Pendiente') return 'background:var(--bg2);color:var(--text2);border:0.5px solid var(--border2)';
+    if(e==='Programado') return 'background:var(--info2);color:var(--info)';
+    if(e==='En proceso') return 'background:#1c1917;color:#a78bfa';
+    if(e==='Finalizado') return 'background:var(--accent2);color:var(--accent)';
+    return 'background:var(--danger2);color:var(--danger)';
+  };
+
+  const invMap2 = {};
+  ALM.inventario.forEach(r => { invMap2[_almNorm(r.descripcion)] = r; });
+  const stockEst = r => {
+    const sku = (r.Producto || r.ReqProducto || '').trim();
+    if(!ALM.inventario.length) return 'nd';
+    const inv = invMap2[_almNorm(sku)];
+    if(!inv) return 'nd';
+    const cruce = (ALM._cruce||[]).find(c => _almNorm(c.descripcion) === _almNorm(sku));
+    return cruce ? cruce.estado : 'ok';
+  };
+
+  const filas = reqs.filter(r => {
+    const est  = estadoReq(r);
+    const stk  = stockEst(r);
+    const sts  = [r.STActual||r.ST, r.ST2, r.ST3, r.ST4].filter(Boolean).join(' ').toLowerCase();
+    const prod = (r.Producto||r.ReqProducto||'').toLowerCase();
+    const dest = (r.NombreDestino||r.Destino||'').toLowerCase();
+    const zona = (r.Zona||'').toLowerCase();
+    const act  = (r.Actividad||'').toLowerCase();
+    const id   = String(r.ID_Req||'').toLowerCase();
+    return (!filtId   || id.includes(filtId))
+        && (!filtZona || dest.includes(filtZona) || zona.includes(filtZona))
+        && (!filtAct  || act.includes(filtAct))
+        && (!filtProd || prod.includes(filtProd))
+        && (!filtST   || sts.includes(filtST))
+        && (!filtEst  || est.toLowerCase().includes(filtEst))
+        && (!filtStk  || stk.toLowerCase().includes(filtStk));
+  });
+
+  const tbody = document.getElementById('alm-reqs-tbody');
+  if(!tbody) return;
+  if(!filas.length) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text3);
+      padding:2rem;font-family:var(--mono);">Sin requerimientos</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filas.slice(0, 100).map(r => {
+    const est = estadoReq(r);
+    const sku = (r.Producto || r.ReqProducto || '—').trim();
+    const inv = invMap[_almNorm(sku)];
+    const cruce = ALM._cruce ? ALM._cruce.find(c => _almNorm(c.descripcion) === _almNorm(sku)) : null;
+    const stockBadge = !inv ? `background:var(--bg2);color:var(--text3)` :
+      (cruce && cruce.estado === 'ruptura') ? `background:var(--danger2);color:var(--danger)` :
+      (cruce && cruce.estado === 'alerta')  ? `background:var(--warn2);color:var(--warn)` :
+      `background:var(--accent2);color:var(--accent)`;
+    const stockLabel = !ALM.inventario.length ? '—' :
+      !inv ? 'Sin stock' :
+      (cruce && cruce.estado === 'ruptura') ? 'Ruptura' :
+      (cruce && cruce.estado === 'alerta')  ? 'Alerta' : 'OK';
+    const sts = [r.STActual||r.ST, r.ST2, r.ST3, r.ST4].filter(Boolean);
+    const etd = r.ETD || r.FechaEjecucion || '—';
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:12px">${r.ID_Req||'—'}</td>
+      <td>${r.NombreDestino||r.Destino||'—'}</td>
+      <td>${r.Actividad||'—'}</td>
+      <td style="font-family:var(--mono);font-size:12px">${sku}</td>
+      <td style="text-align:right;font-family:var(--mono)">${(r.CantidadTotal||r.CantidadAsignada||'—')}</td>
+      <td>${r.UM||r.UnidadMedida||'—'}</td>
+      <td>${sts.length ? sts.map(s=>`<span style="padding:1px 6px;background:var(--info2);color:var(--info);border-radius:10px;font-size:11px;font-family:var(--mono)">${s}</span>`).join(' ') : '<span style="color:var(--text3)">—</span>'}</td>
+      <td style="font-family:var(--mono)">${typeof etd === 'string' && etd.includes('T') ? etd.slice(11,16) : etd}</td>
+      <td><span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${badgeReq(est)}">${est}</span></td>
+      <td><span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${stockBadge}">${stockLabel}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Vista Despacho ───────────────────────────────────────────
+function almRenderDespacho() {
+  const reqs = typeof requerimientos !== 'undefined' ? requerimientos : [];
+  const filtAlm = (document.getElementById('alm-d-almacen')||{}).value || '';
+  const filtEst = (document.getElementById('alm-d-estado')||{}).value || 'pendiente';
+
+  // Pendiente = tiene ST pero sin despacho confirmado
+  const pendientes = reqs.filter(r => {
+    const tieneST = !!(r.STActual || r.ST || r.ST2);
+    const despachado = ALM.despachos.some(d => d.reqId === r.ID_Req);
+    if(filtEst === 'pendiente') return tieneST && !despachado;
+    if(filtEst === 'despachado') return despachado;
+    return tieneST;
+  });
+
+  // Agrupar por almacén (NombreOrigen)
+  const grupos = {};
+  pendientes.forEach(r => {
+    const alm = (r.NombreOrigen || 'Sin almacén').trim();
+    if(filtAlm && alm !== filtAlm) return;
+    if(!grupos[alm]) grupos[alm] = [];
+    grupos[alm].push(r);
+  });
+
+  const meta = document.getElementById('alm-d-meta');
+  if(meta) meta.textContent = `${pendientes.length} despacho${pendientes.length!==1?'s':''} ${filtEst === 'pendiente' ? 'pendientes' : filtEst === 'despachado' ? 'completados' : 'totales'}`;
+
+  const body = document.getElementById('alm-despacho-body');
+  if(!body) return;
+
+  if(!Object.keys(grupos).length) {
+    body.innerHTML = `<div style="text-align:center;color:var(--text3);padding:3rem;
+      font-family:var(--mono);">${reqs.length ? 'Sin despachos ' + (filtEst||'') : 'Cargando requerimientos...'}</div>`;
+    return;
+  }
+
+  body.innerHTML = Object.entries(grupos).map(([alm, items]) => `
+    <div style="background:var(--surface);border:0.5px solid var(--border);
+      border-radius:var(--radius-lg);overflow:hidden;margin-bottom:14px;">
+      <div style="background:var(--bg2);padding:9px 14px;border-bottom:0.5px solid var(--border);
+        display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-weight:600;color:var(--accent);font-size:12px;">🏪 ${alm}</span>
+        <span style="font-size:11px;color:var(--text2)">${items.length} despacho${items.length!==1?'s':''}</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th class="th-main">Req.</th>
+            <th class="th-main">Destino</th>
+            <th class="th-main">Actividad</th>
+            <th class="th-main">SKU</th>
+            <th class="th-main" style="text-align:right">Cant. prog.</th>
+            <th class="th-main">UM</th>
+            <th class="th-main">ETD</th>
+            <th class="th-main">Proveedor</th>
+            <th class="th-main">Motorista</th>
+            <th class="th-main"></th>
+          </tr></thead>
+          <tbody>
+            ${items.map(r => {
+              const sts = [r.STActual||r.ST, r.ST2, r.ST3, r.ST4].filter(Boolean);
+              const etd = r.ETD || r.FechaEjecucion || '—';
+              const etdStr = typeof etd === 'string' && etd.includes('T') ? etd.slice(11,16) : etd;
+              const desp = ALM.despachos.find(d => d.reqId === r.ID_Req);
+              const accion = desp
+                ? `<span style="font-size:11px;color:var(--accent)">✓ ${desp.id}</span>`
+                : `<button class="btn-sm primary" onclick="almAbrirModal('${r.ID_Req}')">Despachar</button>`;
+              return `<tr>
+                <td style="font-family:var(--mono);font-size:12px">${r.ID_Req||'—'}</td>
+                <td>${r.NombreDestino||r.Destino||'—'}</td>
+                <td>${r.Actividad||'—'}</td>
+                <td style="font-family:var(--mono);font-size:12px">${r.Producto||r.ReqProducto||'—'}</td>
+                <td style="text-align:right;font-family:var(--mono)">${r.CantidadTotal||r.CantidadAsignada||'—'}</td>
+                <td>${r.UM||r.UnidadMedida||'—'}</td>
+                <td style="font-family:var(--mono)">${etdStr}</td>
+                <td>${r.ProveedorTransp||r.ProveedorEfectivo||'—'}</td>
+                <td>${r.Nom_Motorista||'<span style="color:var(--text3)">—</span>'}</td>
+                <td>${accion}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`).join('');
+}
+
+// ── Modal despacho ───────────────────────────────────────────
+function almAbrirModal(reqId) {
+  const reqs = typeof requerimientos !== 'undefined' ? requerimientos : [];
+  const r = reqs.find(x => x.ID_Req == reqId);
+  if(!r) return;
+
+  const idDespacho = 'D-' + new Date().getFullYear() + '-' + String(Math.floor(Math.random()*9000)+1000);
+  document.getElementById('alm-modal-id').value = idDespacho;
+  document.getElementById('alm-modal-obs').value = '';
+
+  const sku  = (r.Producto || r.ReqProducto || '').trim();
+  const cant = parseFloat(r.CantidadTotal || r.CantidadAsignada || 0) || 0;
+  const um   = r.UM || r.UnidadMedida || '';
+
+  ALM.modalItems = [{ reqId, sku, cantProg: cant, um, label: `${reqId} · ${sku} · ${r.NombreDestino||''}` }];
+
+  document.getElementById('alm-modal-items').innerHTML = ALM.modalItems.map((it, i) => `
+    <div style="background:var(--bg);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text)">${it.label}</div>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:3px;">Cant. programada</div>
+          <div style="font-family:var(--mono);font-weight:600">${it.cantProg} ${it.um}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:3px;">Cant. despachada</div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <input type="number" id="alm-cant-${i}" value="${it.cantProg}" min="0"
+              style="width:80px;padding:5px 8px;background:var(--bg2);border:0.5px solid var(--border2);
+              border-radius:var(--radius);font-family:var(--mono);font-size:13px;color:var(--text);">
+            <span style="font-size:12px;color:var(--text2)">${it.um}</span>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('alm-modal-info').innerHTML =
+    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <span>Proveedor: <strong style="color:var(--text)">${r.ProveedorTransp||r.ProveedorEfectivo||'—'}</strong></span>
+      <span>Motorista: <strong style="color:var(--text)">${r.Nom_Motorista||'—'}</strong></span>
+      <span>ETD: <strong style="color:var(--text)">${r.ETD||r.FechaEjecucion||'—'}</strong></span>
+    </div>`;
+
+  const modal = document.getElementById('modal-despacho');
+  modal.style.display = 'flex';
+}
+
+function almCerrarModal() {
+  document.getElementById('modal-despacho').style.display = 'none';
+}
+
+function almConfirmarDespacho() {
+  const id  = document.getElementById('alm-modal-id').value.trim();
+  const obs = document.getElementById('alm-modal-obs').value.trim();
+  if(!id) { alert('Ingrese un ID de despacho.'); return; }
+
+  const cambios = ALM.modalItems.some((it, i) => {
+    const input = document.getElementById('alm-cant-'+i);
+    return input && parseFloat(input.value) !== it.cantProg;
+  });
+  if(cambios && !obs) { alert('Ingrese una observación para registrar el cambio de cantidad.'); return; }
+
+  ALM.modalItems.forEach((it, i) => {
+    const input = document.getElementById('alm-cant-'+i);
+    const cantDesp = input ? parseFloat(input.value) : it.cantProg;
+    ALM.despachos.push({ id, reqId: it.reqId, sku: it.sku, cantProg: it.cantProg, cantDesp, um: it.um, obs, fecha: new Date().toISOString() });
+  });
+
+  almCerrarModal();
+  almRenderDespacho();
+}
+
+document.getElementById('modal-despacho').addEventListener('click', function(e) {
+  if(e.target === this) almCerrarModal();
+});
 </script>
 </body>
 </html>
