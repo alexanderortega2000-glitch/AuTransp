@@ -459,6 +459,7 @@ tr.clickable { cursor: pointer; }
         <button class="topbar-tab" onclick="setPage('detalle')">Detalle</button>
         <button class="topbar-tab" id="tab-sol" onclick="setPage('solicitudes')" style="display:none">Planificación</button>
         <button class="topbar-tab" id="tab-alm" onclick="setPage('almacen')" style="display:none">Almacén</button>
+        <button class="topbar-tab" id="tab-prov" onclick="setPage('proveedores')" style="display:none">Proveedores</button>
         <button class="topbar-tab" id="tab-info" onclick="setPage('info')" style="display:none">Info</button>
       </div>
     </div>
@@ -807,7 +808,115 @@ tr.clickable { cursor: pointer; }
     </div>
 
     <!-- INFO / CALIDAD DE DATOS -->
-    <div id="page-info" class="page">
+    <div id="page-proveedores" class="page">
+  <div style="padding:20px 24px;max-width:1400px;margin:0 auto">
+    <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+      <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 20px;min-width:140px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px">Proveedores</div>
+        <div id="prov-kpi-total" style="font-size:28px;font-weight:700;color:var(--text);font-family:var(--mono)">-</div>
+      </div>
+      <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 20px;min-width:140px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px">Equipos activos</div>
+        <div id="prov-kpi-equipos" style="font-size:28px;font-weight:700;color:var(--accent);font-family:var(--mono)">-</div>
+      </div>
+      <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 20px;min-width:140px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px">Contratos activos</div>
+        <div id="prov-kpi-contratos" style="font-size:28px;font-weight:700;color:var(--text);font-family:var(--mono)">-</div>
+      </div>
+      <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 20px;min-width:140px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px">Por vencer (30d)</div>
+        <div id="prov-kpi-vencer" style="font-size:28px;font-weight:700;color:var(--warn);font-family:var(--mono)">-</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <input id="prov-buscar" type="text" placeholder="Buscar proveedor, codigo, contacto..."
+        style="height:32px;padding:0 10px;background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text);width:280px"
+        oninput="provFiltrar()">
+      <select id="prov-fil-zona" onchange="provFiltrar()"
+        style="height:32px;padding:0 8px;background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text)">
+        <option value="">Todas las zonas</option>
+        <option>OCCIDENTE</option><option>ORIENTE</option><option>PARACENTRAL</option>
+      </select>
+      <select id="prov-fil-cluster" onchange="provFiltrar()"
+        style="height:32px;padding:0 8px;background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text)">
+        <option value="">Todos los clusters</option>
+      </select>
+      <select id="prov-fil-estado" onchange="provFiltrar()"
+        style="height:32px;padding:0 8px;background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text)">
+        <option value="1">Solo activos</option><option value="0">Inactivos</option><option value="">Todos</option>
+      </select>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        <button onclick="provSetVista('proveedores')" id="prov-btn-tab-prov"
+          style="height:30px;padding:0 12px;border-radius:var(--radius);font-size:12px;cursor:pointer;border:0.5px solid var(--border2);background:var(--text);color:var(--bg);font-weight:500">Proveedores</button>
+        <button onclick="provSetVista('equipos')" id="prov-btn-tab-eq"
+          style="height:30px;padding:0 12px;border-radius:var(--radius);font-size:12px;cursor:pointer;border:0.5px solid var(--border2);background:var(--surface);color:var(--text)">Equipos</button>
+        <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
+        <label style="height:30px;padding:0 12px;border-radius:var(--radius);font-size:12px;cursor:pointer;border:0.5px solid var(--border2);background:var(--surface);color:var(--text);display:flex;align-items:center;gap:6px">
+          Importar Excel<input type="file" accept=".xlsx,.xls" style="display:none" onchange="provImportarExcel(this)"></label>
+        <button onclick="provAbrirModalNuevo()"
+          style="height:30px;padding:0 12px;border-radius:var(--radius);font-size:12px;cursor:pointer;border:none;background:var(--text);color:var(--bg);font-weight:500">+ Nuevo</button>
+      </div>
+    </div>
+    <div id="prov-vista-proveedores" style="border:0.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--bg2)">
+          <th class="th-main">Codigo</th><th class="th-main">Nombre</th><th class="th-main">Contacto</th>
+          <th class="th-main">Zona</th><th class="th-main">Cluster</th><th class="th-main">Coordinador</th>
+          <th class="th-main">Contrato</th><th class="th-main">Venc.</th>
+          <th class="th-main">Equipos</th><th class="th-main">Estado</th><th class="th-main">Acciones</th>
+        </tr></thead>
+        <tbody id="prov-tbody"><tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text3);font-family:var(--mono)">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+    <div id="prov-vista-equipos" style="display:none;border:0.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--bg2)">
+          <th class="th-main">Codigo</th><th class="th-main">Placa</th><th class="th-main">Proveedor</th>
+          <th class="th-main">Zona</th><th class="th-main">Tipo flota</th><th class="th-main">Tipo carga</th>
+          <th class="th-main">Cap. T</th><th class="th-main">Marca/Modelo</th><th class="th-main">Patio</th>
+          <th class="th-main">Capacidades</th><th class="th-main">Venc. placa</th>
+          <th class="th-main">Estado</th><th class="th-main">Acciones</th>
+        </tr></thead>
+        <tbody id="prov-eq-tbody"><tr><td colspan="13" style="text-align:center;padding:2rem;color:var(--text3);font-family:var(--mono)">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="modal-prov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <span id="prov-modal-title" style="font-size:16px;font-weight:600;color:var(--text)">Nuevo proveedor</span>
+      <button onclick="provCerrarModal()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">x</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Codigo *</label>
+        <input id="pm-cod" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text)"></div>
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Contacto</label>
+        <input id="pm-contacto" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text)"></div>
+      <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Nombre *</label>
+        <input id="pm-nombre" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text)"></div>
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Zona</label>
+        <select id="pm-zona" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text)">
+          <option value="">-</option><option>OCCIDENTE</option><option>ORIENTE</option><option>PARACENTRAL</option></select></div>
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Cluster</label>
+        <input id="pm-cluster" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text)"></div>
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Coordinador</label>
+        <input id="pm-coord" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text)"></div>
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Venc. contrato</label>
+        <input id="pm-venc" type="date" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:12px;color:var(--text)"></div>
+      <div style="grid-column:1/-1;display:flex;gap:16px;align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="pm-ca" checked> Contrato activo</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="pm-cc"> Contrato corporativo</label>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
+      <button onclick="provCerrarModal()" style="height:32px;padding:0 16px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;cursor:pointer">Cancelar</button>
+      <button onclick="provGuardar()" style="height:32px;padding:0 16px;border:none;border-radius:var(--radius);background:var(--text);color:var(--bg);font-size:12px;font-weight:500;cursor:pointer">Guardar</button>
+    </div>
+  </div>
+</div>
+<div id="page-info" class="page">
       <div style="max-width:1000px;">
 
         <!-- Header -->
@@ -2739,12 +2848,12 @@ function renderPlanPanel() {
               <td style="padding:6px 8px;text-align:center;color:var(--text2);font-size:10px;">${r.UM||'—'}</td>
               <td style="padding:6px 8px;text-align:right;font-family:var(--mono);">
                 <input type="number" id="pp-cant-${ri}" value="${pend!=null?pend:''}" min="0" placeholder="${um}"
-                  style="width:60px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);text-align:right;-moz-appearance:textfield;" onwheel="this.blur()" onkeydown="(function(e,ri){if(e.key==='Tab'&&!e.shiftKey){e.preventDefault();const st=document.getElementById('pp-st-'+ri);if(st&&!st.disabled){st.focus();st.select();}}else if(e.key==='Tab'&&e.shiftKey){e.preventDefault();const body=document.getElementById('pp-body');const fPend=body._filasPend||[];const idx=fPend.findIndex(f=>f.ri===ri);const prev=fPend[idx-1];if(prev){const ps=document.getElementById('pp-st-'+prev.ri);if(ps&&!ps.disabled){ps.focus();ps.select();}}}})(event,${ri})"">
+                  style="width:60px;height:22px;padding:0 4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;color:var(--text);text-align:right;-moz-appearance:textfield;" onwheel="this.blur()">
               </td>
               <td style="padding:6px 8px;text-align:center;">
                 <input type="text" id="pp-st-${ri}" value="" placeholder="154xxx"
                   style="width:72px;height:22px;padding:0 5px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:11px;font-family:var(--mono);color:var(--text);text-align:center;"
-                  onkeydown="(function(e,el,i){if(e.key==='Enter'){propagarSTPPanel(el,i);e.preventDefault();}else if(e.key==='Tab'&&!e.shiftKey){e.preventDefault();const body=document.getElementById('pp-body');const fPend=body._filasPend||[];const idx=fPend.findIndex(f=>f.ri===i);const next=fPend[idx+1];if(next){const nc=document.getElementById('pp-cant-'+next.ri);if(nc&&!nc.disabled){nc.focus();nc.select();}}}})(event,this,${ri})" >
+                  onkeydown="if(event.key==='Enter'||event.key==='Tab'){propagarSTPPanel(this,${ri});event.preventDefault();}">
               </td>
               <td style="padding:6px 8px;text-align:right;">
                 <select onchange="cancelarFilaPend(${ri},this)" id="pp-cancel-${ri}"
@@ -2791,10 +2900,6 @@ function cancelarFilaPend(ri, selectEl){
   if(todasCanceladas){
     const btn=document.getElementById('pp-btn-confirmar');
     if(btn){btn.disabled=true;btn.style.opacity='0.4';btn.style.cursor='default';}
-    const etd=document.getElementById('pp-etd');
-    const hora=document.getElementById('pp-hora');
-    if(etd){etd.disabled=true;etd.style.opacity='0.4';}
-    if(hora){hora.disabled=true;hora.style.opacity='0.4';}
   }
 }
 
@@ -3037,6 +3142,9 @@ async function intentarLogin() {
     tabSol.style.display = '';
     const solCoord = document.getElementById('sol-coord'); if(solCoord) solCoord.value = sesion.nombre || '';
   }
+  // Mostrar tab Proveedores para admin y coordinador
+  const tabProv = document.getElementById('tab-prov');
+  if(tabProv && ['admin','coordinador'].includes(sesion.rol)) tabProv.style.display = '';
   // Mostrar tab Info solo para admin
   const tabInfo = document.getElementById('tab-info');
   if(tabInfo && sesion.rol === 'admin') tabInfo.style.display = '';
@@ -4259,12 +4367,13 @@ function formatHora(dt) {
 // ============================================================
 function setPage(p) {
   document.querySelectorAll('.topbar-tab').forEach((t,i)=>{
-    t.classList.toggle('active', ['resumen','detalle','solicitudes','almacen','info'][i]===p);
+    t.classList.toggle('active', ['resumen','detalle','solicitudes','almacen','proveedores','info'][i]===p);
   });
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   if(p === 'solicitudes') cargarRequerimientosBD();
   if(p === 'almacen') almInit();
+  if(p === 'proveedores') provInit();
 }
 
 // ============================================================
@@ -4682,7 +4791,7 @@ function almCargarInventario(input) {
         const stock  = parseEU(r['Stock disponible'] || r['Stock'] || 0);
         if(!mat || !codAlm) return;
         const key = codAlm + '|' + mat;
-        if(!agg[key]) agg[key] = { codAlm, almacen: almMap[codAlm] || ALM_CAT[codAlm] || codAlm, sku: mat, descripcion: desc, um, cantidad: 0 };
+        if(!agg[key]) agg[key] = { codAlm, almacen: almMap[codAlm] || codAlm, sku: mat, descripcion: desc, um, cantidad: 0 };
         agg[key].cantidad += stock;
       });
 
@@ -4722,12 +4831,6 @@ function almPoblarFiltroAlmacen() {
 const _almNorm = s => String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
 
 // ── Zona por código de almacén ───────────────────────────────
-// Catálogo de almacenes: código → nombre (fuente: tabla almacenes_cat en BD)
-const ALM_CAT = {
-  A01:'COPAL', A02:'DIAMANTE', A03:'PARAÍSAL', A04:'TIHUILOCOTYO',
-  A05:'CANTOR', A06:'SAN CLEMENTE', A07:'SAN MIGUEL', A08:'FINCONA',
-  A14:'AGUA SANTA', A15:'PAJARAL'
-};
 const ALM_ZONA = { A07:'Oriente', A01:'Oriente', A15:'Oriente', A04:'Paracentral', A14:'Paracentral', A02:'Occidente', A03:'Occidente', A05:'Occidente', A06:'Occidente', A08:'Occidente' };
 
 // ── Toggle th-search-input (mismo patrón que toggleSearch) ───
@@ -4764,7 +4867,7 @@ const almFmt = (n, dec=3) => {
 // Inventario: agrupado por descripcion(norm)+almacen(nombre norm)
 // Requerimientos: Producto(norm) + NombreOrigen(norm)
 function almActualizarCruce() {
-  const reqs = reqPendientes || [];
+  const reqs = typeof requerimientos !== 'undefined' ? requerimientos : [];
 
   // Índice inventario: desc_norm|alm_norm → fila
   const invMap = {};
@@ -5273,6 +5376,328 @@ function almConfirmarDespacho() {
 document.getElementById('modal-despacho').addEventListener('click', function(e) {
   if(e.target === this) almCerrarModal();
 });
+
+// ============================================================
+
+// ============================================================
+// MODULO PROVEEDORES
+// ============================================================
+const PROV = { proveedores: [], equipos: [], vista: 'proveedores', editCod: null };
+
+async function provInit() {
+  await Promise.all([provCargarProveedores(), provCargarEquipos()]);
+}
+
+async function provCargarProveedores() {
+  try {
+    const todos = (document.getElementById('prov-fil-estado')||{}).value === '' ? '&todos=true' : '';
+    const d = await apiCall('proveedores?_t=' + Date.now() + todos);
+    PROV.proveedores = d.proveedores || [];
+    provActualizarKPIs();
+    provPoblarClusters();
+    provFiltrar();
+  } catch(e) { console.error('[PROV]', e.message); }
+}
+
+async function provCargarEquipos() {
+  try {
+    const d = await apiCall('equipos?todos=true');
+    PROV.equipos = d.equipos || [];
+    provFiltrar();
+  } catch(e) { console.error('[PROV EQ]', e.message); }
+}
+
+function provActualizarKPIs() {
+  const activos   = PROV.proveedores.filter(p => p.Activo);
+  const contratos = activos.filter(p => p.ContratoActivo);
+  const hoy = new Date(), en30 = new Date(); en30.setDate(en30.getDate()+30);
+  const porVencer = activos.filter(p => {
+    if(!p.VencimientoContrato) return false;
+    const v = new Date(p.VencimientoContrato);
+    return v >= hoy && v <= en30;
+  });
+  const eq = PROV.equipos.filter(e => e.Activo);
+  document.getElementById('prov-kpi-total').textContent     = activos.length;
+  document.getElementById('prov-kpi-equipos').textContent   = eq.length;
+  document.getElementById('prov-kpi-contratos').textContent = contratos.length;
+  document.getElementById('prov-kpi-vencer').textContent    = porVencer.length;
+}
+
+function provPoblarClusters() {
+  const sel = document.getElementById('prov-fil-cluster');
+  if(!sel) return;
+  const clusters = [...new Set(PROV.proveedores.map(p=>p.ClusterAsignado).filter(Boolean))].sort();
+  const val = sel.value;
+  sel.innerHTML = '<option value="">Todos los clusters</option>' +
+    clusters.map(c => `<option${c===val?' selected':''}>${c}</option>`).join('');
+}
+
+function provFiltrar() {
+  const q       = ((document.getElementById('prov-buscar')||{}).value||'').toLowerCase();
+  const zona    = (document.getElementById('prov-fil-zona')||{}).value||'';
+  const cluster = (document.getElementById('prov-fil-cluster')||{}).value||'';
+  const estado  = (document.getElementById('prov-fil-estado')||{}).value;
+
+  const pFilt = PROV.proveedores.filter(p => {
+    if(estado==='1' && !p.Activo)  return false;
+    if(estado==='0' &&  p.Activo)  return false;
+    if(zona    && p.Zona !== zona)             return false;
+    if(cluster && p.ClusterAsignado !== cluster) return false;
+    if(q && !(p.Nombre+' '+(p.CodPrestador||'')+' '+(p.Contacto||'')+' '+(p.Coordinador||'')).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const eqFilt = PROV.equipos.filter(e => {
+    if(zona    && e.Zona !== zona)             return false;
+    if(cluster && e.ClusterAsignado !== cluster) return false;
+    if(q && !((e.Placa||'')+' '+(e.CodEquipo||'')+' '+(e.NombreProveedor||'')).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  provRenderProveedores(pFilt);
+  provRenderEquipos(eqFilt);
+}
+
+function provRenderProveedores(filas) {
+  const tbody = document.getElementById('prov-tbody');
+  if(!tbody) return;
+  if(!filas.length) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text3);font-family:var(--mono)">Sin resultados</td></tr>`;
+    return;
+  }
+  const hoy=new Date(), en30=new Date(); en30.setDate(en30.getDate()+30);
+  tbody.innerHTML = filas.map(p => {
+    const nEq = PROV.equipos.filter(e => e.CodPrestador===p.CodPrestador && e.Activo).length;
+    let vb = '';
+    if(p.VencimientoContrato) {
+      const v=new Date(p.VencimientoContrato), label=v.toLocaleDateString('es-SV');
+      if(v<hoy)    vb=`<span style="color:var(--danger);font-size:11px">${label} !</span>`;
+      else if(v<=en30) vb=`<span style="color:var(--warn);font-size:11px">${label} !</span>`;
+      else         vb=`<span style="font-size:11px;color:var(--text2)">${label}</span>`;
+    }
+    const accionEstado = p.Activo
+      ? `<button onclick="provDesactivar('${p.CodPrestador}')" style="height:24px;padding:0 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--danger);font-size:11px;cursor:pointer">Desactivar</button>`
+      : `<button onclick="provActivar('${p.CodPrestador}')" style="height:24px;padding:0 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--accent);font-size:11px;cursor:pointer">Activar</button>`;
+    return `<tr style="border-bottom:0.5px solid var(--border);${p.Activo?'':'opacity:0.45'}">
+      <td style="padding:7px 8px;font-family:var(--mono);font-size:11px;color:var(--text2)">${p.CodPrestador}</td>
+      <td style="padding:7px 8px;font-size:12px;font-weight:500">${p.Nombre}</td>
+      <td style="padding:7px 8px;font-size:11px;color:var(--text2)">${p.Contacto||'—'}</td>
+      <td style="padding:7px 8px;font-size:11px">${p.Zona||'—'}</td>
+      <td style="padding:7px 8px;font-size:11px">${p.ClusterAsignado||'—'}</td>
+      <td style="padding:7px 8px;font-size:11px;color:var(--text2)">${p.Coordinador||'—'}</td>
+      <td style="padding:7px 8px;text-align:center">
+        ${p.ContratoActivo?'<span style="color:var(--accent);font-size:11px">Activo</span>':'<span style="color:var(--text3);font-size:11px">-</span>'}
+        ${p.ContratoCorporativo?'<span style="font-size:10px;background:var(--accent2);color:var(--accent);padding:1px 5px;border-radius:8px">Corp.</span>':''}
+      </td>
+      <td style="padding:7px 8px">${vb||'—'}</td>
+      <td style="padding:7px 8px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--accent)">${nEq||'—'}</td>
+      <td style="padding:7px 8px;text-align:center">
+        <span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500;${p.Activo?'background:var(--accent2);color:var(--accent)':'background:var(--danger2);color:var(--danger)'}">
+          ${p.Activo?'Activo':'Inactivo'}
+        </span>
+      </td>
+      <td style="padding:7px 8px;white-space:nowrap">
+        <button onclick="provAbrirModalEditar('${p.CodPrestador}')" style="height:24px;padding:0 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:11px;cursor:pointer;margin-right:4px">Editar</button>
+        ${accionEstado}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function provRenderEquipos(filas) {
+  const tbody = document.getElementById('prov-eq-tbody');
+  if(!tbody) return;
+  if(!filas.length) {
+    tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:2rem;color:var(--text3);font-family:var(--mono)">Sin resultados</td></tr>`;
+    return;
+  }
+  const hoy=new Date(), en30=new Date(); en30.setDate(en30.getDate()+30);
+  tbody.innerHTML = filas.map(e => {
+    let pb = '';
+    if(e.VencimientoPlaca) {
+      const v=new Date(e.VencimientoPlaca), label=v.toLocaleDateString('es-SV');
+      if(v<hoy)    pb=`<span style="color:var(--danger);font-size:11px">${label} !</span>`;
+      else if(v<=en30) pb=`<span style="color:var(--warn);font-size:11px">${label} !</span>`;
+      else         pb=`<span style="font-size:11px;color:var(--text2)">${label}</span>`;
+    }
+    const caps = [e.CapPersonal&&'Pers.',e.CapFertilizante&&'Fert.',e.CapSemilla&&'Sem.',
+                  e.CapAgua&&'Agua',e.CapVarios&&'Var.',e.CapTuberia&&'Tub.'].filter(Boolean).join(' · ');
+    return `<tr style="border-bottom:0.5px solid var(--border);${e.Activo?'':'opacity:0.45'}">
+      <td style="padding:7px 8px;font-family:var(--mono);font-size:11px;color:var(--text2)">${e.CodEquipo}</td>
+      <td style="padding:7px 8px;font-family:var(--mono);font-size:12px;font-weight:500;color:var(--accent)">${e.Placa||'—'}</td>
+      <td style="padding:7px 8px;font-size:11px">${e.NombreProveedor||e.CodPrestador}</td>
+      <td style="padding:7px 8px;font-size:11px">${e.Zona||'—'}</td>
+      <td style="padding:7px 8px;font-size:11px">${e.TipoFlota||'—'}</td>
+      <td style="padding:7px 8px;font-size:11px">${e.TipoCarga||'—'}</td>
+      <td style="padding:7px 8px;text-align:right;font-family:var(--mono);font-size:11px">${e.CapacidadT!=null?e.CapacidadT+' T':'—'}</td>
+      <td style="padding:7px 8px;font-size:11px">${e.Marca||''}${e.Modelo?' / '+e.Modelo:''}</td>
+      <td style="padding:7px 8px;font-size:11px;color:var(--text2)">${[e.MunPatio,e.DepPatio].filter(Boolean).join(', ')||'—'}</td>
+      <td style="padding:7px 8px;font-size:10px;color:var(--text2)">${caps||'—'}</td>
+      <td style="padding:7px 8px">${pb||'—'}</td>
+      <td style="padding:7px 8px;text-align:center">
+        <span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500;${e.Activo?'background:var(--accent2);color:var(--accent)':'background:var(--danger2);color:var(--danger)'}">
+          ${e.Activo?'Activo':'Inactivo'}
+        </span>
+      </td>
+      <td style="padding:7px 8px">
+        <button onclick="provDesactivarEquipo('${e.CodEquipo}',${e.Activo?1:0})" style="height:24px;padding:0 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:${e.Activo?'var(--danger)':'var(--accent)'};font-size:11px;cursor:pointer">
+          ${e.Activo?'Desactivar':'Activar'}
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function provSetVista(v) {
+  PROV.vista = v;
+  document.getElementById('prov-vista-proveedores').style.display = v==='proveedores'?'':'none';
+  document.getElementById('prov-vista-equipos').style.display     = v==='equipos'?'':'none';
+  const btnP=document.getElementById('prov-btn-tab-prov');
+  const btnE=document.getElementById('prov-btn-tab-eq');
+  if(btnP){btnP.style.background=v==='proveedores'?'var(--text)':'var(--surface)';btnP.style.color=v==='proveedores'?'var(--bg)':'var(--text)';}
+  if(btnE){btnE.style.background=v==='equipos'?'var(--text)':'var(--surface)';btnE.style.color=v==='equipos'?'var(--bg)':'var(--text)';}
+}
+
+function provAbrirModalNuevo() {
+  PROV.editCod = null;
+  document.getElementById('prov-modal-title').textContent = 'Nuevo proveedor';
+  ['pm-cod','pm-nombre','pm-contacto','pm-cluster','pm-coord','pm-venc'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  document.getElementById('pm-zona').value = '';
+  document.getElementById('pm-ca').checked = true;
+  document.getElementById('pm-cc').checked = false;
+  document.getElementById('pm-cod').disabled = false;
+  document.getElementById('modal-prov').style.display = 'flex';
+}
+
+function provAbrirModalEditar(cod) {
+  const p = PROV.proveedores.find(x => x.CodPrestador === cod);
+  if(!p) return;
+  PROV.editCod = cod;
+  document.getElementById('prov-modal-title').textContent = 'Editar proveedor';
+  document.getElementById('pm-cod').value      = p.CodPrestador;
+  document.getElementById('pm-cod').disabled   = true;
+  document.getElementById('pm-nombre').value   = p.Nombre||'';
+  document.getElementById('pm-contacto').value = p.Contacto||'';
+  document.getElementById('pm-zona').value     = p.Zona||'';
+  document.getElementById('pm-cluster').value  = p.ClusterAsignado||'';
+  document.getElementById('pm-coord').value    = p.Coordinador||'';
+  document.getElementById('pm-venc').value     = p.VencimientoContrato ? p.VencimientoContrato.slice(0,10) : '';
+  document.getElementById('pm-ca').checked     = !!p.ContratoActivo;
+  document.getElementById('pm-cc').checked     = !!p.ContratoCorporativo;
+  document.getElementById('modal-prov').style.display = 'flex';
+}
+
+function provCerrarModal() {
+  document.getElementById('modal-prov').style.display = 'none';
+}
+
+async function provGuardar() {
+  const cod    = document.getElementById('pm-cod').value.trim();
+  const nombre = document.getElementById('pm-nombre').value.trim();
+  if(!cod || !nombre) { alert('Codigo y nombre requeridos'); return; }
+  const body = {
+    codPrestador:        cod,
+    nombre,
+    contacto:            document.getElementById('pm-contacto').value.trim() || null,
+    zona:                document.getElementById('pm-zona').value || null,
+    clusterAsignado:     document.getElementById('pm-cluster').value.trim() || null,
+    coordinador:         document.getElementById('pm-coord').value.trim() || null,
+    vencimientoContrato: document.getElementById('pm-venc').value || null,
+    contratoActivo:      document.getElementById('pm-ca').checked,
+    contratoCorporativo: document.getElementById('pm-cc').checked,
+    actualizadoPor:      sesion && (sesion.nombre || sesion.usuario) || null,
+  };
+  try {
+    if(PROV.editCod) await apiCall(`proveedores/${PROV.editCod}`, { method:'PATCH', body:JSON.stringify(body) });
+    else             await apiCall('proveedores',                 { method:'POST',  body:JSON.stringify(body) });
+    provCerrarModal();
+    await provCargarProveedores();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function provDesactivar(cod) {
+  if(!confirm(`Desactivar proveedor ${cod}?`)) return;
+  try {
+    await apiCall(`proveedores/${cod}`, { method:'PATCH', body:JSON.stringify({ activo:false, actualizadoPor: sesion&&(sesion.nombre||sesion.usuario)||null }) });
+    await provCargarProveedores();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function provActivar(cod) {
+  try {
+    await apiCall(`proveedores/${cod}`, { method:'PATCH', body:JSON.stringify({ activo:true, actualizadoPor: sesion&&(sesion.nombre||sesion.usuario)||null }) });
+    await provCargarProveedores();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function provDesactivarEquipo(cod, activo) {
+  if(activo && !confirm(`Desactivar equipo ${cod}?`)) return;
+  try {
+    await apiCall(`equipos/${cod}`, { method:'PATCH', body:JSON.stringify({ activo:!activo, actualizadoPor: sesion&&(sesion.nombre||sesion.usuario)||null }) });
+    await provCargarEquipos();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function provImportarExcel(input) {
+  if(!input.files.length) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const wb   = XLSX.read(e.target.result, { type:'array', cellDates:false });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      const filas = rows.map(r => ({
+        codPrestador:        String(r['Codigo Prestador']||r['CodPrestador']||'').trim(),
+        nombre:              String(r['Nombre del Prestador de Servicio']||r['Nombre']||'').trim(),
+        contacto:            String(r['CONTACTO']||r['Contacto']||'').trim(),
+        contratoActivo:      String(r['Contrato Activo']||'').trim(),
+        contratoCorporativo: String(r['Contrato Corporativo']||'').trim(),
+        vencimientoContrato: r['Vencimiento Contrato'],
+        zona:                String(r['ZONA']||r['Zona']||'').trim(),
+        cluster:             String(r['CLUSTER ASIGNADO']||r['Cluster']||'').trim(),
+        coordinador:         String(r['Usuario que refiere']||r['Coordinador']||'').trim(),
+        codEquipo:           String(r['Codigo Equipo']||'').trim(),
+        placa:               String(r['# PLACA']||r['Placa']||'').trim(),
+        vencimientoPlaca:    r['Vencimiento placa'],
+        marca:               String(r['Marca']||'').trim(),
+        modelo:              String(r['Modelo']||'').trim(),
+        motor:               String(r['# Motor']||'').trim(),
+        tipoFlota:           String(r['Tipo Flota']||'').trim(),
+        tipoCarga:           String(r['Tipo Carga']||'').trim(),
+        capacidadT:          r['Capacidad Carga (T)'],
+        capacidadMaxT:       r['Capacidad Carga Max (T)'],
+        depPatio:            String(r['Departamento Patio']||'').trim(),
+        munPatio:            String(r['Municipio Patio']||'').trim(),
+        dirPatio:            String(r['Direccion Patio']||'').trim(),
+        ubicacion:           String(r['Ubicacion Patio']||r['Ubicación Patio']||'').trim(),
+        personal:    r['PERSONAL'],     fertilizante: r['FERTILIZANTE'],
+        semilla:     r['SEMILLA'],      agua:         r['AGUA'],
+        varios:      r['VARIOS'],       tuberia:      r['TUBERIA'],
+      })).filter(f => f.codPrestador);
+
+      if(!filas.length) { alert('No se encontraron filas validas.'); return; }
+      if(!confirm(`Se importaran ${filas.length} filas. Continuar?`)) return;
+
+      const res = await apiCall('proveedores', {
+        method: 'POST',
+        body: JSON.stringify({
+          importacion:   true,
+          filas,
+          actualizadoPor: sesion && (sesion.nombre || sesion.usuario) || null,
+        })
+      });
+      alert(res.mensaje || 'Importacion completada');
+      await provInit();
+    } catch(err) {
+      console.error('[PROV IMPORT]', err);
+      alert('Error al importar: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
 </script>
 </body>
 </html>
