@@ -3528,25 +3528,34 @@ function determinarEstado(v) {
       return 'Fin. c/obs';
     }
 
+    // Normalizar — SP guarda estados TMS ('Finalizado') pero CASSA envía ('Finalizada')
+    const eaFinal = ea === 'Finalizada' || ea === 'Finalizado';
+    const eaObs   = ea === 'Finalizada sin Aceptar' || ea === 'Finalizado sin Reanudar' || ea === 'Fin. c/obs';
+    const eaProc  = ea === 'En Proceso'  || ea === 'En proceso';
+    const eaCarga = ea === 'En Carga'    || ea === 'En carga';
+
     // Integrado — finalizado + en costos
-    if(ea === 'Finalizada' && v.enCostos) return 'Integrado';
+    if(eaFinal && v.enCostos) return 'Integrado';
 
-    // Finalizado — debe ir ANTES de En proceso para que fechaInicio no lo sobreescriba
-    if(ea === 'Finalizada') return 'Finalizado';
+    // Finalizado — ANTES de En proceso
+    if(eaFinal) return 'Finalizado';
 
-    // Finalizado con observaciones
-    if(ea === 'Fin. c/obs') return 'Fin. c/obs';
+    // Fin. c/obs
+    if(eaObs) {
+      if(v.enCostos) return v.pagado ? 'Contabilizado' : 'Integrado';
+      return 'Fin. c/obs';
+    }
 
-    // En proceso — solo si API dice En Proceso (no usar fechaInicio como criterio)
-    if(ea === 'En Proceso') return 'En proceso';
+    // En proceso — API o inferido por fecha inicio
+    if(eaProc || v.fechaInicio) return 'En proceso';
 
     // En carga
-    if(ea === 'En Carga') return 'En carga';
+    if(eaCarga) return 'En carga';
 
-    // Aceptada — asignado sin inicio
-    if(ea === 'Aceptada') return 'Asignado';
+    // Asignado
+    if(ea === 'Aceptada' || ea === 'Asignado') return 'Asignado';
 
-    // Cualquier otro estado API
+    // Cualquier otro
     return 'Asignado';
   }
 
