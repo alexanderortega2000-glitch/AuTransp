@@ -30,7 +30,6 @@ def get_conn():
         f"Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
 def get_columnas_sql(conn) -> set:
-    """Obtiene las columnas de la tabla costos en SQL."""
     cur = conn.cursor()
     cur.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'costos'")
     return {row[0] for row in cur.fetchall()}
@@ -53,11 +52,23 @@ def parse_fecha(v):
 def num(v):
     if v is None: return None
     if isinstance(v, float) and math.isnan(v): return None
-    try: return float(str(v).strip().replace(",",""))
+    try: return float(str(v).strip().replace(",","").replace("$",""))
     except: return None
 
 def entero(v):
     f = num(v); return int(f) if f is not None else None
+
+# ── Mapeo de nombres CSV → nombres BD ────────────────────
+# Cubre diferencias de nombre entre el CSV exportado y la tabla SQL
+RENAME_CSV_A_BD = {
+    "HoraInicio":  "FechaHoraInicio",   # CSV usa HoraInicio, BD usa FechaHoraInicio
+    "HoraFin":     "FechaHoraFin",      # CSV usa HoraFin,    BD usa FechaHoraFin
+    "Textbox61":   "ValorTotalViaje",   # CSV usa Textbox61,  BD usa ValorTotalViaje
+    "agrupador":   "Agrupador",         # CSV minúscula,      BD mayúscula
+    "ID_ST":       "ID_ST",             # ya coincide, incluir por claridad
+    "A_COBRAR":    "A_Cobrar",          # normalización
+    "A_PAGAR":     "A_Pagar",           # normalización
+}
 
 # Columnas que son fechas
 COLS_FECHA = {
@@ -86,9 +97,7 @@ def convertir(col, v):
     return limpiar(v)
 
 def upsert_en_sql(conn, df: pd.DataFrame, cols_comunes: list):
-    """UPSERT dinámico usando solo las columnas presentes en CSV y SQL."""
-    cols_sin_st = [c for c in cols_comunes if c != "ST"]
-
+    cols_sin_st  = [c for c in cols_comunes if c != "ST"]
     set_clause   = ", ".join(f"{c}=?" for c in cols_sin_st) + ", FechaActualizacion=GETUTCDATE()"
     insert_cols  = ", ".join(cols_comunes) + ", FechaActualizacion"
     insert_vals  = ", ".join("?" for _ in cols_comunes) + ", GETUTCDATE()"
@@ -119,12 +128,9 @@ def upsert_en_sql(conn, df: pd.DataFrame, cols_comunes: list):
     for _, row in df.iterrows():
         st = limpiar(str(row.get("ST","") or ""))
         if not st: continue
-
-        # MERGE: ST (USING) + valores SET (sin ST) + valores INSERT (con ST)
         vals_set    = [convertir(c, row.get(c)) for c in cols_sin_st]
         vals_insert = [convertir(c, row.get(c)) for c in cols_comunes]
         lote.append(tuple([st] + vals_set + vals_insert))
-
         if len(lote) >= 500: flush()
 
     flush()
@@ -143,15 +149,22 @@ def main():
     print(f"  Filas   : {len(df):,}")
     print(f"  Columnas: {len(df.columns):,}")
 
+    # ── Aplicar renombrado antes de calcular intersección ─
+    df = df.rename(columns=RENAME_CSV_A_BD)
+    cols_renombradas = {v: k for k, v in RENAME_CSV_A_BD.items() if k in df.columns}
+    if cols_renombradas:
+        print(f"  Columnas renombradas: {cols_renombradas}")
+
     print("\n[2/3] Conectando a Azure SQL...")
     conn = get_conn()
     print("  ✓ Conectado")
 
-    # Columnas comunes entre CSV y SQL
+    # Columnas comunes entre CSV (ya renombrado) y SQL
     cols_sql = get_columnas_sql(conn)
     cols_csv = set(df.columns)
     cols_comunes = ["ST"] + sorted([c for c in cols_csv & cols_sql if c != "ST"])
     print(f"  Columnas mapeadas: {len(cols_comunes)}")
+
     cols_ignoradas = cols_csv - cols_sql - {"ST"}
     if cols_ignoradas:
         print(f"  Columnas ignoradas (no en SQL): {sorted(cols_ignoradas)}")
