@@ -3382,18 +3382,23 @@ function procesarViajes(apiData, progData, costosData) {
       v.estadoViaje    = n(r.EstatusSTprog);
     }
     // Costos del JOIN SQL
-    // viajes_master devuelve campos sin prefijo _ (AreaCosto, A_Pagar, ValorTotalViaje, Pagado)
-    // Los campos con prefijo _ vienen del normalizarViaje() como alias para compatibilidad
-    if(r._area || r.AreaCosto || r._aPagar || r.A_Pagar || r._valorTotal || r.ValorTotalViaje || r.CostoReal) {
+    // AreaEfectiva se calcula desde viajes_api (tipo de viaje) — NO indica costos reales
+    // enCostos solo se activa si hay dato económico real en tabla costos
+    // AreaCosto, A_Pagar, ValorTotalViaje, CostoReal → vienen de JOIN con costos
+    if(r.AreaCosto || r.A_Pagar || r._aPagar || r.ValorTotalViaje || r._valorTotal || r.CostoReal || r._costoReal) {
       v.enCostos = true;
-      v.area     = n(r._area || r.AreaCosto);
-      v._area    = n(r._area || r.AreaCosto);
-      v._aPagar  = r._aPagar || r.A_Pagar;
-      // Pagado: viene como bit desde BD (0/1) — convertir explícitamente
+      v.area     = n(r.AreaCosto || r._area || r.AreaEfectiva);
+      v._area    = n(r.AreaCosto || r._area || r.AreaEfectiva);
+      v._aPagar  = r.A_Pagar || r._aPagar;
+      // Pagado: bit desde BD (0/1)
       v.pagado   = r._pagado === true || r._pagado === 1 ||
                    r.Pagado  === true || r.Pagado  === 1 ||
                    (n(r._integrado) === 'PROCESADO CON ÉXITO') ||
                    (n(r.IntegracionPago || '') === 'PROCESADO CON ÉXITO');
+    }
+    // Area siempre disponible para filtros aunque no haya costos
+    if(!v.area && (r.AreaEfectiva || r._area)) {
+      v.area = n(r.AreaEfectiva || r._area);
     }
   });
 
