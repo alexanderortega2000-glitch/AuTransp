@@ -3519,37 +3519,40 @@ function determinarEstado(v) {
     const ea = v.estadoAPI;
 
     // Cancelado — API o Prog/Seg
-    if(ea === 'Cancelada' || v.estadoViaje === 'Cancelado') return 'Cancelado';
+    // SP mapea CASSA → TMS: 'Cancelada'→'Cancelado', 'Rechazada'→'Rechazado', etc.
+    if(ea === 'Cancelada' || ea === 'Cancelado' || v.estadoViaje === 'Cancelado') return 'Cancelado';
 
-    // Rechazado — proveedor rechazó
-    if(ea === 'Rechazada') return 'Rechazado';
+    // Rechazado
+    if(ea === 'Rechazada' || ea === 'Rechazado') return 'Rechazado';
 
     // Proveedor sin confirmar
-    if(ea === 'No Aceptada') return 'Prov. sin confirmar';
+    if(ea === 'No Aceptada' || ea === 'Prov. sin confirmar') return 'Prov. sin confirmar';
 
-    // Inconsistente — error en sistema
+    // Inconsistente
     if(ea === 'Inconsistente') return 'Inconsistente';
 
     // Finalizado con observaciones
-    if(ea === 'Finalizada sin Aceptar' || ea === 'Finalizado sin Reanudar') {
+    if(ea === 'Finalizada sin Aceptar' || ea === 'Finalizado sin Reanudar' || ea === 'Fin. c/obs') {
       if(v.enCostos) return v.pagado ? 'Contabilizado' : 'Integrado';
       return 'Fin. c/obs';
     }
 
     // Integrado — finalizado + en costos
-    if(ea === 'Finalizada' && v.enCostos) return 'Integrado';
+    // ea puede venir como 'Finalizada' (CASSA) o 'Finalizado' (SP ya mapeado)
+    if((ea === 'Finalizada' || ea === 'Finalizado') && v.enCostos) return 'Integrado';
 
     // Finalizado
-    if(ea === 'Finalizada') return 'Finalizado';
+    if(ea === 'Finalizada' || ea === 'Finalizado') return 'Finalizado';
 
-    // En proceso
-    if(ea === 'En Proceso' || v.fechaInicio) return 'En proceso';
+    // En proceso — solo si realmente está en proceso (NO si ya finalizó)
+    if(ea === 'En Proceso' || ea === 'En proceso' ||
+       (v.fechaInicio && !ea)) return 'En proceso';
 
-    // En carga
-    if(ea === 'En Carga') return 'En carga';
+    // En carga — CASSA='En Carga', SP mapea a 'En carga'
+    if(ea === 'En Carga' || ea === 'En carga') return 'En carga';
 
-    // Aceptada — asignado sin inicio
-    if(ea === 'Aceptada') return 'Asignado';
+    // Aceptada/Asignado
+    if(ea === 'Aceptada' || ea === 'Asignado') return 'Asignado';
 
     // Cualquier otro estado API
     return 'Asignado';
