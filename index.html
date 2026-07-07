@@ -2018,14 +2018,17 @@ function renderPlan() {
       ? `<span class="badge b-prog" style="padding:1px 7px;font-size:11px">P</span>`
       : `<span class="badge b-demanda" style="padding:1px 7px;font-size:11px">D</span>`;
     const estadoMap = {
-      'pendiente':          ['b-pendiente','Pendiente'],
-      'programado':         ['b-prog',     'Programado'],
-      'programado parcial': ['b-parcial',  'Prog. parcial'],
-      'en_proceso':         ['b-proceso',  'En proceso'],
-      'en proceso parcial': ['b-parcial',  'Proc. parcial'],
+      'pendiente':          ['b-pendiente', 'Pendiente'],
+      'programado':         ['b-prog',      'Programado'],
+      'programado parcial': ['b-parcial',   'Prog. parcial'],
+      'en_proceso':         ['b-proceso',   'En proceso'],
+      'en proceso':         ['b-proceso',   'En proceso'],
+      'en proceso parcial': ['b-parcial',   'Proc. parcial'],
       'finalizado':         ['b-finalizado','Finalizado'],
-      'finalizado parcial': ['b-parcial',  'Fin. parcial'],
-      'cancelado':          ['b-cancelado','Cancelado'],
+      'finalizado parcial': ['b-parcial',   'Fin. parcial'],
+      'cancelado':          ['b-cancelado', 'Cancelado'],
+      'rechazado':          ['b-cancelado', 'Rechazado'],
+      'fin. c/obs':         ['b-finalizado','Fin. c/obs'],
     };
     const [cls,label] = estadoMap[est]||['b-pendiente',r.Estado||'Pendiente'];
     const estadoBadge = `<span class="badge ${cls}" id="req-estado-${i}">${label}</span>`;
@@ -2592,17 +2595,23 @@ function renderPlanPanel() {
 
   function eBadge(r){
     const est=r.Estado||'pendiente';
-    const e=est.toLowerCase();
+    const e=est.toLowerCase().replace(/ /g,'_');
     const parcial=e.includes('parcial');
-    const base=e.replace(' parcial','');
+    const base=e.replace('_parcial','').replace(' parcial','').trim();
+    const LABELS = {
+      'en_proceso':'En proceso','finalizado':'Finalizado','programado':'Programado',
+      'cancelado':'Cancelado','pendiente':'Pendiente','rechazado':'Rechazado',
+      'fin._c/obs':'Fin. c/obs',
+    };
     let bg,color;
     if(parcial){bg='#fef9c3';color='#854d0e';}
-    else if(base==='en_proceso'){bg='#dbeafe';color='#1d4ed8';}
+    else if(base==='en_proceso'||base==='en proceso'){bg='#dbeafe';color='#1d4ed8';}
     else if(base==='finalizado'){bg='var(--accent2)';color='var(--accent)';}
     else if(base==='programado'){bg='var(--warn2)';color='var(--warn)';}
-    else if(base==='cancelado'){bg='var(--danger2)';color='var(--danger)';}
+    else if(base==='cancelado'||base==='rechazado'){bg='var(--danger2)';color='var(--danger)';}
     else{bg='var(--bg3)';color='var(--text2)';}
-    return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${bg};color:${color};font-weight:500;white-space:nowrap;">${est}</span>`;
+    const label = LABELS[e] || LABELS[base] || est;
+    return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${bg};color:${color};font-weight:500;white-space:nowrap;">${label}</span>`;
   }
 
   let h='';
@@ -3166,6 +3175,8 @@ function normalizarViaje(r) {
     _destino:  r.NombreDestino,
     _lote:     r.LoteDestino,
     _zona:     r.Zona,
+    _idReq:          r.ID_Req,
+    _actualizadoPor: r.ActualizadoPor,
     FechaHoraPlanLlegada: r.FechaHoraPlanLlegada,
     FechaHoraPlanInicio:  r.FechaHoraPlanInicio,
     // Costos (JOIN) — jerarquía calculada en servidor
@@ -3367,9 +3378,9 @@ function procesarViajes(apiData, progData, costosData) {
     v.proveedor_costo  = n(r._provCosto); // Proveedor en costos
     v.destinoCosto     = n(r.DestinoCosto);
     // Campos de prog que vienen en el JOIN (cuando la fuente es SQL unificado)
-    if (r._coord || r.Coordinador) {
+    if (r._coord || r.Coordinador || r._tipoProg || r.TipoProg || r._idReq || r.ID_Req) {
       v.enProg         = true;
-      v.coordinador    = n(r._coord || r.Coordinador);
+      v.coordinador    = n(r._coord || r.Coordinador || r._actualizadoPor || r.ActualizadoPor);
       v.zona           = n(r._zona  || r.Zona);
       v.fechaEjec      = n(r._fechaEjec || r.FechaEjecucion);
       v.tipoProg       = n(r._tipoProg  || r.TipoProg);
