@@ -4552,55 +4552,48 @@ function cerrarModalSolicitud() {
 }
 
 async function enviarSolicitud() {
-  const fecha      = document.getElementById('ns-fecha').value;
-  const hora       = document.getElementById('ns-hora').value;
-  const solicitante= document.getElementById('ns-solicitante').value.trim();
-  const destino    = document.getElementById('ns-destino').value.trim();
-  const actividad  = document.getElementById('ns-actividad').value.trim();
-  const status     = document.getElementById('ns-status');
-  const btnEnviar  = document.getElementById('ns-btn-enviar');
-
-  // Validación campos requeridos
-  if(!fecha || !solicitante || !destino || !actividad) {
-    status.style.color = 'var(--danger)';
-    status.textContent = '⚠ Completa los campos obligatorios: Fecha, Solicitante, Destino y Actividad.';
+  // Verificar rol — solo coordinador, controlador y admin
+  if(!sesion || !['coordinador','controlador','admin'].includes(sesion.rol)) {
+    alert('No tienes permiso para crear solicitudes a demanda.');
     return;
   }
-
-  const payload = {
-    FechaEjecucion: `${fecha} ${hora}`,
-    Solicitante:    solicitante,
-    Destino:        destino,
-    Lote:           document.getElementById('ns-lote').value.trim(),
-    Actividad:      actividad,
-    OS:             document.getElementById('ns-os').value.trim(),
-    TipoServicio:   document.getElementById('ns-tiposervicio').value.trim(),
-    Origen:         document.getElementById('ns-origen').value.trim(),
-    Proveedor:      document.getElementById('ns-proveedor').value.trim(),
-    Observaciones:  document.getElementById('ns-observaciones').value.trim(),
-  };
-
+  const fecha      = document.getElementById('ns-fecha').value;
+  const hora       = document.getElementById('ns-hora').value;
+  const destino    = document.getElementById('ns-destino').value.trim();
+  const actSel     = document.getElementById('ns-actividad').value;
+  const actOtroEl  = document.getElementById('ns-actividad-otro');
+  const actOtro    = actOtroEl ? actOtroEl.value.trim() : '';
+  // Validar máximo 5 palabras en "Otro"
+  if(actSel === 'Otro' && actOtro.split(' ').filter(w=>w.length>0).length > 5) {
+    document.getElementById('ns-status').style.color = 'var(--danger)';
+    document.getElementById('ns-status').textContent = '⚠ La descripción no puede superar 5 palabras.';
+    return;
+  }
+  const actividad  = actSel === 'Otro' ? actOtro : actSel;
+  const status     = document.getElementById('ns-status');
+  const btnEnviar  = document.getElementById('ns-btn-enviar');
+  if(!fecha || !destino || !actividad) {
+    status.style.color = 'var(--danger)';
+    status.textContent = '⚠ Completa los campos obligatorios: Fecha, Destino y Tipo de carga.';
+    return;
+  }
   btnEnviar.disabled = true;
   status.style.color = 'var(--text2)';
   status.textContent = 'Enviando…';
-
-  // Agregar ID y metadatos
-  payload.ID_Solicitud = 'SOL-' + Date.now().toString(36).toUpperCase();
-  payload.FechaCreacion = new Date().toISOString();
-  payload.Tipo = 'demanda';
-
   try {
-    // Mapear payload del modal al schema de requerimientos
     const reqPayload = {
-      Tipo:         'demanda',
-      Estado:       'pendiente',
-      Actividad:    payload.Actividad,
-      NombreOrigen: payload.Origen   || null,
-      NombreDestino:payload.Destino,
-      Lote:         payload.Lote     || null,
-      Comentario:   payload.Observaciones || null,
-      RecursoNombre:payload.TipoServicio  || null,
-      CreadoPor:    sesion.usuario,
+      Tipo:          'a_demanda',
+      Estado:        'pendiente',
+      Actividad:     actividad,
+      NombreOrigen:  document.getElementById('ns-origen').value.trim() || null,
+      NombreDestino: destino,
+      Lote:          document.getElementById('ns-lote').value.trim()          || null,
+      Comentario:    document.getElementById('ns-observaciones').value.trim() || null,
+      RecursoNombre: document.getElementById('ns-tiposervicio').value.trim()  || null,
+      OS:            document.getElementById('ns-os').value.trim()            || null,
+      Coordinador:   null,
+      CreadoPor:     sesion.usuario,
+      actualizadoPor:sesion.nombre || sesion.usuario,
     };
     await apiCall('requerimientos', { method: 'POST', body: JSON.stringify(reqPayload) });
     status.style.color = 'var(--accent)';
