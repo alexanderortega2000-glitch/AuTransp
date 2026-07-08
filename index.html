@@ -2655,11 +2655,13 @@ function renderPlanPanel() {
     </div>
   </div>`;
 
-  // ── Sección 2: Programado — consolidar por destino+producto+ST ──
+  // ── Sección 2: Programado — una línea por req+ST (no consolidar) ──
+  // Key incluye ID_Req para evitar sumar cantidades de reqs distintos
+  // que coincidan en destino+producto+ST
   const progMap = new Map();
   _ppReqs.forEach((r,ri)=>{
     stsDeR(r).forEach(s=>{
-      const key=`${labDest(r)}|${r.Producto||r.Actividad||''}|${s.st}`;
+      const key=`${r.ID_Req}|${s.st}`;
       if(!progMap.has(key)) progMap.set(key,{r,ri,st:s.st,cant:parseFloat(s.cant)||0});
       else progMap.get(key).cant+=(parseFloat(s.cant)||0);
     });
