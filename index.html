@@ -1175,7 +1175,7 @@ tr.clickable { cursor: pointer; }
     </div>
     <div style="margin-bottom:16px;">
       <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Solicitante <span style="color:var(--danger)">*</span></div>
-      <input type="text" id="ns-solicitante" placeholder="Nombre completo" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
+      <input type="text" id="ns-solicitante" readonly placeholder="Usuario actual" style="width:100%;height:32px;padding:0 8px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text2);box-sizing:border-box;cursor:default;">
     </div>
 
     <!-- Sección: Destino -->
@@ -1199,8 +1199,14 @@ tr.clickable { cursor: pointer; }
     <div style="font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;padding-bottom:6px;border-bottom:0.5px solid var(--border);">📋 Servicio</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Actividad <span style="color:var(--danger)">*</span></div>
-        <input type="text" id="ns-actividad" placeholder="Ej: Cosecha" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Descripción de carga / Producto <span style="color:var(--danger)">*</span></div>
+        <select id="ns-actividad" onchange="document.getElementById('ns-actividad-otro').style.display=this.value==='Otro'?'block':'none'" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+          <option value="">Seleccionar...</option>
+          <option value="Personal">Personal</option>
+          <option value="Tubería de Riego">Tubería de Riego</option>
+          <option value="Otro">Otro</option>
+        </select>
+        <input type="text" id="ns-actividad-otro" placeholder="Describir (máx. 5 palabras)" maxlength="50" style="display:none;margin-top:6px;width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
       </div>
       <div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">OS</div>
@@ -1209,11 +1215,55 @@ tr.clickable { cursor: pointer; }
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
       <div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Tipo de servicio</div>
-        <input type="text" id="ns-tiposervicio" placeholder="Ej: Materiales varios" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Cantidad</div>
+        <input type="number" id="ns-cantidad" min="0" step="0.01" placeholder="0.00" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;">
       </div>
       <div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Proveedor</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Unidad de Medida</div>
+        <select id="ns-um" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+          <option value="">—</option>
+          <option value="TM">TM</option>
+          <option value="QQ">QQ</option>
+          <option value="BULTOS">BULTOS</option>
+          <option value="PERSONAS">PERSONAS</option>
+          <option value="VIAJES">VIAJES</option>
+          <option value="M3">M3</option>
+          <option value="KM">KM</option>
+          <option value="UNIDADES">UNIDADES</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Tipo de servicio</div>
+        <select id="ns-tiposervicio" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+          <option value="">Seleccionar...</option>
+          <optgroup label="Cosecha">
+            <option value="42012 - CAÑA SEMILLA">Caña Semilla</option>
+            <option value="83008 - CAÑA COSECHA">Caña Cosecha</option>
+          </optgroup>
+          <optgroup label="Red Vial">
+            <option value="40001 - AGUA">Agua</option>
+            <option value="40002 - TIERRA">Tierra</option>
+            <option value="40003 - LASTRE">Lastre</option>
+            <option value="42004 - MATERIAL SELECTO">Material Selecto</option>
+            <option value="42007 - MEZCLA ASFALTICA">Mezcla Asfáltica</option>
+            <option value="83003 - COMBUSTIBLE">Combustible</option>
+          </optgroup>
+          <optgroup label="Varios">
+            <option value="9013 - FERTILIZANTES">Fertilizantes</option>
+            <option value="41002 - PERSONAL">Personal</option>
+            <option value="42001 - IMPLEMENTOS">Implementos</option>
+            <option value="42005 - VARIOS">Varios</option>
+            <option value="42008 - TUBERIA DE RIEGO">Tubería de Riego</option>
+            <option value="83005 - MATERIALES">Materiales</option>
+            <option value="83006 - MAQUINARIA">Maquinaria</option>
+            <option value="83007 - HERBICIDAS">Herbicidas</option>
+          </optgroup>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Proveedor Sugerido</div>
         <input type="text" id="ns-proveedor" placeholder="Empresa de transporte" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;" oninput="this.value=this.value.toUpperCase()">
       </div>
     </div>
@@ -2018,17 +2068,14 @@ function renderPlan() {
       ? `<span class="badge b-prog" style="padding:1px 7px;font-size:11px">P</span>`
       : `<span class="badge b-demanda" style="padding:1px 7px;font-size:11px">D</span>`;
     const estadoMap = {
-      'pendiente':          ['b-pendiente', 'Pendiente'],
-      'programado':         ['b-prog',      'Programado'],
-      'programado parcial': ['b-parcial',   'Prog. parcial'],
-      'en_proceso':         ['b-proceso',   'En proceso'],
-      'en proceso':         ['b-proceso',   'En proceso'],
-      'en proceso parcial': ['b-parcial',   'Proc. parcial'],
+      'pendiente':          ['b-pendiente','Pendiente'],
+      'programado':         ['b-prog',     'Programado'],
+      'programado parcial': ['b-parcial',  'Prog. parcial'],
+      'en_proceso':         ['b-proceso',  'En proceso'],
+      'en proceso parcial': ['b-parcial',  'Proc. parcial'],
       'finalizado':         ['b-finalizado','Finalizado'],
-      'finalizado parcial': ['b-parcial',   'Fin. parcial'],
-      'cancelado':          ['b-cancelado', 'Cancelado'],
-      'rechazado':          ['b-cancelado', 'Rechazado'],
-      'fin. c/obs':         ['b-finalizado','Fin. c/obs'],
+      'finalizado parcial': ['b-parcial',  'Fin. parcial'],
+      'cancelado':          ['b-cancelado','Cancelado'],
     };
     const [cls,label] = estadoMap[est]||['b-pendiente',r.Estado||'Pendiente'];
     const estadoBadge = `<span class="badge ${cls}" id="req-estado-${i}">${label}</span>`;
@@ -2595,23 +2642,17 @@ function renderPlanPanel() {
 
   function eBadge(r){
     const est=r.Estado||'pendiente';
-    const e=est.toLowerCase().replace(/ /g,'_');
+    const e=est.toLowerCase();
     const parcial=e.includes('parcial');
-    const base=e.replace('_parcial','').replace(' parcial','').trim();
-    const LABELS = {
-      'en_proceso':'En proceso','finalizado':'Finalizado','programado':'Programado',
-      'cancelado':'Cancelado','pendiente':'Pendiente','rechazado':'Rechazado',
-      'fin._c/obs':'Fin. c/obs',
-    };
+    const base=e.replace(' parcial','');
     let bg,color;
     if(parcial){bg='#fef9c3';color='#854d0e';}
-    else if(base==='en_proceso'||base==='en proceso'){bg='#dbeafe';color='#1d4ed8';}
+    else if(base==='en_proceso'){bg='#dbeafe';color='#1d4ed8';}
     else if(base==='finalizado'){bg='var(--accent2)';color='var(--accent)';}
     else if(base==='programado'){bg='var(--warn2)';color='var(--warn)';}
-    else if(base==='cancelado'||base==='rechazado'){bg='var(--danger2)';color='var(--danger)';}
+    else if(base==='cancelado'){bg='var(--danger2)';color='var(--danger)';}
     else{bg='var(--bg3)';color='var(--text2)';}
-    const label = LABELS[e] || LABELS[base] || est;
-    return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${bg};color:${color};font-weight:500;white-space:nowrap;">${label}</span>`;
+    return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${bg};color:${color};font-weight:500;white-space:nowrap;">${est}</span>`;
   }
 
   let h='';
@@ -2655,13 +2696,11 @@ function renderPlanPanel() {
     </div>
   </div>`;
 
-  // ── Sección 2: Programado — una línea por req+ST (no consolidar) ──
-  // Key incluye ID_Req para evitar sumar cantidades de reqs distintos
-  // que coincidan en destino+producto+ST
+  // ── Sección 2: Programado — consolidar por destino+producto+ST ──
   const progMap = new Map();
   _ppReqs.forEach((r,ri)=>{
     stsDeR(r).forEach(s=>{
-      const key=`${r.ID_Req}|${s.st}`;
+      const key=`${labDest(r)}|${r.Producto||r.Actividad||''}|${s.st}`;
       if(!progMap.has(key)) progMap.set(key,{r,ri,st:s.st,cant:parseFloat(s.cant)||0});
       else progMap.get(key).cant+=(parseFloat(s.cant)||0);
     });
@@ -3177,8 +3216,6 @@ function normalizarViaje(r) {
     _destino:  r.NombreDestino,
     _lote:     r.LoteDestino,
     _zona:     r.Zona,
-    _idReq:          r.ID_Req,
-    _actualizadoPor: r.ActualizadoPor,
     FechaHoraPlanLlegada: r.FechaHoraPlanLlegada,
     FechaHoraPlanInicio:  r.FechaHoraPlanInicio,
     // Costos (JOIN) — jerarquía calculada en servidor
@@ -3380,9 +3417,9 @@ function procesarViajes(apiData, progData, costosData) {
     v.proveedor_costo  = n(r._provCosto); // Proveedor en costos
     v.destinoCosto     = n(r.DestinoCosto);
     // Campos de prog que vienen en el JOIN (cuando la fuente es SQL unificado)
-    if (r._coord || r.Coordinador || r._tipoProg || r.TipoProg || r._idReq || r.ID_Req) {
+    if (r._coord || r.Coordinador) {
       v.enProg         = true;
-      v.coordinador    = n(r._coord || r.Coordinador || r._actualizadoPor || r.ActualizadoPor);
+      v.coordinador    = n(r._coord || r.Coordinador);
       v.zona           = n(r._zona  || r.Zona);
       v.fechaEjec      = n(r._fechaEjec || r.FechaEjecucion);
       v.tipoProg       = n(r._tipoProg  || r.TipoProg);
@@ -3395,23 +3432,10 @@ function procesarViajes(apiData, progData, costosData) {
       v.estadoViaje    = n(r.EstatusSTprog);
     }
     // Costos del JOIN SQL
-    // AreaEfectiva se calcula desde viajes_api (tipo de viaje) — NO indica costos reales
-    // enCostos solo se activa si hay dato económico real en tabla costos
-    // AreaCosto, A_Pagar, ValorTotalViaje, CostoReal → vienen de JOIN con costos
-    if(r.AreaCosto || r.A_Pagar || r._aPagar || r.ValorTotalViaje || r._valorTotal || r.CostoReal || r._costoReal) {
+    if(r._area || r._aPagar || r._valorTotal) {
       v.enCostos = true;
-      v.area     = n(r.AreaCosto || r._area || r.AreaEfectiva);
-      v._area    = n(r.AreaCosto || r._area || r.AreaEfectiva);
-      v._aPagar  = r.A_Pagar || r._aPagar;
-      // Pagado: bit desde BD (0/1)
-      v.pagado   = r._pagado === true || r._pagado === 1 ||
-                   r.Pagado  === true || r.Pagado  === 1 ||
-                   (n(r._integrado) === 'PROCESADO CON ÉXITO') ||
-                   (n(r.IntegracionPago || '') === 'PROCESADO CON ÉXITO');
-    }
-    // Area siempre disponible para filtros aunque no haya costos
-    if(!v.area && (r.AreaEfectiva || r._area)) {
-      v.area = n(r.AreaEfectiva || r._area);
+      v.area     = n(r._area);
+      v.pagado   = !!(r._pagado || (n(r._integrado) === 'PROCESADO CON ÉXITO'));
     }
   });
 
@@ -3537,40 +3561,37 @@ function determinarEstado(v) {
     const ea = v.estadoAPI;
 
     // Cancelado — API o Prog/Seg
-    // SP mapea CASSA → TMS: 'Cancelada'→'Cancelado', 'Rechazada'→'Rechazado', etc.
-    if(ea === 'Cancelada' || ea === 'Cancelado' || v.estadoViaje === 'Cancelado') return 'Cancelado';
+    if(ea === 'Cancelada' || v.estadoViaje === 'Cancelado') return 'Cancelado';
 
-    // Rechazado
-    if(ea === 'Rechazada' || ea === 'Rechazado') return 'Rechazado';
+    // Rechazado — proveedor rechazó
+    if(ea === 'Rechazada') return 'Rechazado';
 
     // Proveedor sin confirmar
-    if(ea === 'No Aceptada' || ea === 'Prov. sin confirmar') return 'Prov. sin confirmar';
+    if(ea === 'No Aceptada') return 'Prov. sin confirmar';
 
-    // Inconsistente
+    // Inconsistente — error en sistema
     if(ea === 'Inconsistente') return 'Inconsistente';
 
     // Finalizado con observaciones
-    if(ea === 'Finalizada sin Aceptar' || ea === 'Finalizado sin Reanudar' || ea === 'Fin. c/obs') {
+    if(ea === 'Finalizada sin Aceptar' || ea === 'Finalizado sin Reanudar') {
       if(v.enCostos) return v.pagado ? 'Contabilizado' : 'Integrado';
       return 'Fin. c/obs';
     }
 
     // Integrado — finalizado + en costos
-    // ea puede venir como 'Finalizada' (CASSA) o 'Finalizado' (SP ya mapeado)
-    if((ea === 'Finalizada' || ea === 'Finalizado') && v.enCostos) return 'Integrado';
+    if(ea === 'Finalizada' && v.enCostos) return 'Integrado';
 
     // Finalizado
-    if(ea === 'Finalizada' || ea === 'Finalizado') return 'Finalizado';
+    if(ea === 'Finalizada') return 'Finalizado';
 
-    // En proceso — solo si realmente está en proceso (NO si ya finalizó)
-    if(ea === 'En Proceso' || ea === 'En proceso' ||
-       (v.fechaInicio && !ea)) return 'En proceso';
+    // En proceso
+    if(ea === 'En Proceso' || v.fechaInicio) return 'En proceso';
 
-    // En carga — CASSA='En Carga', SP mapea a 'En carga'
-    if(ea === 'En Carga' || ea === 'En carga') return 'En carga';
+    // En carga
+    if(ea === 'En Carga') return 'En carga';
 
-    // Aceptada/Asignado
-    if(ea === 'Aceptada' || ea === 'Asignado') return 'Asignado';
+    // Aceptada — asignado sin inicio
+    if(ea === 'Aceptada') return 'Asignado';
 
     // Cualquier otro estado API
     return 'Asignado';
@@ -4552,29 +4573,26 @@ function cerrarModalSolicitud() {
 }
 
 async function enviarSolicitud() {
-  // Verificar rol — solo coordinador, controlador y admin
   if(!sesion || !['coordinador','controlador','admin'].includes(sesion.rol)) {
     alert('No tienes permiso para crear solicitudes a demanda.');
     return;
   }
-  const fecha      = document.getElementById('ns-fecha').value;
-  const hora       = document.getElementById('ns-hora').value;
-  const destino    = document.getElementById('ns-destino').value.trim();
-  const actSel     = document.getElementById('ns-actividad').value;
-  const actOtroEl  = document.getElementById('ns-actividad-otro');
-  const actOtro    = actOtroEl ? actOtroEl.value.trim() : '';
-  // Validar máximo 5 palabras en "Otro"
-  if(actSel === 'Otro' && actOtro.split(' ').filter(w=>w.length>0).length > 5) {
+  const fecha     = document.getElementById('ns-fecha').value;
+  const hora      = document.getElementById('ns-hora').value;
+  const destino   = document.getElementById('ns-destino').value.trim();
+  const actSel    = document.getElementById('ns-actividad').value;
+  const actOtro   = document.getElementById('ns-actividad-otro')?.value.trim() || '';
+  if(actSel === 'Otro' && actOtro.split(' ').filter(w => w.length > 0).length > 5) {
     document.getElementById('ns-status').style.color = 'var(--danger)';
     document.getElementById('ns-status').textContent = '⚠ La descripción no puede superar 5 palabras.';
     return;
   }
-  const actividad  = actSel === 'Otro' ? actOtro : actSel;
-  const status     = document.getElementById('ns-status');
-  const btnEnviar  = document.getElementById('ns-btn-enviar');
+  const actividad = actSel === 'Otro' ? actOtro : actSel;
+  const status    = document.getElementById('ns-status');
+  const btnEnviar = document.getElementById('ns-btn-enviar');
   if(!fecha || !destino || !actividad) {
     status.style.color = 'var(--danger)';
-    status.textContent = '⚠ Completa los campos obligatorios: Fecha, Destino y Tipo de carga.';
+    status.textContent = '⚠ Completa los campos obligatorios: Fecha, Destino y Descripción de carga.';
     return;
   }
   btnEnviar.disabled = true;
