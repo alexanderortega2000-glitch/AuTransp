@@ -1155,7 +1155,8 @@ tr.clickable { cursor: pointer; }
       </div>
       <div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">ETD <span style="color:var(--danger)">*</span></div>
-        <select id="ns-hora" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+        <select id="ns-hora" onchange="_nsValidarETD()" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
+          <option value="04:00">04:00</option><option value="04:30">04:30</option>
           <option value="05:00">05:00</option><option value="05:30">05:30</option>
           <option value="06:00" selected>06:00</option><option value="06:30">06:30</option>
           <option value="07:00">07:00</option><option value="07:30">07:30</option>
@@ -1169,7 +1170,9 @@ tr.clickable { cursor: pointer; }
           <option value="15:00">15:00</option><option value="15:30">15:30</option>
           <option value="16:00">16:00</option><option value="16:30">16:30</option>
           <option value="17:00">17:00</option><option value="17:30">17:30</option>
-          <option value="18:00">18:00</option>
+          <option value="18:00">18:00</option><option value="18:30">18:30</option>
+          <option value="19:00">19:00</option><option value="19:30">19:30</option>
+          <option value="20:00">20:00</option>
         </select>
       </div>
     </div>
@@ -1217,7 +1220,7 @@ tr.clickable { cursor: pointer; }
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
       <div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Cantidad</div>
-        <input type="number" id="ns-cantidad" min="0" step="0.01" placeholder="0.00" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;">
+        <input type="number" id="ns-cantidad" min="0" step="1" placeholder="0" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;">
       </div>
       <div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Unidad de Medida</div>
@@ -1236,26 +1239,26 @@ tr.clickable { cursor: pointer; }
         <select id="ns-tiposervicio" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
           <option value="">Seleccionar...</option>
           <optgroup label="Cosecha">
-            <option value="42012 - CAÑA SEMILLA">Caña Semilla</option>
-            <option value="83008 - CAÑA COSECHA">Caña Cosecha</option>
+            <option value="Transporte de Personal">Transporte de Personal</option>
+            <option value="Transporte de Tripulaciones">Transporte de Tripulaciones</option>
+            <option value="Transporte de Caña Semilla">Transporte de Caña Semilla</option>
+            <option value="Transporte de Caña Semilla - Viaje">Transporte de Caña Semilla - Viaje</option>
           </optgroup>
           <optgroup label="Red Vial">
-            <option value="40001 - AGUA">Agua</option>
-            <option value="40002 - TIERRA">Tierra</option>
-            <option value="40003 - LASTRE">Lastre</option>
-            <option value="42004 - MATERIAL SELECTO">Material Selecto</option>
-            <option value="42007 - MEZCLA ASFALTICA">Mezcla Asfáltica</option>
-            <option value="83003 - COMBUSTIBLE">Combustible</option>
+            <option value="Transporte en Lowboy">Transporte en Lowboy</option>
+            <option value="Transporte de Agua Red Vial">Transporte de Agua (Red Vial)</option>
+            <option value="Transporte de Tierra">Transporte de Tierra</option>
+            <option value="Transporte de Lastre">Transporte de Lastre</option>
+            <option value="Transporte de Material Selecto">Transporte de Material Selecto</option>
+            <option value="Transporte de Mezcla Asfáltica">Transporte de Mezcla Asfáltica</option>
+            <option value="Transporte de Combustible">Transporte de Combustible</option>
           </optgroup>
           <optgroup label="Varios">
-            <option value="9013 - FERTILIZANTES">Fertilizantes</option>
-            <option value="41002 - PERSONAL">Personal</option>
-            <option value="42001 - IMPLEMENTOS">Implementos</option>
-            <option value="42005 - VARIOS">Varios</option>
-            <option value="42008 - TUBERIA DE RIEGO">Tubería de Riego</option>
-            <option value="83005 - MATERIALES">Materiales</option>
-            <option value="83006 - MAQUINARIA">Maquinaria</option>
-            <option value="83007 - HERBICIDAS">Herbicidas</option>
+            <option value="Transporte de Fertilizantes">Transporte de Fertilizantes</option>
+            <option value="Transporte de Material Riego">Transporte de Material Riego</option>
+            <option value="Transporte de Agua">Transporte de Agua</option>
+            <option value="Transporte de Materiales Varios">Transporte de Materiales Varios</option>
+            <option value="Transportes Varios">Transportes Varios</option>
           </optgroup>
         </select>
       </div>
