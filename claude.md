@@ -15,60 +15,45 @@ Sistema de gestión de transporte (TMS) para Grupo CASSA. Dashboard web single-p
 - API base: https://autransp-api-awekazaja2gngee4.centralus-01.azurewebsites.net/api
 - API Key header: `x-api-key: autransp-2026-k9mX4vQzRpL7nWjYeB3sC8dT`
 
-## Archivos del repo (GitHub → Static Web Apps)
-```
-index.html          ← frontend completo, único archivo a editar
-CLAUDE.md           ← este archivo
-```
+## ⚠️ REGLA CRÍTICA — index.html
+**NUNCA usar `/mnt/user-data/uploads/index.html` como base para ediciones.**
+**SIEMPRE pedir al usuario que suba el index.html actual del repo antes de editar.**
+El archivo en uploads puede ser una versión antigua y causa pérdida de funcionalidad.
 
 ## Archivos del App Service (NO están en GitHub)
-Editados directamente en Azure App Service Editor — NO hacer push desde Claude Code:
+Editados directamente en Azure App Service Editor:
 ```
 src/functions/viajes.js
-src/functions/requerimientos.js
-src/functions/usuarios.js
+src/functions/requerimientos.js    ← fix POST a_demanda + PATCH Coordinador aplicado
+src/functions/usuarios.js          ← fix PinHash case-insensitive aplicado
 src/functions/seguimiento.js
 src/functions/programacion.js
 src/functions/proveedores.js
 src/functions/inventario.js
 src/functions/despachos.js
 src/functions/almacenes.js
-src/functions/syncapi.js        ← v5 activo — 3 timers diferenciados
-db.js
-auth.js
-index.js
+src/functions/syncapi.js           ← v5 con 3 timers + guard + sync_log
+src/functions/syncApuntamientos.js ← NUEVO — sync OData CASE → costos
+db.js                              ← connection pool 2-10 conexiones
+host.json                          ← functionTimeout: 10 minutos
 ```
 
 ## Patrón de Azure Functions (v4)
 ```javascript
 const { app } = require('@azure/functions');
 const { query, TYPES } = require('../../db');
-
-app.http('nombre-get', {
+app.http('nombre', {
   methods: ['GET'],
   route: 'ruta',
   authLevel: 'anonymous',
   handler: async (request) => {
     const apiKey = request.headers.get('x-api-key');
-    if (!apiKey || apiKey !== process.env.API_KEY) {
-      return { status: 401,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ error: 'Unauthorized' }) };
-    }
-    return {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify(resultado),
-    };
+    if (!apiKey || apiKey !== process.env.API_KEY)
+      return { status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ error: 'Unauthorized' }) };
+    return { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(resultado) };
   }
 });
 ```
-
-## Patrón db.js
-- Driver: `tedious` (NO `mssql`)
-- Exports: `{ query, TYPES }` — NO exporta `getConnection` ni `sql`
-- Parámetros: `[{ name: 'param', type: TYPES.NVarChar, value: 'valor' }]`
-- `requestTimeout`: 120,000ms (NO cambiar)
 
 ## Tablas principales en BD
 | Tabla | Descripción |
@@ -76,169 +61,175 @@ app.http('nombre-get', {
 | `viajes_master` | Viajes procesados — fuente del dashboard |
 | `viajes_api` | Viajes raw desde API CASSA |
 | `requerimientos` | Plan de transporte por producto |
-| `costos` | Apuntamientos de maquinaria (carga manual) |
+| `costos` | Apuntamientos desde OData CASE (desde jun-2026) + histórico CSV |
+| `costos_sin_st` | Cuarentena — apuntamientos sin ST para auditoría |
 | `programacion` | Programación de coordinadores |
 | `seguimiento` | Notas de seguimiento web |
-| `usuarios` | Usuarios con PIN hasheado |
+| `usuarios` | Usuarios con PinHash SHA2-256 en formato hex uppercase |
 | `proveedores` | Maestro de proveedores de transporte |
 | `equipos` | Equipos/vehículos por proveedor |
-| `inventario_alm` | Inventario de insumos por almacén |
-| `despachos_alm` | Despachos confirmados |
-| `almacenes_cat` | Catálogo A01=COPAL, A05=CANTOR, etc. |
-| `apuntamientos_odata` | Apuntamientos desde OData CASE (pendiente) |
+| `sync_log` | Log de ejecuciones del sync |
 
-## Roles de usuario
-- `admin` — acceso total, todas las pestañas
-- `coordinador` — Planificación, Almacén, Proveedores
-- `controlador` — Detalle, seguimiento
-
-## Variables globales críticas en index.html
-```javascript
-viajes          // array de viajes procesados (fuente del dashboard)
-vFilt           // array filtrado para la tabla
-reqPendientes   // array de requerimientos (fuente de Planificación y Almacén)
-sesion          // { usuario, nombre, rol }
-ALM             // estado del módulo almacén
-ALM_CAT         // { A01:'COPAL', A02:'DIAMANTE', ... } catálogo almacenes
-PROV            // estado del módulo proveedores
-_pendingAdvCallbacks // callbacks de advertencias de programación
+## Columnas tabla requerimientos
+```
+ID_Req, Tipo, Estado, ST, OS, NumReqExcel, Jefe, RespProd, Coordinador,
+CodActividad, Actividad, Zona, Sociedad, CodOrigen, NombreOrigen,
+CodDestino, NombreDestino, Lote, CodRecurso, RecursoNombre, Producto,
+UM, CantidadTotal, AreaTotal, Implemento, Comentario, CreadoPor,
+FechaCreacion, ActualizadoPor, FechaActualizacion, FechaEjecucion,
+MotivoCancel, STAnterior, MotivoCorreccion, FechaCorreccion,
+ST2, ST3, ST4, CantidadST1, CantidadST2, CantidadST3, CantidadST4
 ```
 
-## Lógica de estados de viaje (determinarEstado)
-Orden de evaluación — NO alterar:
-1. `pagado = true` → **Contabilizado**
-2. Con API (`enAPI`): evalúa `estadoAPI` normalizado:
-   - `eaFinal` = `'Finalizada'` OR `'Finalizado'` (SP guarda TMS, API envía CASSA)
-   - `eaFinal` + costos → **Integrado**
-   - `eaFinal` → **Finalizado** ← DEBE ir ANTES de En proceso
-   - `eaProc` OR `v.fechaInicio` → **En proceso**
-   - `eaCarga` → **En carga**
-   - `'Aceptada'` → **Asignado**
-3. Sin API: Pendiente / Cancelado
-
-> ⚠️ El SP guarda `'Finalizado'` (TMS), no `'Finalizada'` (CASSA).
-> El código cubre ambas con `eaFinal = ea === 'Finalizada' || ea === 'Finalizado'`
-> NO usar `v.fechaInicio` como único criterio de En proceso — causa bug donde Finalizado → En proceso
-
-## Mapeo estados CASSA → TMS (en SP)
-| CASSA | TMS |
-|---|---|
-| No Aceptada | Prov. sin confirmar |
-| Aceptada | Asignado |
-| En Carga | En carga |
-| En Proceso | En proceso |
-| Finalizada | Finalizado |
-| Finalizada sin Aceptar / Finalizado sin Reanudar / Inconsistente | Fin. c/obs |
-| Cancelada | Cancelado |
-| Rechazada | Rechazado |
+## Tipos de requerimiento
+- `programa` — viene del Excel de planificación
+- `a_demanda` — creado desde el dashboard web
 
 ## syncapi.js v5 — Arquitectura de timers
 ```
-Timer 1: syncAPI          → */5 min, solo 04-20h CST → hoy-3d a hoy+30d  (85% viajes)
-Timer 2: syncAPI-reciente → cada hora, 24/7          → hoy-14d a hoy+30d (10% viajes)
-Timer 3: syncAPI-historico → 01:00 AM diario         → hoy-90d a hoy+30d (5% viajes)
-Endpoint: POST /api/sync  → backfill manual con diasAtras/diasAdelante
+Timer 1: syncAPI          → */5 min, 04-20h CST → hoy-3d a hoy+30d
+Timer 2: syncAPI-reciente → c/hora, 24/7        → hoy-7d a hoy+30d
+Timer 3: syncAPI-historico → 01:00 AM diario    → hoy-90d a hoy+30d
 ```
-- API CASSA: `logistico.grupocassa.com` — NO soporta filtro por timestamp de modificación
-- El skip nocturno usa `horaCST() = getUTCHours() - 6` — pendiente validar que funcione
-- Costos: carga manual hasta que IT habilite endpoint OData con filtro de fecha
 
-## sp_refresh_viajes_master — Estado actual
-- **Versión:** v2 (ALTER aplicado en BD)
-- **Optimización clave:** filtro de fecha aplicado en UNION antes del JOIN
-- **Tiempo:** 24,630ms → 8,944ms (mejora 63%)
-- **Índices usados:** `IX_vapi_Fecha`, `IX_programacion_FechaEjec`, `IX_costos_Fecha`
-- Tabla temporal `#todos_st` tiene índice clustered antes del MERGE
+## syncApuntamientos.js — OData CASE
+```
+URL: https://telemetriacase.grupocassa.com/ODataServices/odata/ReporteApuntesMaquinaria
+Filtro: FechaDigitacion ge 'YYYY-MM-DDT00:00:00.000Z' and FechaDigitacion le 'YYYY-MM-DDT23:59:59.999Z'
+ST: campo nativo ST (Int32) o regex /ST:\s*(\d+)/i en Observacion
+Timer 1: core-5min   → hoy-7d,  04-20h CST
+Timer 2: reciente-1h → hoy-15d, 24/7
+Timer 3: historico   → hoy-60d, 04:00 AM UTC
+Chunks: 3 días por consulta para evitar timeouts
+Sin ST → costos_sin_st (cuarentena)
+```
 
-## Performance baseline (26-Jun-2026)
-| Operación | P50 | Promedio | Notas |
-|---|---|---|---|
-| GET /api/viajes | 677ms | 1,003ms | Lectura usuario — aceptable |
-| GET /api/requerimientos | 85ms | 114ms | ✅ |
-| sp_refresh_viajes_master | ~9,000ms | — | Background, usuario no lo siente |
-| SELECT viajes_master (1 día) | ~0ms | — | Instantáneo |
-| syncAPI duración total | — | 76,258ms | 73s = API CASSA día por día + SP |
-| syncAPI-reciente duración | — | 214,136ms | 214s = 44 días de API CASSA |
+## sp_refresh_viajes_master v2
+- Filtro de fecha en UNION antes del JOIN (optimización crítica)
+- Tiempo: ~9s (antes 24s)
+- Índices usados: IX_vapi_Fecha, IX_programacion_FechaEjec, IX_costos_Fecha
+
+## Reglas de Área (consistentes en SP, syncApuntamientos, scripts Python)
+```
+Cosecha:  BkRecurso IN (42012,83008) AND BkHacienda1 IN (1983,1984,1987,1994,2983,2984,2987,2996)
+Red Vial: BkRecurso IN (42004,40003,40002,42007,40001,83003)
+Varios:   BkRecurso IN (9013,83007,83005,83006,41002,42008,42001,42005)
+EsHistorico: FechaApunte < hoy-60d (dinámico)
+Pagado: IntegracionPago > 0 OR IntegracionCobro > 0
+```
+
+## Lógica de estados (determinarEstado en index.html)
+Orden de evaluación:
+1. `pagado = true` → **Contabilizado**
+2. Con API (`enAPI`):
+   - `eaFinal && enCostos` → **Integrado**
+   - `eaFinal` → **Finalizado** (cubre 'Finalizada' y 'Finalizado')
+   - `eaObs` → **Fin. c/obs**
+   - `eaProc || fechaInicio` → **En proceso**
+   - `eaCarga` → **En carga**
+   - `'Aceptada'/'Asignado'` → **Asignado**
+3. Sin API → Pendiente/Cancelado
+
+## enCostos — regla importante
+`enCostos = true` solo si hay dato económico real:
+`r.AreaCosto || r.A_Pagar || r.ValorTotalViaje || r.CostoReal`
+**NO** activar solo por `AreaEfectiva` (que se calcula desde tipo de viaje)
+
+## Mapeo estados SP → frontend
+SP guarda estados ya mapeados (no originales de CASSA):
+- 'Finalizada' → 'Finalizado'
+- 'Cancelada' → 'Cancelado'
+- 'En Carga' → 'En carga'
+- 'Aceptada' → 'Asignado'
+`determinarEstado` cubre ambas formas.
+
+## Modal Solicitud a Demanda — estado actual
+Campos implementados:
+- Fecha ejecución + ETD (hora) con validación mínimo hoy+16h
+- Label parámetro de servicio (dentro/fuera de parámetro)
+- Solicitante: readonly, prellenado con sesion.nombre
+- Descripción de carga/Producto: dropdown (Personal/Tubería de Riego/Otro+texto max 5 palabras)
+- Cantidad: entero, sin decimales
+- UM: TM, BULTOS, PERSONAS, UNIDADES
+- Tipo de servicio: dropdown agrupado por Cosecha/Red Vial/Varios
+- Proveedor Sugerido, Origen, Destino, Lote, OS, Observaciones
+- Restricción: solo rol coordinador/controlador/admin
+
+## Dropdown Tipo de Servicio (recursos reales del histórico)
+```
+Cosecha:  Transporte de Personal, Transporte de Tripulaciones
+Red Vial: Transporte en Lowboy
+Varios:   Transporte de Fertilizantes, Transporte de Material Riego,
+          Transporte de Agua, Transporte de Materiales Varios,
+          Transporte de Caña Semilla, Transporte de Caña Semilla - Viaje
+```
+
+## ⚠️ PROBLEMA ACTIVO — Pestaña Proveedores perdida
+El index.html actual en GitHub perdió la pestaña de Proveedores.
+**Antes de cualquier edición al index.html:**
+1. Recuperar la pestaña de Proveedores del historial de commits de GitHub
+2. O pedir al usuario que suba el index.html correcto
+3. NUNCA usar el archivo de uploads como base
+
+## Performance baseline
+| Operación | P50 | Estado |
+|---|---|---|
+| GET /api/viajes | 677ms | ✅ |
+| sp_refresh_viajes_master | ~9s | ✅ |
+| syncAPI core-5min | ~60s | ✅ |
+| syncApuntamientos core-5min | ~15s | ✅ |
+| syncApuntamientos reciente-1h (15d) | ~42s | ✅ |
 
 ## Plan de BD y escalado
-- **Actual:** Basic (5 DTU, $4.99/mes)
-- **Umbral de alerta:** P50 de viajes > 3,000ms o errores de timeout en logs
-- **Acción:** subir a Standard S1 (20 DTU, $14.72/mes) cuando lleguen 10-12 usuarios
-- **Producción esperada:** 15 usuarios en ~5 meses, max 8 actualmente
-- **Sin downtime** al cambiar de plan en Azure Portal
+- Actual: Basic 5 DTU
+- Subir a Standard S1 cuando lleguen 10-12 usuarios (~3 meses)
+- Node.js 22 → 24 antes de abril 2027
 
-## OData CASE — Estado de integración
-- **URL base:** `https://telemetriacase.grupocassa.com/ODataServices/odata/`
-- **Entidades disponibles:** `CombustibleEquipo`, `ReporteApuntesMaquinaria`
-- **Limitación crítica:** usa Prisma ORM resolviendo filtros en memoria — NO soporta `$filter` por fecha
-- **ReporteApuntesMaquinaria:** equivale a tabla `costos` — mismos campos
-- **Solicitud enviada a IT:** habilitar `$filter=FechaApunte ge {fecha}` en ReporteApuntesMaquinaria
-- **CombustibleEquipo:** telemetría de maquinaria agrícola — reservado para fase futura
-- **Tabla `apuntamientos_odata`:** creada en BD, sin datos — esperando endpoint con filtro
+## PENDIENTES — Programa de trabajo
 
-## Reglas para editar index.html
+### Inmediato
+1. **Recuperar pestaña Proveedores** en index.html
+2. **Req a demanda en lista planificación** — no aparece en lista (Tipo='demanda' vs filtro)
+3. **Cantidad en panel planificación** — mostrar CantidadTotal del req a demanda
+4. **Cantidad preestablecida al programar** — prellenar campo con CantidadTotal
 
-### NUNCA hacer
-- Cambiar el orden de condiciones en `determinarEstado` sin entender la lógica completa
-- Usar `localStorage` o `sessionStorage`
-- Agregar dependencias externas no existentes
-- Hacer push de archivos del App Service desde GitHub
-
-### Siempre verificar al editar
-- `const reqs = reqPendientes || []` en `almActualizarCruce` (NO `requerimientos`)
-- `ALM_CAT[codAlm]` como fallback en `almCargarInventario`
-- `page-proveedores` en array de `setPage`: `['resumen','detalle','solicitudes','almacen','proveedores','info']`
-- `eaFinal` cubre tanto `'Finalizada'` como `'Finalizado'` en `determinarEstado`
-- Importación Excel de proveedores: lotes de 25 (`LOTE = 25`)
-
-## Convenciones de código
-- Módulo almacén: prefijo `alm`
-- Módulo proveedores: prefijo `prov`
-- Módulo planificación: sin prefijo (`renderPlan`, `filtrarPlan`)
-- Panel planificación: prefijo `pp-`
-- Filtros almacén: prefijo `af-`
-- Filtros proveedores: prefijo `prov-fil-`
-
-## PENDIENTES GLOBALES — Programa de trabajo
-
-### Validaciones pendientes (próxima sesión)
-1. **Validar skip nocturno syncAPI** — confirmar que entre 20:00-04:00 CST el timer de 5 min hace skip y el nocturno toma el relevo
-2. **Auditoría de estados vs API** — comparar estados en viajes_master vs API CASSA para detectar incongruencias
-3. **Confirmación volumen viajes** — backend vs frontend, verificar que los conteos coincidan
+### Fixes pendientes de validar
+5. ETD aviso parámetro — div ns-etd-aviso no aparece en producción
+6. Servicios dropdown — confirmar que llegó la versión correcta
+7. eBadge label en_proceso → "En proceso" en panel planificación
 
 ### Pruebas funcionales pendientes
-4. **Planificación — asignación total** — asignar ST completa a requerimiento
-5. **Planificación — asignación parcial** — asignar cantidad parcial de un requerimiento
-6. **Planificación — múltiples reqs en una ST** — una ST cubre varios requerimientos
-7. **Planificación — req parcial en varias STs** — distribuir un req entre múltiples STs
-8. **Proveedores — limpiar base y recargar** — probar importación masiva en lotes de 25
-9. **Proveedores — nuevo proveedor manual** — crear, editar, desactivar
-10. **Proveedores — validar equipos** — verificar que equipos se asocian correctamente al proveedor
+8. Proveedores — importación masiva lotes de 25
+9. Proveedores — nuevo manual, editar, desactivar
+10. Proveedores — equipos asociados
 
 ### Desarrollo pendiente
-11. **syncApuntamientos.js** — bloqueado: IT debe habilitar `$filter` por fecha en OData `ReporteApuntesMaquinaria`
-12. **sync_log tabla** — logging persistente de ejecuciones del sync para detectar throttling
-13. **Alerta reqs vencidos** — banner si FechaEjecucion < hoy y estado parcial/pendiente
-14. **Módulo almacén Paso 3** — conectar `almCargarInventario` y `almConfirmarDespacho` a API
-15. **Maestro motoristas** — módulo pendiente de diseño
-16. **config.json en repo** — eliminar 404 en carga del dashboard
-17. **Rotar clientSecret Service Principal** — clientId: c5232026-a5a0-4060-beaa-89f24e2a59d9 (EXPIRADO)
+11. Log de modificaciones viajes/requerimientos (tabla viajes_log + botón historial)
+12. Alerta reqs vencidos — banner FechaEjecucion < hoy
+13. Módulo almacén Paso 3 — conectar API
+14. Maestro motoristas
+15. config.json en repo — eliminar 404
+16. Rotar clientSecret Service Principal (EXPIRADO) — clientId: c5232026-a5a0-4060-beaa-89f24e2a59d9
+17. syncApuntamientos — validar registros en costos_sin_st
+18. Validar skip nocturno syncApuntamientos
 
-### Infraestructura pendiente
-18. **Monitorear DTU 24h** con syncapi v5 + SP optimizado para decidir si Basic es suficiente
-19. **Subir a Standard S1** cuando lleguen 10-12 usuarios simultáneos (~3 meses)
-20. **Application Logging** — activar en App Service para historial persistente de errores
+### Infraestructura
+19. Subir Standard S1 cuando lleguen 10-12 usuarios
+20. Application Logging activar en App Service
+21. Node.js 22 → 24 (antes abril 2027)
 
-## Flujo de datos
-```
-API CASSA (viajes) → syncapi.js (3 timers) → viajes_api → sp_refresh_viajes_master → viajes_master
-                                                                                            ↓
-OData CASE (apuntamientos) → syncApuntamientos.js (futuro) → costos (recientes)
-                                                                                            ↓
-index.html → GET /api/viajes → procesarViajes() → viajes[] → renderTabla()
-```
-
-## Flujo Claude Code vs este chat
-- **Este chat:** diseño, diagnóstico, decisiones, SQL, archivos App Service, análisis
-- **Claude Code:** editar index.html, commitear a GitHub, actualizar CLAUDE.md
-- **App Service Editor (siempre manual):** syncapi.js, proveedores.js, almacenes.js, inventario.js, despachos.js
+## Archivos generados en esta sesión (en /mnt/user-data/outputs)
+| Archivo | Estado |
+|---|---|
+| `syncapi.js` | ✅ v5 activo |
+| `syncApuntamientos.js` | ✅ activo en App Service |
+| `requerimientos.js` | ✅ con fix POST a_demanda + PATCH Coordinador |
+| `sp_refresh_viajes_master_v2.sql` | ✅ aplicado en BD |
+| `autransp_sync_log.sql` | ✅ tabla creada |
+| `costos_sin_st.sql` | ✅ tabla creada |
+| `consolidar_costos_actual.py` | ✅ con rename columnas |
+| `consolidar_costos_hist.py` | ✅ con rename columnas |
+| `migrar_costos.py` | ✅ con rename columnas |
+| `host.json` | ✅ timeout 10 min aplicado |
+| `index.html` | ⚠️ versión en outputs puede no tener proveedores |
+| `CLAUDE.md` | ✅ este archivo |
