@@ -1154,7 +1154,7 @@ tr.clickable { cursor: pointer; }
         <input type="date" id="ns-fecha" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);box-sizing:border-box;">
       </div>
       <div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Hora <span style="color:var(--danger)">*</span></div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">ETD <span style="color:var(--danger)">*</span></div>
         <select id="ns-hora" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
           <option value="05:00">05:00</option><option value="05:30">05:30</option>
           <option value="06:00" selected>06:00</option><option value="06:30">06:30</option>
@@ -1223,12 +1223,8 @@ tr.clickable { cursor: pointer; }
         <select id="ns-um" style="width:100%;height:32px;padding:0 8px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-family:var(--sans);font-size:12px;color:var(--text);">
           <option value="">—</option>
           <option value="TM">TM</option>
-          <option value="QQ">QQ</option>
           <option value="BULTOS">BULTOS</option>
           <option value="PERSONAS">PERSONAS</option>
-          <option value="VIAJES">VIAJES</option>
-          <option value="M3">M3</option>
-          <option value="KM">KM</option>
           <option value="UNIDADES">UNIDADES</option>
         </select>
       </div>
@@ -4539,24 +4535,48 @@ async function cambiarPin() {
 // ============================================================
 // MODAL — NUEVA SOLICITUD A DEMANDA
 // ============================================================
-function abrirModalSolicitud() {
-  // Prellenar fecha = mañana
-  const manana = new Date();
-  manana.setDate(manana.getDate() + 1);
-  const yyyy = manana.getFullYear();
-  const mm   = String(manana.getMonth()+1).padStart(2,'0');
-  const dd   = String(manana.getDate()).padStart(2,'0');
-  document.getElementById('ns-fecha').value = `${yyyy}-${mm}-${dd}`;
+function _nsValidarETD() {
+  const fecha  = document.getElementById('ns-fecha')?.value;
+  const hora   = document.getElementById('ns-hora')?.value || '06:00';
+  const aviso  = document.getElementById('ns-etd-aviso');
+  if(!fecha || !aviso) return;
+  const etd    = new Date(`${fecha}T${hora}:00`);
+  const minEtd = new Date(Date.now() + 16 * 60 * 60 * 1000);
+  if(etd < new Date()) {
+    aviso.style.display = 'block';
+    aviso.style.background = 'var(--danger2)';
+    aviso.style.color = 'var(--danger)';
+    aviso.textContent = '⛔ La fecha de ejecución no puede ser menor a hoy.';
+  } else if(etd < minEtd) {
+    aviso.style.display = 'block';
+    aviso.style.background = '#fef9c3';
+    aviso.style.color = '#854d0e';
+    aviso.textContent = '⚠ Fuera de parámetro — el ETD debe ser al menos 16 horas desde ahora.';
+  } else {
+    aviso.style.display = 'block';
+    aviso.style.background = 'var(--accent2)';
+    aviso.style.color = 'var(--accent)';
+    aviso.textContent = '✓ Dentro de parámetro de servicio.';
+  }
+}
 
-  // Prellenar solicitante con usuario actual si existe
+function abrirModalSolicitud() {
+  const minEtd = new Date(Date.now() + 16 * 60 * 60 * 1000);
+  const yyyy   = minEtd.getFullYear();
+  const mm     = String(minEtd.getMonth()+1).padStart(2,'0');
+  const dd     = String(minEtd.getDate()).padStart(2,'0');
+  document.getElementById('ns-fecha').value = `${yyyy}-${mm}-${dd}`;
+  document.getElementById('ns-fecha').min   = new Date().toISOString().slice(0,10);
+  document.getElementById('ns-fecha').onchange = _nsValidarETD;
+  document.getElementById('ns-hora').onchange  = _nsValidarETD;
   if(sesion && sesion.nombre) {
     document.getElementById('ns-solicitante').value = sesion.nombre.toUpperCase();
   }
-
   document.getElementById('ns-status').textContent = '';
   document.getElementById('ns-btn-enviar').disabled = false;
   document.getElementById('modal-solicitud').style.display = 'block';
   document.body.style.overflow = 'hidden';
+  _nsValidarETD();
 }
 
 function cerrarModalSolicitud() {
@@ -4593,6 +4613,12 @@ async function enviarSolicitud() {
   if(!fecha || !destino || !actividad) {
     status.style.color = 'var(--danger)';
     status.textContent = '⚠ Completa los campos obligatorios: Fecha, Destino y Descripción de carga.';
+    return;
+  }
+  const etdVal = new Date(`${fecha}T${hora}:00`);
+  if(etdVal < new Date()) {
+    status.style.color = 'var(--danger)';
+    status.textContent = '⛔ La fecha de ejecución no puede ser menor a hoy.';
     return;
   }
   btnEnviar.disabled = true;
