@@ -1244,15 +1244,16 @@ tr.clickable { cursor: pointer; }
           </optgroup>
           <optgroup label="Red Vial">
             <option value="Transporte en Lowboy">Transporte en Lowboy</option>
+            <option value="Transporte de Agua (Red Vial)">Transporte de Agua (Red Vial)</option>
           </optgroup>
           <optgroup label="Varios">
+            <option value="Transporte de Personal">Transporte de Personal</option>
             <option value="Transporte de Fertilizantes">Transporte de Fertilizantes</option>
             <option value="Transporte de Material Riego">Transporte de Material Riego</option>
             <option value="Transporte de Agua">Transporte de Agua</option>
             <option value="Transporte de Materiales Varios">Transporte de Materiales Varios</option>
             <option value="Transporte de Caña Semilla">Transporte de Caña Semilla</option>
             <option value="Transporte de Caña Semilla - Viaje">Transporte de Caña Semilla - Viaje</option>
-            <option value="Transportes Varios">Transportes Varios</option>
           </optgroup>
         </select>
       </div>
@@ -2646,7 +2647,15 @@ function renderPlanPanel() {
     else if(base==='programado'){bg='var(--warn2)';color='var(--warn)';}
     else if(base==='cancelado'){bg='var(--danger2)';color='var(--danger)';}
     else{bg='var(--bg3)';color='var(--text2)';}
-    return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${bg};color:${color};font-weight:500;white-space:nowrap;">${est}</span>`;
+    const LABELS = {
+      'en_proceso':'En proceso','en proceso':'En proceso',
+      'finalizado':'Finalizado','programado':'Programado',
+      'cancelado':'Cancelado','pendiente':'Pendiente',
+      'programado parcial':'Prog. parcial','en proceso parcial':'Proc. parcial',
+      'finalizado parcial':'Fin. parcial','rechazado':'Rechazado',
+    };
+    const label = LABELS[e] || LABELS[base] || est;
+    return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${bg};color:${color};font-weight:500;white-space:nowrap;">${label}</span>`;
   }
 
   let h='';
@@ -4572,6 +4581,21 @@ function abrirModalSolicitud() {
   }
   document.getElementById('ns-status').textContent = '';
   document.getElementById('ns-btn-enviar').disabled = false;
+  // Limpiar campos al abrir modal
+  document.getElementById('ns-cantidad').value  = '';
+  document.getElementById('ns-um').value         = '';
+  document.getElementById('ns-actividad').value  = '';
+  document.getElementById('ns-tiposervicio').value = '';
+  document.getElementById('ns-destino').value    = '';
+  document.getElementById('ns-origen').value     = '';
+  document.getElementById('ns-lote').value       = '';
+  document.getElementById('ns-os').value         = '';
+  document.getElementById('ns-proveedor').value  = '';
+  document.getElementById('ns-observaciones').value = '';
+  const otroEl = document.getElementById('ns-actividad-otro');
+  if(otroEl) { otroEl.value = ''; otroEl.style.display = 'none'; }
+  const avisoEl = document.getElementById('ns-etd-aviso');
+  if(avisoEl) avisoEl.style.display = 'none';
   document.getElementById('modal-solicitud').style.display = 'block';
   document.body.style.overflow = 'hidden';
   _nsValidarETD();
