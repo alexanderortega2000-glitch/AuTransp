@@ -3675,41 +3675,54 @@ function determinarEstado(v) {
   if(v.pagado) return 'Contabilizado';
 
   // Estados basados en API
+  // NOTA (fix 2026-07): viajes_master.Estado ya viene MAPEADO a formato TMS
+  // por sp_refresh_viajes_master (CASSA -> TMS), no siempre en crudo CASSA.
+  // Cada rama debe aceptar AMBOS vocabularios (eaFinal) o el estado nunca
+  // matchea y cae por fallback, produciendo clasificaciones incorrectas.
+  // Mapeo CASSA -> TMS:
+  //   No Aceptada -> Prov. sin confirmar | Aceptada -> Asignado
+  //   En Carga -> En carga | En Proceso -> En proceso | Finalizada -> Finalizado
+  //   Finalizada sin Aceptar / Finalizado sin Reanudar / Inconsistente -> Fin. c/obs
+  //   Cancelada -> Cancelado | Rechazada -> Rechazado
   if(v.enAPI) {
     const ea = v.estadoAPI;
 
-    // Cancelado — API o Prog/Seg
-    if(ea === 'Cancelada' || v.estadoViaje === 'Cancelado') return 'Cancelado';
+    // Cancelado — API (crudo o TMS) o Prog/Seg
+    if(ea === 'Cancelada' || ea === 'Cancelado' || v.estadoViaje === 'Cancelado') return 'Cancelado';
 
     // Rechazado — proveedor rechazó
-    if(ea === 'Rechazada') return 'Rechazado';
+    if(ea === 'Rechazada' || ea === 'Rechazado') return 'Rechazado';
 
     // Proveedor sin confirmar
-    if(ea === 'No Aceptada') return 'Prov. sin confirmar';
+    if(ea === 'No Aceptada' || ea === 'Prov. sin confirmar') return 'Prov. sin confirmar';
 
     // Inconsistente — error en sistema
     if(ea === 'Inconsistente') return 'Inconsistente';
 
     // Finalizado con observaciones
-    if(ea === 'Finalizada sin Aceptar' || ea === 'Finalizado sin Reanudar') {
+    if(ea === 'Finalizada sin Aceptar' || ea === 'Finalizado sin Reanudar' || ea === 'Fin. c/obs') {
       if(v.enCostos) return v.pagado ? 'Contabilizado' : 'Integrado';
       return 'Fin. c/obs';
     }
 
-    // Integrado — finalizado + en costos
-    if(ea === 'Finalizada' && v.enCostos) return 'Integrado';
+    // Finalizado — crudo 'Finalizada' o ya-mapeado 'Finalizado'
+    const eaFinalizado = (ea === 'Finalizada' || ea === 'Finalizado');
 
-    // Finalizado
-    if(ea === 'Finalizada') return 'Finalizado';
+    // Integrado — finalizado + en costos (debe ir ANTES de solo-Finalizado)
+    if(eaFinalizado && v.enCostos) return 'Integrado';
 
-    // En proceso
-    if(ea === 'En Proceso' || v.fechaInicio) return 'En proceso';
+    // Finalizado — debe ir ANTES de En proceso para que fechaInicio no lo sobreescriba
+    if(eaFinalizado) return 'Finalizado';
+
+    // En proceso — solo si API lo indica (crudo o TMS). NO usar v.fechaInicio
+    // como criterio: causaba que casi todo Finalizado/Cancelado cayera aquí.
+    if(ea === 'En Proceso' || ea === 'En proceso') return 'En proceso';
 
     // En carga
-    if(ea === 'En Carga') return 'En carga';
+    if(ea === 'En Carga' || ea === 'En carga') return 'En carga';
 
-    // Aceptada — asignado sin inicio
-    if(ea === 'Aceptada') return 'Asignado';
+    // Aceptada / Asignado — asignado sin inicio
+    if(ea === 'Aceptada' || ea === 'Asignado') return 'Asignado';
 
     // Cualquier otro estado API
     return 'Asignado';
