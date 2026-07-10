@@ -596,6 +596,11 @@ tr.clickable { cursor: pointer; }
       title="Los datos en memoria son solo del último mes. Clic para cargar el rango completo.">
       ⚠ Cargar rango completo
     </button>
+    <button class="btn-sm" id="btn-historico-admin" onclick="cargarHistoricoCompleto()"
+      style="display:none;background:var(--info2);color:var(--info);border-color:var(--info);"
+      title="Histórico estático 2023+ (costos y programación). Solo administradores. No se actualiza por cron.">
+      🗄 Histórico completo
+    </button>
     <span id="btn-refresh-icon" title="Sincronizando..." style="display:none;font-size:16px">🔄</span>
   </div>
 
@@ -1473,7 +1478,12 @@ const API_KEY = 'autransp-2026-k9mX4vQzRpL7nWjYeB3sC8dT';
 
 async function apiCall(endpoint, options = {}) {
   const resp = await fetch(apiUrl(endpoint), {
-    headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, ...options.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': API_KEY,
+      'x-usuario': (typeof sesion !== 'undefined' && sesion && sesion.usuario) || '',
+      ...options.headers,
+    },
     ...options,
   });
   if (!resp.ok) {
@@ -3204,6 +3214,9 @@ async function intentarLogin() {
   // Mostrar tab Almacén para admin y coordinador
   const tabAlm = document.getElementById('tab-alm');
   if(tabAlm && ['admin','coordinador'].includes(sesion.rol)) tabAlm.style.display = '';
+  // Mostrar botón de histórico completo solo para admin
+  const btnHist = document.getElementById('btn-historico-admin');
+  if(btnHist && sesion.rol === 'admin') btnHist.style.display = '';
   // Mostrar tab Proveedores para admin y coordinador
   const tabProv = document.getElementById('tab-prov');
   if(tabProv && ['admin','coordinador'].includes(sesion.rol)) tabProv.style.display = '';
@@ -3340,6 +3353,8 @@ function normalizarViaje(r) {
     _costoReal:      r.CostoReal,
     _integrado:      r.Integrado_costos,
     _pagado:         r.Pagado,
+    _integracionPago:  r.IntegracionPago,
+    _integracionCobro: r.IntegracionCobro,
     _aPagar:         r.A_Pagar,
     _valorTotal:     r.ValorTotalViaje,
     _area:           r.AreaEfectiva,
@@ -3409,6 +3424,56 @@ async function cargarDatos(silencioso = false, bypassCache = false) {
   }
 
   if(!silencioso) document.getElementById('loader').style.display = 'none';
+}
+
+async function cargarHistoricoCompleto() {
+  if(!sesion || sesion.rol !== 'admin') {
+    alert('Esta función es solo para administradores.');
+    return;
+  }
+  const desde = document.getElementById('f-desde').value;
+  const hasta = document.getElementById('f-hasta').value;
+
+  const btn = document.getElementById('btn-historico-admin');
+  const textoOriginal = btn.textContent;
+  btn.textContent = '⏳ Consultando histórico...';
+  btn.disabled = true;
+
+  try {
+    let endpoint = 'viajes-historico';
+    const params = [];
+    if(desde) params.push('desde=' + desde);
+    if(hasta) params.push('hasta=' + hasta);
+    if(params.length) endpoint += '?' + params.join('&');
+
+    const rowsHistorico = await apiCall(endpoint);
+
+    if(!Array.isArray(rowsHistorico) || !rowsHistorico.length) {
+      alert('El histórico no devolvió filas para ese rango. Verifica que sp_build_viajes_master_historico ya se haya ejecutado, y que el rango de fechas tenga datos.');
+      btn.textContent = textoOriginal;
+      btn.disabled = false;
+      return;
+    }
+
+    // Misma normalización que usa el flujo normal — el histórico
+    // estático tiene exactamente las mismas columnas que viajes_master.
+    const apiFull = rowsHistorico.map(normalizarViaje);
+    _viajesSQL = apiFull.concat(_viajesSQL || []);
+    procesarViajes(_viajesSQL, [], []);
+    if(typeof poblarMsDinamicos === 'function') poblarMsDinamicos();
+    calcularInfo();
+    aplicarFiltros();
+
+    btn.textContent = `✓ ${rowsHistorico.length.toLocaleString()} filas históricas cargadas`;
+    setTimeout(() => { btn.textContent = textoOriginal; btn.disabled = false; }, 3000);
+
+    console.log(`[Histórico] ${rowsHistorico.length} filas cargadas desde viajes_master_historico (rol: ${sesion.rol})`);
+  } catch(e) {
+    console.error('[cargarHistoricoCompleto]', e.message);
+    alert('Error al cargar histórico: ' + e.message + (e.message.includes('403') ? ' — verifica que tu usuario tenga rol admin en la BD.' : ''));
+    btn.textContent = textoOriginal;
+    btn.disabled = false;
+  }
 }
 
 async function cargarRangoCompleto() {
@@ -3553,7 +3618,13 @@ function procesarViajes(apiData, progData, costosData) {
     if(r._area || r._aPagar || r._valorTotal) {
       v.enCostos = true;
       v.area     = n(r._area);
-      v.pagado   = !!(r._pagado || (n(r._integrado) === 'PROCESADO CON ÉXITO'));
+      // Fix 2026-07: Contabilizado = IntegracionPago o IntegracionCobro
+      // = 'PROCESADO CON ÉXITO' (confirmado con datos reales). El bug
+      // anterior comparaba Integrado_costos (solo '0'/'1', nunca ese
+      // texto) y además usaba truthiness de JS sobre Pagado (string
+      // '0' no vacío = truthy), marcando casi todo como Contabilizado.
+      v.pagado = (n(r._integracionPago) === 'PROCESADO CON ÉXITO')
+              || (n(r._integracionCobro) === 'PROCESADO CON ÉXITO');
     }
   });
 
